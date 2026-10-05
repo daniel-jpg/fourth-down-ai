@@ -8,6 +8,10 @@ The project supports both regulation and current NFL regular-season overtime sit
 
 [Launch the NFL Fourth-Down Decision AI](https://fourth-down-ai.streamlit.app/)
 
+## Demo
+
+![NFL Fourth-Down Decision AI](assets/fourth-down-ai-demo.png)
+
 ## Features
 
 - Compares go-for-it, field-goal, and punt decisions
