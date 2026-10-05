@@ -4,6 +4,10 @@ An NFL fourth-down decision engine that compares **go for it, field goal, and pu
 
 The project supports both regulation and current NFL regular-season overtime situations and includes an interactive Streamlit interface.
 
+## Live Demo
+
+[Launch the NFL Fourth-Down Decision AI](https://fourth-down-ai.streamlit.app/)
+
 ## Features
 
 - Compares go-for-it, field-goal, and punt decisions
