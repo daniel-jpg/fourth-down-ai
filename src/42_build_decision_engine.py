@@ -1317,6 +1317,29 @@ def action_eligible(
 
 
     # -----------------------------------------------------
+    # Normal designed-run development support.
+    #
+    # Normal fourth-down runs are overwhelmingly concentrated
+    # in short-yardage situations in the development data.
+    # Beyond 3 yards, the sample becomes too sparse to support
+    # a reliable action-specific RUN recommendation.
+    #
+    # GO itself remains available through PASS/DROPBACK.
+    # -----------------------------------------------------
+
+    if (
+        action == "NORMAL_GO_RUN"
+        and
+        base["ydstogo"] > 3
+    ):
+
+        return (
+            False,
+            "outside normal-run development support (ydstogo > 3)",
+        )
+
+
+    # -----------------------------------------------------
     # Fake-play empirical support.
     # -----------------------------------------------------
 

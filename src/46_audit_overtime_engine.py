@@ -875,31 +875,72 @@ for phase, scores in (
 
 
                         # -----------------------------
-                        # Normal run/pass should exist.
+                        # Normal GO support contract.
+                        #
+                        # PASS remains available across
+                        # normal fourth-down distances.
+                        #
+                        # Designed RUN is supported only
+                        # at ydstogo <= 3 because longer-
+                        # yardage run samples are too sparse.
                         # -----------------------------
 
-                        for action in GO_ACTIONS:
+                        pass_value = action_value(
+                            table,
+                            "NORMAL_GO_PASS",
+                        )
 
-                            value = action_value(
-                                table,
-                                action,
+                        if not np.isfinite(
+                            pass_value
+                        ):
+
+                            go_nan_failures += 1
+
+                            hard_failures.append(
+                                (
+                                    "GO pass missing/NaN",
+                                    f"{state}",
+                                )
                             )
 
-                            if not np.isfinite(
-                                value
-                            ):
 
-                                go_nan_failures += 1
+                        run_value = action_value(
+                            table,
+                            "NORMAL_GO_RUN",
+                        )
 
-                                hard_failures.append(
+                        run_should_exist = (
+                            distance <= 3
+                        )
+
+                        run_is_finite = np.isfinite(
+                            run_value
+                        )
+
+                        if (
+                            run_is_finite
+                            !=
+                            run_should_exist
+                        ):
+
+                            go_nan_failures += 1
+
+                            expected = (
+                                "finite"
+                                if run_should_exist
+                                else "unavailable/NaN"
+                            )
+
+                            hard_failures.append(
+                                (
+                                    "GO run support mismatch",
                                     (
-                                        "GO action missing/NaN",
-                                        (
-                                            f"{action} | "
-                                            f"{state}"
-                                        ),
-                                    )
+                                        f"expected {expected} | "
+                                        f"value={run_value} | "
+                                        f"{state}"
+                                    ),
                                 )
+                            )
 
 
                         # -----------------------------
@@ -1300,7 +1341,7 @@ for qtr in [
 
             for distance in [
                 1,
-                5,
+                3,
             ]:
 
                 for is_home in [
