@@ -1,0 +1,66 @@
+# =========================================================
+# Python
+# =========================================================
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# =========================================================
+# macOS / editors
+# =========================================================
+.DS_Store
+.vscode/
+.idea/
+
+# =========================================================
+# Local secrets / environment
+# =========================================================
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# =========================================================
+# Temporary development backups
+# =========================================================
+app_pre_ot_*.py
+src/*_pre_*.py
+
+# Keep this one intentionally:
+# used by the OT audit for exact regulation regression.
+!src/42_build_decision_engine_pre_ot_rules.py
+
+# =========================================================
+# Generated / training data
+# Ignore data by default, then allow production runtime files.
+# =========================================================
+data/*
+
+!data/go_shared_transition_pool.parquet
+!data/punt_ordinary_transition_pool.parquet
+!data/punt_rare_transition_pool.parquet
+!data/punt_transition_spec.json
+!data/fg_made_clock_transition_pool.parquet
+!data/fg_block_transition_pool.parquet
+!data/fg_live_transition_rates.parquet
+!data/win_probability_spec.json
+!data/fourth_down_modeling_split.parquet
+
+# =========================================================
+# Models
+# Ignore experimental / historical models by default.
+# =========================================================
+models/*
+
+!models/fake_conversion_model.joblib
+!models/field_goal_outcome_model.joblib
+!models/punt_field_position_model.joblib
+!models/win_probability_model.joblib
+
+# =========================================================
+# Misc generated output
+# =========================================================
+*.log

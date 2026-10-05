@@ -1,0 +1,30 @@
+{
+  "training_seasons": "2014-2022",
+  "validation_seasons": "2023-2024",
+  "test_season": 2025,
+  "target_classes": {
+    "0": "away_win",
+    "1": "tie",
+    "2": "home_win"
+  },
+  "features": [
+    "game_seconds_remaining",
+    "half_seconds_remaining",
+    "qtr",
+    "down",
+    "ydstogo",
+    "yardline_100",
+    "goal_to_go",
+    "home_score_differential",
+    "home_timeouts_remaining",
+    "away_timeouts_remaining",
+    "is_home_posteam",
+    "is_kickoff",
+    "is_overtime",
+    "final_five_minutes"
+  ],
+  "model": "HistGradientBoostingClassifier",
+  "perspective": "home_team",
+  "decision_value_policy": "for a home-team decision use P(home_win); for an away-team decision use P(away_win)",
+  "kickoff_policy": "kickoff states are explicitly represented using is_kickoff=1"
+}
