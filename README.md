@@ -2,7 +2,7 @@
 
 An NFL fourth-down decision engine that compares **go for it, field goal, and punt** decisions using machine learning, empirical transition models, and Monte Carlo simulation.
 
-The project supports both regulation and current NFL regular-season overtime situations and includes an interactive Streamlit interface.
+The project supports both regulation and 2025+ NFL regular-season overtime situations and includes an interactive Streamlit interface.
 
 ## Live Demo
 
@@ -54,7 +54,7 @@ The decision engine combines several components:
 
 ## Overtime Support
 
-The engine supports current NFL regular-season overtime decision states.
+The engine supports 2025+ NFL regular-season overtime decision states.
 
 It distinguishes among:
 
@@ -64,7 +64,7 @@ It distinguishes among:
 
 Overtime logic handles possession requirements, terminal scoring events, clock expiration, and tied-game value.
 
-The OT implementation was tested with:
+The overtime implementation was tested with:
 
 - 12 direct rule-layer checks
 - 1,330 valid overtime states
@@ -78,3 +78,134 @@ Final audit results:
 HARD FAILURES: 0
 REVIEW FLAGS: 0
 Regulation mismatches: 0
+```
+
+## Interactive App
+
+Run the Streamlit interface locally:
+
+```bash
+streamlit run app.py
+```
+
+The app allows you to specify:
+
+- Down and distance
+- Field position
+- Score differential
+- Quarter / overtime phase
+- Game clock
+- Home or away possession
+- Offensive and defensive timeouts
+- Stadium / roof context
+
+It then displays the estimated value of each available fourth-down option and recommends the highest-value action.
+
+## Installation
+
+Clone the repository:
+
+```bash
+git clone git@github.com:daniel-jpg/fourth-down-ai.git
+cd fourth-down-ai
+```
+
+Create and activate a virtual environment:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Run the app:
+
+```bash
+streamlit run app.py
+```
+
+## Project Structure
+
+```text
+fourth-down-ai/
+├── app.py
+├── requirements.txt
+├── assets/
+│   └── fourth-down-ai-demo.png
+├── data/
+├── models/
+└── src/
+    ├── 01_build_fourth_down_dataset.py
+    ├── ...
+    ├── 39_build_punt_model.py
+    ├── 40_build_fake_models.py
+    ├── 41_train_win_probability_model.py
+    ├── 42_build_decision_engine.py
+    ├── 43_evaluate_2025.py
+    ├── 45_build_overtime_state_dataset.py
+    └── 46_audit_overtime_engine.py
+```
+
+The numbered scripts document the modeling, auditing, and validation pipeline used to build the final engine.
+
+## Main Components
+
+### Decision Engine
+
+`src/42_build_decision_engine.py`
+
+Loads the trained models and empirical transition pools, simulates each available action, and calculates its expected value.
+
+### Web App
+
+`app.py`
+
+Streamlit interface for entering a game situation and viewing the recommended fourth-down decision.
+
+### Overtime Audit
+
+`src/46_audit_overtime_engine.py`
+
+Tests overtime rules, state validity, timeout combinations, held-out overtime plays, and regulation behavior.
+
+## Data and Models
+
+The repository contains the trained models and transition artifacts required to run the decision engine.
+
+Large intermediate datasets, virtual environments, local development files, and temporary audit outputs are intentionally excluded through `.gitignore`.
+
+## Tech Stack
+
+- Python
+- Streamlit
+- NumPy
+- pandas
+- Polars
+- scikit-learn
+- XGBoost
+- Altair
+- nflreadpy
+- PyArrow
+- joblib
+
+## Limitations
+
+- This is a decision-support research model, not a causal guarantee of the optimal football decision.
+- Postseason overtime is not separately modeled.
+- Monte Carlo standard error reflects simulation noise, not total model uncertainty.
+- Kicker-specific context defaults to the development-data median unless supplied programmatically.
+- Fake punt and fake field-goal recommendations are experimental.
+
+## Status
+
+Currently supports:
+
+- Regulation fourth-down decisions
+- 2025+ NFL regular-season overtime rules
+
+Postseason overtime is not currently modeled separately.
