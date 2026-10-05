@@ -1705,6 +1705,13 @@ if run_model:
                 f"{100 * row['expected_win_probability']:.2f}%",
             )
 
+        else:
+
+            st.metric(
+                "RUN",
+                "Unavailable",
+            )
+
     with a3:
 
         row = action_lookup.get(
