@@ -1313,7 +1313,7 @@ reg_clock = {
     1: 3300,
     2: 1500,
     3: 1200,
-    4: 180,
+    4: 600,
 }
 
 
@@ -1511,7 +1511,299 @@ print(
 
 print()
 print("=" * 80)
-print("6. HELD-OUT 2025 REGULAR-SEASON TRAILING OT PLAYS")
+print("6. REGULATION CLOCK-KILL RULE TESTS")
+print("=" * 80)
+
+
+clock_kill_cases = [
+    {
+        "name":
+            "1st down, 0 defensive TO, 120s = terminal",
+        "seconds": 120,
+        "def_timeouts": 0,
+        "down": 1,
+        "score_diff": 1,
+        "possession_original": True,
+        "is_home": 1,
+        "terminal": True,
+    },
+    {
+        "name":
+            "1st down, 1 defensive TO, 80s = terminal",
+        "seconds": 80,
+        "def_timeouts": 1,
+        "down": 1,
+        "score_diff": 1,
+        "possession_original": True,
+        "is_home": 1,
+        "terminal": True,
+    },
+    {
+        "name":
+            "1st down, 2 defensive TO, 40s = terminal",
+        "seconds": 40,
+        "def_timeouts": 2,
+        "down": 1,
+        "score_diff": 1,
+        "possession_original": True,
+        "is_home": 1,
+        "terminal": True,
+    },
+    {
+        "name":
+            "Away offense orientation, 2 defensive TO, 40s = terminal",
+        "seconds": 40,
+        "def_timeouts": 2,
+        "down": 1,
+        "score_diff": 1,
+        "possession_original": True,
+        "is_home": 0,
+        "terminal": True,
+    },
+    {
+        "name":
+            "1st down, 0 defensive TO, 121s = nonterminal",
+        "seconds": 121,
+        "def_timeouts": 0,
+        "down": 1,
+        "score_diff": 1,
+        "possession_original": True,
+        "is_home": 1,
+        "terminal": False,
+    },
+    {
+        "name":
+            "1st down, 1 defensive TO, 81s = nonterminal",
+        "seconds": 81,
+        "def_timeouts": 1,
+        "down": 1,
+        "score_diff": 1,
+        "possession_original": True,
+        "is_home": 1,
+        "terminal": False,
+    },
+    {
+        "name":
+            "1st down, 2 defensive TO, 41s = nonterminal",
+        "seconds": 41,
+        "def_timeouts": 2,
+        "down": 1,
+        "score_diff": 1,
+        "possession_original": True,
+        "is_home": 1,
+        "terminal": False,
+    },
+    {
+        "name":
+            "1st down, 3 defensive TO = nonterminal",
+        "seconds": 1,
+        "def_timeouts": 3,
+        "down": 1,
+        "score_diff": 1,
+        "possession_original": True,
+        "is_home": 1,
+        "terminal": False,
+    },
+    {
+        "name":
+            "2nd down, 0 defensive TO, 80s = terminal",
+        "seconds": 80,
+        "def_timeouts": 0,
+        "down": 2,
+        "score_diff": 1,
+        "possession_original": True,
+        "is_home": 1,
+        "terminal": True,
+    },
+    {
+        "name":
+            "3rd down, 0 defensive TO, 40s = terminal",
+        "seconds": 40,
+        "def_timeouts": 0,
+        "down": 3,
+        "score_diff": 1,
+        "possession_original": True,
+        "is_home": 1,
+        "terminal": True,
+    },
+    {
+        "name":
+            "4th down cannot be clock-killed",
+        "seconds": 1,
+        "def_timeouts": 0,
+        "down": 4,
+        "score_diff": 1,
+        "possession_original": True,
+        "is_home": 1,
+        "terminal": False,
+    },
+    {
+        "name":
+            "Tied game is not clock-kill terminal",
+        "seconds": 40,
+        "def_timeouts": 0,
+        "down": 1,
+        "score_diff": 0,
+        "possession_original": True,
+        "is_home": 1,
+        "terminal": False,
+    },
+    {
+        "name":
+            "Trailing offense is not clock-kill terminal",
+        "seconds": 40,
+        "def_timeouts": 0,
+        "down": 1,
+        "score_diff": -1,
+        "possession_original": True,
+        "is_home": 1,
+        "terminal": False,
+    },
+    {
+        "name":
+            "Opponent possession is not clock-kill terminal",
+        "seconds": 40,
+        "def_timeouts": 0,
+        "down": 1,
+        "score_diff": 1,
+        "possession_original": False,
+        "is_home": 1,
+        "terminal": False,
+    },
+]
+
+
+for case in clock_kill_cases:
+
+    base = normalize_state({
+        "qtr": 4,
+
+        "game_seconds_remaining":
+            float(
+                case["seconds"]
+            ),
+
+        "yardline_100": 57.0,
+
+        "ydstogo": 1.0,
+
+        "score_differential":
+            float(
+                case["score_diff"]
+            ),
+
+        "is_home":
+            int(
+                case["is_home"]
+            ),
+
+        "posteam_timeouts_remaining":
+            3.0,
+
+        "defteam_timeouts_remaining":
+            float(
+                case["def_timeouts"]
+            ),
+    })
+
+
+    state = make_wp_state(
+
+        base,
+
+        possession_original=
+            bool(
+                case[
+                    "possession_original"
+                ]
+            ),
+
+        yardline_100=55.0,
+
+        down=
+            float(
+                case["down"]
+            ),
+
+        ydstogo=10.0,
+
+        elapsed_seconds=0.0,
+
+        score_change_original=0.0,
+
+        is_kickoff=False,
+    )
+
+
+    raw = float(
+        predict_wp(
+            [state],
+            bool(
+                base["is_home"]
+            ),
+        )[0]
+    )
+
+
+    resolved = float(
+        evaluate_states(
+            base,
+            [state],
+        )[0]
+    )
+
+
+    if case["terminal"]:
+
+        condition = (
+            abs(
+                resolved
+                -
+                1.0
+            )
+            <
+            1e-12
+        )
+
+    else:
+
+        condition = (
+            abs(
+                resolved
+                -
+                raw
+            )
+            <
+            1e-12
+        )
+
+
+    hard_check(
+        (
+            "Regulation clock-kill: "
+            +
+            case["name"]
+        ),
+        condition,
+        (
+            f"case={case} | "
+            f"raw={raw:.12f} | "
+            f"resolved={resolved:.12f}"
+        ),
+    )
+
+
+print(
+    "Regulation clock-kill checks executed:",
+    len(
+        clock_kill_cases
+    ),
+)
+
+
+print()
+print("=" * 80)
+print("7. HELD-OUT 2025 REGULAR-SEASON TRAILING OT PLAYS")
 print("=" * 80)
 
 
@@ -1751,7 +2043,7 @@ else:
 
 print()
 print("=" * 80)
-print("7. FINAL AUDIT SUMMARY")
+print("8. FINAL AUDIT SUMMARY")
 print("=" * 80)
 
 

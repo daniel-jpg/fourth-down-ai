@@ -1033,7 +1033,8 @@ def predict_original_team_wp(
 # Evaluate post-play states.
 #
 # Regulation:
-#     use the learned WP model unchanged.
+#     resolve conservative clock-kill terminal wins exactly,
+#     then leave all other states to the learned WP model.
 #
 # 2025+ regular-season overtime:
 #     resolve rule-defined terminal outcomes exactly, then
@@ -1077,8 +1078,188 @@ def evaluate_post_play_states(
     )
 
 
-    # Regulation requires no rule override.
+    # -----------------------------------------------------
+    # Regulation clock-kill terminal states.
+    #
+    # If the original offense is leading in Q4, still owns
+    # the ball, and can exhaust the remaining clock with
+    # ordinary kneel-down runoffs after accounting for the
+    # opponent's remaining timeouts, treat the state as a
+    # terminal win.
+    #
+    # This is intentionally conservative: it does not credit
+    # any clock runoff before the next snap.
+    # -----------------------------------------------------
+
     if base["qtr"] < 5:
+
+        if int(base["qtr"]) != 4:
+
+            return wp
+
+
+        original_is_home = bool(
+            base["is_home"]
+        )
+
+
+        for index, state in enumerate(
+            states
+        ):
+
+            if (
+                int(
+                    round(
+                        float(
+                            state["qtr"]
+                        )
+                    )
+                )
+                !=
+                4
+            ):
+
+                continue
+
+
+            possession_original = bool(
+                state.get(
+                    "_possession_original",
+                    (
+                        int(
+                            round(
+                                float(
+                                    state[
+                                        "is_home_posteam"
+                                    ]
+                                )
+                            )
+                        )
+                        ==
+                        int(
+                            base["is_home"]
+                        )
+                    ),
+                )
+            )
+
+
+            if not possession_original:
+
+                continue
+
+
+            post_diff = (
+                original_score_diff_from_wp_state(
+                    state,
+                    original_is_home,
+                )
+            )
+
+
+            if post_diff <= 0.0:
+
+                continue
+
+
+            down = float(
+                state.get(
+                    "down",
+                    np.nan,
+                )
+            )
+
+
+            if not np.isfinite(
+                down
+            ):
+
+                continue
+
+
+            down = int(
+                round(
+                    down
+                )
+            )
+
+
+            if (
+                down < 1
+                or
+                down > 4
+            ):
+
+                continue
+
+
+            if original_is_home:
+
+                opponent_timeouts = float(
+                    state[
+                        "away_timeouts_remaining"
+                    ]
+                )
+
+            else:
+
+                opponent_timeouts = float(
+                    state[
+                        "home_timeouts_remaining"
+                    ]
+                )
+
+
+            opponent_timeouts = int(
+                np.clip(
+                    round(
+                        opponent_timeouts
+                    ),
+                    0,
+                    3,
+                )
+            )
+
+
+            runoff_windows = max(
+                0,
+                (
+                    4
+                    -
+                    down
+                )
+                -
+                opponent_timeouts,
+            )
+
+
+            drainable_seconds = (
+                40.0
+                *
+                runoff_windows
+            )
+
+
+            if drainable_seconds <= 0.0:
+
+                continue
+
+
+            remaining_seconds = float(
+                state[
+                    "game_seconds_remaining"
+                ]
+            )
+
+
+            if (
+                remaining_seconds
+                <=
+                drainable_seconds
+            ):
+
+                wp[index] = 1.0
+
 
         return wp
 
