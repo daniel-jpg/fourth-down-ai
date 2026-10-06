@@ -1850,3 +1850,165 @@ print(
     "The policy edge is model-estimated, "
     "not an observed causal win improvement."
 )
+
+# =========================================================
+# 9. Calibration diagnostics.
+#
+# These tables are descriptive holdout diagnostics only.
+# Do not tune production models to the 2025 benchmark.
+# =========================================================
+
+def print_calibration_table(
+    name,
+    actual,
+    predicted,
+    n_bins=10,
+):
+    calibration = pd.DataFrame({
+        "actual": np.asarray(
+            actual,
+            dtype=float,
+        ),
+        "predicted": np.asarray(
+            predicted,
+            dtype=float,
+        ),
+    })
+
+    calibration = calibration[
+        np.isfinite(calibration["actual"])
+        &
+        np.isfinite(calibration["predicted"])
+    ].copy()
+
+    if len(calibration) == 0:
+        print(
+            f"\n{name} CALIBRATION: no rows"
+        )
+        return
+
+    edges = np.linspace(
+        0.0,
+        1.0,
+        n_bins + 1,
+    )
+
+    calibration["probability_bin"] = pd.cut(
+        calibration["predicted"],
+        bins=edges,
+        include_lowest=True,
+    )
+
+    table = (
+        calibration
+        .groupby(
+            "probability_bin",
+            observed=True,
+        )
+        .agg(
+            plays=(
+                "actual",
+                "size",
+            ),
+            mean_predicted=(
+                "predicted",
+                "mean",
+            ),
+            actual_rate=(
+                "actual",
+                "mean",
+            ),
+        )
+        .reset_index()
+    )
+
+    table["calibration_gap"] = (
+        table["actual_rate"]
+        -
+        table["mean_predicted"]
+    )
+
+    print(
+        f"\n{name} CALIBRATION"
+    )
+
+    print(
+        table.to_string(
+            index=False,
+            formatters={
+                "mean_predicted":
+                    lambda x: f"{x:.3f}",
+                "actual_rate":
+                    lambda x: f"{x:.3f}",
+                "calibration_gap":
+                    lambda x: f"{x:+.3f}",
+            },
+        )
+    )
+
+
+# Win-probability calibration.
+wp_X = (
+    wp[
+        engine.WP_FEATURES
+    ]
+    .to_numpy()
+)
+
+wp_y = (
+    wp["outcome_class"]
+    .astype(int)
+    .to_numpy()
+)
+
+wp_probabilities = (
+    engine.wp_model.predict_proba(
+        wp_X
+    )
+)
+
+wp_home_probability = (
+    wp_probabilities[
+        :,
+        WP_CLASS_INDEX[2],
+    ]
+)
+
+wp_home_actual = (
+    wp_y == 2
+).astype(float)
+
+print_calibration_table(
+    "2025 WP — HOME WIN",
+    wp_home_actual,
+    wp_home_probability,
+)
+
+
+# GO conversion calibration.
+if len(go_eval) > 0:
+    print_calibration_table(
+        "2025 GO CONVERSION",
+        go_eval["actual"],
+        go_eval["predicted"],
+    )
+
+
+# Field-goal calibration.
+if len(fg_eval) > 0:
+    print_calibration_table(
+        "2025 FIELD GOAL",
+        fg_eval["actual"],
+        fg_eval["predicted"],
+    )
+
+
+print(
+    "\nCalibration gaps are actual rate minus "
+    "mean predicted probability."
+)
+
+print(
+    "Positive = model underprediction; "
+    "negative = model overprediction."
+)
