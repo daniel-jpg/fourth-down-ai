@@ -520,6 +520,14 @@ def test_normal_run_short_yardage_calibration(
         )
     )
 
+    raw_run_probability = (
+        go_conversion_probability(
+            short_state,
+            "NORMAL_GO_RUN",
+            apply_calibration=False,
+        )
+    )
+
     pass_probability = (
         go_conversion_probability(
             short_state,
@@ -532,6 +540,13 @@ def test_normal_run_short_yardage_calibration(
         abs=1e-12,
     )
 
+    # Validation diagnostics must be able to request the
+    # raw pre-calibration model probability.
+    assert raw_run_probability == pytest.approx(
+        raw_probability,
+        abs=1e-12,
+    )
+
     # Passing probabilities must remain untouched.
     assert pass_probability == pytest.approx(
         raw_probability,
@@ -539,7 +554,7 @@ def test_normal_run_short_yardage_calibration(
     )
 
 
-def test_normal_run_three_yards_is_not_recalibrated(
+def test_normal_run_three_yards_is_recalibrated(
     monkeypatch,
 ):
     class FakeGoModel:
@@ -569,7 +584,31 @@ def test_normal_run_three_yards_is_not_recalibrated(
         )
     )
 
+    raw_probability = 0.60
+
+    raw_logit = np.log(
+        raw_probability
+        /
+        (1.0 - raw_probability)
+    )
+
+    expected = (
+        1.0
+        /
+        (
+            1.0
+            +
+            np.exp(
+                -(
+                    raw_logit
+                    +
+                    0.2925
+                )
+            )
+        )
+    )
+
     assert probability == pytest.approx(
-        0.60,
+        expected,
         abs=1e-12,
     )

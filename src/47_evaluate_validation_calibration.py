@@ -558,6 +558,7 @@ for _, row in go_test.iterrows():
         .go_conversion_probability(
             base,
             row["action"],
+            apply_calibration=False,
         )
     )
 
@@ -996,8 +997,8 @@ print(
 )
 
 print(
-    "This candidate is diagnostic only; "
-    "production is unchanged."
+    "Production uses this validation-derived shift "
+    "for supported normal-run states."
 )
 
 
@@ -1075,6 +1076,12 @@ for _, row in fg_test.iterrows():
     )
 
     fg_records.append({
+        "game_id":
+            str(row["game_id"]),
+
+        "season":
+            int(row["season"]),
+
         "actual":
             int(actual),
 
@@ -1106,6 +1113,554 @@ print_calibration_table(
     "2023-2024 VALIDATION — FIELD GOAL",
     fg_eval["actual"],
     fg_eval["predicted"],
+)
+
+
+
+
+# =========================================================
+# FIELD GOAL — CROSS-YEAR PLATT CALIBRATION
+#
+# Fit only on validation data:
+#   2023 -> test 2024
+#   2024 -> test 2023
+#
+# Production FG probabilities are unchanged.
+# =========================================================
+
+from sklearn.linear_model import LogisticRegression
+
+
+def fg_binary_metrics(
+    frame,
+    probability_column,
+):
+
+    y = (
+        frame["actual"]
+        .to_numpy(
+            dtype=float
+        )
+    )
+
+    p = np.clip(
+        frame[
+            probability_column
+        ]
+        .to_numpy(
+            dtype=float
+        ),
+        1e-9,
+        1.0 - 1e-9,
+    )
+
+    return {
+        "logloss":
+            float(
+                -np.mean(
+                    y * np.log(p)
+                    +
+                    (1.0 - y)
+                    *
+                    np.log(1.0 - p)
+                )
+            ),
+
+        "brier":
+            float(
+                np.mean(
+                    (p - y) ** 2
+                )
+            ),
+
+        "auc":
+            float(
+                roc_auc_score(
+                    y,
+                    p,
+                )
+            ),
+
+        "actual":
+            float(
+                np.mean(y)
+            ),
+
+        "predicted":
+            float(
+                np.mean(p)
+            ),
+    }
+
+
+def fit_fg_platt(
+    frame,
+):
+
+    y = (
+        frame["actual"]
+        .to_numpy(
+            dtype=int
+        )
+    )
+
+    p = np.clip(
+        frame["predicted"]
+        .to_numpy(
+            dtype=float
+        ),
+        1e-6,
+        1.0 - 1e-6,
+    )
+
+    logit = np.log(
+        p
+        /
+        (1.0 - p)
+    ).reshape(
+        -1,
+        1,
+    )
+
+    calibrator = LogisticRegression(
+        C=1e6,
+        solver="lbfgs",
+        max_iter=1000,
+    )
+
+    calibrator.fit(
+        logit,
+        y,
+    )
+
+    return calibrator
+
+
+def apply_fg_platt(
+    calibrator,
+    probabilities,
+):
+
+    p = np.clip(
+        np.asarray(
+            probabilities,
+            dtype=float,
+        ),
+        1e-6,
+        1.0 - 1e-6,
+    )
+
+    logit = np.log(
+        p
+        /
+        (1.0 - p)
+    ).reshape(
+        -1,
+        1,
+    )
+
+    return (
+        calibrator
+        .predict_proba(
+            logit
+        )[:, 1]
+    )
+
+
+def evaluate_fg_cross_year(
+    fit_year,
+    test_year,
+):
+
+    fit_frame = (
+        fg_eval[
+            fg_eval["season"]
+            ==
+            fit_year
+        ]
+        .copy()
+    )
+
+    test_frame = (
+        fg_eval[
+            fg_eval["season"]
+            ==
+            test_year
+        ]
+        .copy()
+    )
+
+    calibrator = (
+        fit_fg_platt(
+            fit_frame
+        )
+    )
+
+    test_frame[
+        "calibrated"
+    ] = apply_fg_platt(
+        calibrator,
+        test_frame[
+            "predicted"
+        ],
+    )
+
+    raw = fg_binary_metrics(
+        test_frame,
+        "predicted",
+    )
+
+    calibrated = fg_binary_metrics(
+        test_frame,
+        "calibrated",
+    )
+
+    print(
+        f"\nFIT {fit_year} -> TEST {test_year}"
+    )
+
+    print(
+        f"Fit rows:       "
+        f"{len(fit_frame):,}"
+    )
+
+    print(
+        f"Test rows:      "
+        f"{len(test_frame):,}"
+    )
+
+    print(
+        "Intercept:      "
+        f"{float(calibrator.intercept_[0]):+.5f}"
+    )
+
+    print(
+        "Logit slope:    "
+        f"{float(calibrator.coef_[0, 0]):.5f}"
+    )
+
+    print(
+        "Actual make:    "
+        f"{raw['actual']:.5f}"
+    )
+
+    print(
+        "Raw pred make:  "
+        f"{raw['predicted']:.5f}"
+    )
+
+    print(
+        "Cal pred make:  "
+        f"{calibrated['predicted']:.5f}"
+    )
+
+    print(
+        "Logloss:        "
+        f"{raw['logloss']:.5f}"
+        " -> "
+        f"{calibrated['logloss']:.5f}"
+    )
+
+    print(
+        "Brier:          "
+        f"{raw['brier']:.5f}"
+        " -> "
+        f"{calibrated['brier']:.5f}"
+    )
+
+    print(
+        "AUC:            "
+        f"{raw['auc']:.5f}"
+        " -> "
+        f"{calibrated['auc']:.5f}"
+    )
+
+
+print(
+    "\nFIELD GOAL — BY VALIDATION SEASON"
+)
+
+print(
+    fg_eval
+    .groupby(
+        "season"
+    )
+    .agg(
+        plays=(
+            "actual",
+            "size",
+        ),
+        actual_make=(
+            "actual",
+            "mean",
+        ),
+        predicted_make=(
+            "predicted",
+            "mean",
+        ),
+    )
+    .assign(
+        gap=lambda x:
+            x["actual_make"]
+            -
+            x["predicted_make"]
+    )
+)
+
+
+print(
+    "\nFIELD GOAL — CROSS-YEAR PLATT CALIBRATION"
+)
+
+evaluate_fg_cross_year(
+    2023,
+    2024,
+)
+
+evaluate_fg_cross_year(
+    2024,
+    2023,
+)
+
+
+combined_fg_calibrator = (
+    fit_fg_platt(
+        fg_eval
+    )
+)
+
+print(
+    "\nCOMBINED 2023-2024 FG DIAGNOSTIC"
+)
+
+print(
+    "Intercept: "
+    f"{float(combined_fg_calibrator.intercept_[0]):+.5f}"
+)
+
+print(
+    "Logit slope: "
+    f"{float(combined_fg_calibrator.coef_[0, 0]):.5f}"
+)
+
+print(
+    "Diagnostic only; production FG is unchanged."
+)
+
+
+
+
+# =========================================================
+# FIELD GOAL — CROSS-YEAR GAME-CLUSTERED UNCERTAINTY
+#
+# The calibrator is fit on one validation year.
+# We then bootstrap COMPLETE GAMES from the opposite test
+# year to quantify uncertainty in the observed improvement.
+#
+# Negative delta = calibrated model is better.
+# =========================================================
+
+FG_BOOTSTRAP_REPLICATES = 2000
+FG_BOOTSTRAP_SEED = 2026
+
+
+def fg_clustered_test_bootstrap(
+    fit_year,
+    test_year,
+    *,
+    seed,
+):
+
+    fit_frame = (
+        fg_eval[
+            fg_eval["season"]
+            ==
+            fit_year
+        ]
+        .copy()
+    )
+
+    test_frame = (
+        fg_eval[
+            fg_eval["season"]
+            ==
+            test_year
+        ]
+        .copy()
+    )
+
+    calibrator = (
+        fit_fg_platt(
+            fit_frame
+        )
+    )
+
+    test_frame[
+        "calibrated"
+    ] = apply_fg_platt(
+        calibrator,
+        test_frame[
+            "predicted"
+        ],
+    )
+
+    raw_point = fg_binary_metrics(
+        test_frame,
+        "predicted",
+    )
+
+    cal_point = fg_binary_metrics(
+        test_frame,
+        "calibrated",
+    )
+
+    groups = [
+        group.copy()
+        for _, group
+        in test_frame.groupby(
+            "game_id",
+            sort=False,
+        )
+    ]
+
+    rng = np.random.default_rng(
+        seed
+    )
+
+    logloss_deltas = []
+    brier_deltas = []
+
+    for _ in range(
+        FG_BOOTSTRAP_REPLICATES
+    ):
+
+        sampled_indices = (
+            rng.integers(
+                0,
+                len(groups),
+                size=len(groups),
+            )
+        )
+
+        sample = pd.concat(
+            [
+                groups[index]
+                for index
+                in sampled_indices
+            ],
+            ignore_index=True,
+        )
+
+        raw = fg_binary_metrics(
+            sample,
+            "predicted",
+        )
+
+        calibrated = (
+            fg_binary_metrics(
+                sample,
+                "calibrated",
+            )
+        )
+
+        logloss_deltas.append(
+            calibrated["logloss"]
+            -
+            raw["logloss"]
+        )
+
+        brier_deltas.append(
+            calibrated["brier"]
+            -
+            raw["brier"]
+        )
+
+    logloss_ci = np.percentile(
+        logloss_deltas,
+        [
+            2.5,
+            97.5,
+        ],
+    )
+
+    brier_ci = np.percentile(
+        brier_deltas,
+        [
+            2.5,
+            97.5,
+        ],
+    )
+
+    point_logloss_delta = (
+        cal_point["logloss"]
+        -
+        raw_point["logloss"]
+    )
+
+    point_brier_delta = (
+        cal_point["brier"]
+        -
+        raw_point["brier"]
+    )
+
+    print(
+        f"\nFIT {fit_year} -> TEST {test_year}"
+    )
+
+    print(
+        f"Test games:      "
+        f"{test_frame['game_id'].nunique():,}"
+    )
+
+    print(
+        f"Test attempts:   "
+        f"{len(test_frame):,}"
+    )
+
+    print(
+        "Logloss delta:  "
+        f"{point_logloss_delta:+.6f} "
+        f"[{logloss_ci[0]:+.6f}, "
+        f"{logloss_ci[1]:+.6f}]"
+    )
+
+    print(
+        "Brier delta:    "
+        f"{point_brier_delta:+.6f} "
+        f"[{brier_ci[0]:+.6f}, "
+        f"{brier_ci[1]:+.6f}]"
+    )
+
+
+print(
+    "\nFIELD GOAL — CROSS-YEAR "
+    "GAME-CLUSTERED UNCERTAINTY"
+)
+
+print(
+    "Delta = calibrated minus raw; "
+    "negative is better."
+)
+
+print(
+    "Bootstrap replicates: "
+    f"{FG_BOOTSTRAP_REPLICATES:,}"
+)
+
+fg_clustered_test_bootstrap(
+    2023,
+    2024,
+    seed=FG_BOOTSTRAP_SEED,
+)
+
+fg_clustered_test_bootstrap(
+    2024,
+    2023,
+    seed=(
+        FG_BOOTSTRAP_SEED
+        +
+        1
+    ),
 )
 
 

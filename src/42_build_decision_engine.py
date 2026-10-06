@@ -2825,16 +2825,17 @@ GO_FEATURES = [
 
 # Validation-calibrated normal-run adjustment.
 #
-# Derived only from 2023-2024 validation data.
-# Applied only where the validation sample showed a
-# stable short-yardage underprediction.
+# Derived only from 2023-2024 validation data using
+# supported normal-run states with 0 < ydstogo <= 3.
 NORMAL_GO_RUN_LOGIT_SHIFT = 0.2925
-NORMAL_GO_RUN_CALIBRATION_MAX_YDSTOGO = 2.0
+NORMAL_GO_RUN_CALIBRATION_MAX_YDSTOGO = 3.0
 
 
 def go_conversion_probability(
     base,
     action,
+    *,
+    apply_calibration=True,
 ):
 
     config = GO_ACTIONS[
@@ -2942,10 +2943,14 @@ def go_conversion_probability(
 
 
     if (
+        apply_calibration
+        and
         action
         ==
         "NORMAL_GO_RUN"
         and
+        0.0
+        <
         float(base["ydstogo"])
         <=
         NORMAL_GO_RUN_CALIBRATION_MAX_YDSTOGO
