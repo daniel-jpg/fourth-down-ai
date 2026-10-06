@@ -2686,6 +2686,40 @@ def simulate_go(
         ].copy()
 
 
+        # -------------------------------------------------
+        # Successful goal-to-go plays must borrow from
+        # successful goal-to-go transitions.
+        #
+        # In the development pool, every true goal-to-go
+        # conversion results in an offensive score. Allowing
+        # converted non-goal-to-go donors here can incorrectly
+        # turn a successful fourth-and-goal into an ordinary
+        # first-down state short of the end zone.
+        # -------------------------------------------------
+
+        if (
+            bool(outcome)
+            and
+            int(
+                base[
+                    "goal_to_go"
+                ]
+            )
+            ==
+            1
+        ):
+
+            donor_pool = donor_pool[
+                donor_pool[
+                    "yardline_100"
+                ]
+                <=
+                donor_pool[
+                    "ydstogo"
+                ]
+            ].copy()
+
+
         if len(
             donor_pool
         ) == 0:
