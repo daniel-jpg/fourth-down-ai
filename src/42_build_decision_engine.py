@@ -1411,6 +1411,17 @@ def original_score_diff_from_wp_state(
     return -home_diff
 
 
+
+# Development-data two-point conversion success rate.
+# NFL play-by-play, 2014-2024:
+# 639 successes / 1,335 attempts.
+TWO_POINT_SUCCESS_PROB = (
+    639.0
+    /
+    1335.0
+)
+
+
 def evaluate_post_play_states(
     base,
     states,
@@ -1677,6 +1688,128 @@ def evaluate_post_play_states(
                 ),
             )
         )
+
+
+        # -------------------------------------------------
+        # Response-possession touchdown while trailing by 8.
+        #
+        # A touchdown earns six points and must be followed
+        # by a Try. Historical GO donors can contain bundled
+        # +6 or +7 scoring sequences, but in this game state
+        # the offense must attempt a two-point conversion.
+        #
+        # Failure -> terminal loss.
+        # Success -> tie, then either:
+        #   * 0:00 remaining: game ends tied (utility 0.5)
+        #   * time remaining: tied sudden-death continuation
+        # -------------------------------------------------
+
+        response_td_down_eight = (
+
+            phase == "RESPONSE"
+
+            and
+
+            abs(
+                float(
+                    base[
+                        "score_differential"
+                    ]
+                )
+                +
+                8.0
+            )
+            <= eps
+
+            and
+
+            score_change
+            >=
+            6.0 - eps
+
+            and
+
+            score_change
+            <
+            8.0 - eps
+        )
+
+
+        if response_td_down_eight:
+
+            remaining_seconds = float(
+                state[
+                    "game_seconds_remaining"
+                ]
+            )
+
+            if remaining_seconds <= eps:
+
+                tie_value = 0.5
+
+            else:
+
+                tie_state = dict(
+                    state
+                )
+
+                score_adjustment = (
+                    8.0
+                    -
+                    score_change
+                )
+
+                if original_on_home_axis:
+
+                    tie_state[
+                        "home_score_differential"
+                    ] = (
+                        float(
+                            tie_state[
+                                "home_score_differential"
+                            ]
+                        )
+                        +
+                        score_adjustment
+                    )
+
+                else:
+
+                    tie_state[
+                        "home_score_differential"
+                    ] = (
+                        float(
+                            tie_state[
+                                "home_score_differential"
+                            ]
+                        )
+                        -
+                        score_adjustment
+                    )
+
+                tie_state[
+                    "_score_change_original"
+                ] = 8.0
+
+                tie_value = float(
+                    predict_original_team_wp(
+                        [tie_state],
+                        original_on_home_axis,
+                        (
+                            base["site"]
+                            ==
+                            "NEUTRAL"
+                        ),
+                    )[0]
+                )
+
+            wp[index] = (
+                TWO_POINT_SUCCESS_PROB
+                *
+                tie_value
+            )
+
+            continue
 
 
         # -------------------------------------------------

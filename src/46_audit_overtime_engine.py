@@ -1,5 +1,8 @@
 import math
+from pathlib import Path
 import runpy
+import subprocess
+import tempfile
 
 import numpy as np
 import pandas as pd
@@ -9,9 +12,52 @@ CURRENT_ENGINE = (
     "src/42_build_decision_engine.py"
 )
 
-REGULATION_BACKUP = (
-    "src/42_build_decision_engine_pre_ot_rules.py"
-)
+
+def load_committed_head_engine():
+
+    source = subprocess.run(
+        [
+            "git",
+            "show",
+            (
+                "HEAD:"
+                "src/42_build_decision_engine.py"
+            ),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+    temp_path = None
+
+    try:
+
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".py",
+            prefix="audit_head_engine_",
+            dir=".",
+            delete=False,
+        ) as handle:
+
+            handle.write(source)
+
+            temp_path = Path(
+                handle.name
+            )
+
+        return runpy.run_path(
+            str(temp_path)
+        )
+
+    finally:
+
+        if temp_path is not None:
+
+            temp_path.unlink(
+                missing_ok=True
+            )
 
 
 print("=" * 80)
@@ -22,9 +68,7 @@ new = runpy.run_path(
     CURRENT_ENGINE
 )
 
-old = runpy.run_path(
-    REGULATION_BACKUP
-)
+old = load_committed_head_engine()
 
 
 normalize_state = new["normalize_state"]
@@ -260,7 +304,14 @@ opening_score = scoring_state(
 raw = float(
     predict_wp(
         [opening_score],
-        bool(base["is_home"]),
+        bool(
+            base["_wp_original_on_home_axis"]
+        ),
+        (
+            base["site"]
+            ==
+            "NEUTRAL"
+        ),
     )[0]
 )
 
@@ -390,8 +441,13 @@ raw7 = float(
         [plus7],
         bool(
             response_down7[
-                "is_home"
+                "_wp_original_on_home_axis"
             ]
+        ),
+        (
+            response_down7["site"]
+            ==
+            "NEUTRAL"
         ),
     )[0]
 )
@@ -531,6 +587,174 @@ hard_check(
 print(
     f"Rule-layer checks executed: "
     f"{hard_checks}"
+)
+
+
+print()
+print("-" * 80)
+print("1B. CASE #15 OT RESPONSE DOWN-8 REGRESSION")
+print("-" * 80)
+
+
+case15_state = {
+    "qtr": 5,
+    "game_seconds_remaining": 1.0,
+    "yardline_100": 50.0,
+    "ydstogo": 10.0,
+    "score_differential": -8.0,
+    "is_home": 1,
+    "ot_phase": "RESPONSE",
+    "posteam_timeouts_remaining": 0.0,
+    "defteam_timeouts_remaining": 0.0,
+    "roof": "outdoors",
+}
+
+
+case15_base = normalize_state(
+    case15_state
+)
+
+
+# A historical GO scoring donor may carry +6 or +7.
+# At 0:00, either must still receive the two-point Try
+# opportunity before the OT result is resolved.
+
+case15_td6 = scoring_state(
+    case15_base,
+    +6.0,
+    elapsed=5.0,
+)
+
+case15_td7 = scoring_state(
+    case15_base,
+    +7.0,
+    elapsed=5.0,
+)
+
+
+case15_expected_td_value = (
+    0.5
+    *
+    (
+        639.0
+        /
+        1335.0
+    )
+)
+
+
+case15_td6_value = float(
+    evaluate_states(
+        case15_base,
+        [case15_td6],
+    )[0]
+)
+
+case15_td7_value = float(
+    evaluate_states(
+        case15_base,
+        [case15_td7],
+    )[0]
+)
+
+
+hard_check(
+    "Case #15 +6 TD receives two-point Try value",
+    abs(
+        case15_td6_value
+        -
+        case15_expected_td_value
+    )
+    < 1e-12,
+    (
+        f"resolved={case15_td6_value:.12f}, "
+        f"expected={case15_expected_td_value:.12f}"
+    ),
+)
+
+hard_check(
+    "Case #15 +7 TD receives two-point Try value",
+    abs(
+        case15_td7_value
+        -
+        case15_expected_td_value
+    )
+    < 1e-12,
+    (
+        f"resolved={case15_td7_value:.12f}, "
+        f"expected={case15_expected_td_value:.12f}"
+    ),
+)
+
+
+case15_result = recommend(
+    case15_state,
+    n_simulations=4000,
+    seed=42,
+)
+
+case15_table = production_table(
+    case15_result
+)
+
+case15_pass = action_value(
+    case15_table,
+    "NORMAL_GO_PASS",
+)
+
+case15_punt = action_value(
+    case15_table,
+    "PUNT",
+)
+
+
+hard_check(
+    "Case #15 PASS has positive game value",
+    (
+        np.isfinite(case15_pass)
+        and
+        case15_pass > 0.0
+    ),
+    f"PASS={case15_pass}",
+)
+
+hard_check(
+    "Case #15 PASS beats PUNT",
+    (
+        np.isfinite(case15_pass)
+        and
+        np.isfinite(case15_punt)
+        and
+        case15_pass > case15_punt
+    ),
+    (
+        f"PASS={case15_pass}, "
+        f"PUNT={case15_punt}"
+    ),
+)
+
+hard_check(
+    "Case #15 recommends PASS",
+    (
+        best_production_action(
+            case15_result
+        )
+        ==
+        "NORMAL_GO_PASS"
+    ),
+    (
+        "best="
+        f"{best_production_action(case15_result)}"
+    ),
+)
+
+
+print(
+    "Case #15 values:",
+    f"PASS={case15_pass:.8f}",
+    f"PUNT={case15_punt:.8f}",
+    "best="
+    f"{best_production_action(case15_result)}",
 )
 
 
@@ -1305,7 +1529,7 @@ print(
 
 print()
 print("=" * 80)
-print("5. REGULATION REGRESSION AGAINST PRE-OT ENGINE")
+print("5. REGULATION REGRESSION AGAINST COMMITTED HEAD")
 print("=" * 80)
 
 
@@ -1739,7 +1963,12 @@ for case in clock_kill_cases:
         predict_wp(
             [state],
             bool(
-                base["is_home"]
+                base["_wp_original_on_home_axis"]
+            ),
+            (
+                base["site"]
+                ==
+                "NEUTRAL"
             ),
         )[0]
     )

@@ -1617,7 +1617,28 @@ if run_model:
             )
 
 
-        if strategy_edge < 1.0:
+        relative_strategy_edge = (
+            (
+                best["wp"]
+                -
+                second["wp"]
+            )
+            /
+            max(
+                float(best["wp"]),
+                1e-12,
+            )
+        )
+
+
+        near_tie = (
+            strategy_edge < 1.0
+            and
+            relative_strategy_edge < 0.20
+        )
+
+
+        if near_tie:
 
             st.info(
                 f"**Near tie:** "
