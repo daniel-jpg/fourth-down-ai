@@ -19,6 +19,7 @@ field_goal_probabilities = ENGINE["field_goal_probabilities"]
 blocked_fg_live_probabilities = ENGINE["blocked_fg_live_probabilities"]
 make_wp_state = ENGINE["make_wp_state"]
 evaluate_post_play_states = ENGINE["evaluate_post_play_states"]
+go_conversion_probability = ENGINE["go_conversion_probability"]
 
 
 def base_state(**overrides):
@@ -458,3 +459,117 @@ def test_opportunity_completed_can_terminalize_response(
     )[0]
 
     assert value == pytest.approx(0.0)
+
+
+
+# ---------------------------------------------------------------------------
+# GO conversion calibration
+# ---------------------------------------------------------------------------
+
+def test_normal_run_short_yardage_calibration(
+    monkeypatch,
+):
+    class FakeGoModel:
+        def predict_proba(
+            self,
+            X,
+        ):
+            return np.array(
+                [[0.40, 0.60]],
+                dtype=float,
+            )
+
+    monkeypatch.setitem(
+        go_conversion_probability.__globals__,
+        "go_model",
+        FakeGoModel(),
+    )
+
+    short_state = base_state(
+        ydstogo=1.0,
+    )
+
+    raw_probability = 0.60
+
+    raw_logit = np.log(
+        raw_probability
+        /
+        (1.0 - raw_probability)
+    )
+
+    expected = (
+        1.0
+        /
+        (
+            1.0
+            +
+            np.exp(
+                -(
+                    raw_logit
+                    +
+                    0.2925
+                )
+            )
+        )
+    )
+
+    run_probability = (
+        go_conversion_probability(
+            short_state,
+            "NORMAL_GO_RUN",
+        )
+    )
+
+    pass_probability = (
+        go_conversion_probability(
+            short_state,
+            "NORMAL_GO_PASS",
+        )
+    )
+
+    assert run_probability == pytest.approx(
+        expected,
+        abs=1e-12,
+    )
+
+    # Passing probabilities must remain untouched.
+    assert pass_probability == pytest.approx(
+        raw_probability,
+        abs=1e-12,
+    )
+
+
+def test_normal_run_three_yards_is_not_recalibrated(
+    monkeypatch,
+):
+    class FakeGoModel:
+        def predict_proba(
+            self,
+            X,
+        ):
+            return np.array(
+                [[0.40, 0.60]],
+                dtype=float,
+            )
+
+    monkeypatch.setitem(
+        go_conversion_probability.__globals__,
+        "go_model",
+        FakeGoModel(),
+    )
+
+    state = base_state(
+        ydstogo=3.0,
+    )
+
+    probability = (
+        go_conversion_probability(
+            state,
+            "NORMAL_GO_RUN",
+        )
+    )
+
+    assert probability == pytest.approx(
+        0.60,
+        abs=1e-12,
+    )
