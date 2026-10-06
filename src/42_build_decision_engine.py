@@ -556,8 +556,7 @@ def normalize_state(state):
 
         "score_differential",
 
-        "is_home",
-    ]
+        ]
 
 
     missing = [
@@ -610,48 +609,138 @@ def normalize_state(state):
     )
 
 
-    s["is_home"] = int(
-        s["is_home"]
+
+    # -----------------------------------------------------
+    # Public game-site contract.
+    #
+    # HOME:
+    #     current offense is playing at home.
+    #
+    # AWAY:
+    #     current offense is playing away.
+    #
+    # NEUTRAL:
+    #     neither team receives home-field advantage.
+    #
+    # Legacy is_home / is_neutral_site inputs are accepted
+    # temporarily so old audits and scripts still run, but
+    # they are immediately canonicalized to "site".
+    # -----------------------------------------------------
+
+    raw_site = s.get(
+        "site"
     )
 
+    if raw_site is None:
 
-    if s["is_home"] not in [0, 1]:
+        legacy_neutral = int(
+            s.get(
+                "is_neutral_site",
+                0,
+            )
+        )
+
+        if legacy_neutral not in [0, 1]:
+
+            raise ValueError(
+                "is_neutral_site must be 0 or 1."
+            )
+
+        legacy_home = s.get(
+            "is_home"
+        )
+
+        if legacy_neutral == 1:
+
+            raw_site = "NEUTRAL"
+
+        elif legacy_home is not None:
+
+            legacy_home = int(
+                legacy_home
+            )
+
+            if legacy_home not in [0, 1]:
+
+                raise ValueError(
+                    "is_home must be 0 or 1."
+                )
+
+            raw_site = (
+                "HOME"
+                if legacy_home == 1
+                else "AWAY"
+            )
+
+        else:
+
+            raise ValueError(
+                "site must be HOME, AWAY, or NEUTRAL."
+            )
+
+
+    site = (
+        str(raw_site)
+        .strip()
+        .upper()
+    )
+
+    if site not in {
+        "HOME",
+        "AWAY",
+        "NEUTRAL",
+    }:
 
         raise ValueError(
-            "is_home must be 0 or 1."
+            "site must be HOME, AWAY, or NEUTRAL."
         )
 
 
-    s.setdefault(
+    s["site"] = site
+
+    # Remove legacy public representation after
+    # canonicalization. Downstream logic sees only `site`.
+    s.pop(
+        "is_home",
+        None,
+    )
+
+    s.pop(
         "is_neutral_site",
-        0,
+        None,
     )
 
-    s["is_neutral_site"] = int(
-        s["is_neutral_site"]
+
+    s["site_advantage"] = {
+        "HOME": 1,
+        "AWAY": -1,
+        "NEUTRAL": 0,
+    }[
+        site
+    ]
+
+
+    # -----------------------------------------------------
+    # Private WP-model coordinate axis.
+    #
+    # The trained WP artifact expresses score, timeout, and
+    # possession features in a "home-team" coordinate system.
+    #
+    # For HOME/AWAY, this naturally follows the real site.
+    #
+    # For NEUTRAL, we pick one canonical coordinate ONLY to
+    # construct model features. It has no football meaning:
+    # neutral predictions are evaluated in both mirrored
+    # orientations and averaged below.
+    # -----------------------------------------------------
+
+    s[
+        "_wp_original_on_home_axis"
+    ] = (
+        0
+        if site == "AWAY"
+        else 1
     )
-
-    if (
-        s["is_neutral_site"]
-        not in [0, 1]
-    ):
-
-        raise ValueError(
-            "is_neutral_site must be 0 or 1."
-        )
-
-
-    if s["is_neutral_site"]:
-
-        s["site_advantage"] = 0
-
-    elif s["is_home"] == 1:
-
-        s["site_advantage"] = 1
-
-    else:
-
-        s["site_advantage"] = -1
 
 
     # -----------------------------------------------------
@@ -771,7 +860,7 @@ def normalize_state(state):
     )
 
 
-    if s["is_home"] == 1:
+    if s["_wp_original_on_home_axis"] == 1:
 
         s[
             "home_score_differential"
@@ -862,7 +951,7 @@ def make_wp_state(
     )
 
 
-    if base["is_home"] == 1:
+    if base["_wp_original_on_home_axis"] == 1:
 
         home_score_diff = (
 
@@ -892,13 +981,13 @@ def make_wp_state(
     if possession_original:
 
         is_home_posteam = int(
-            base["is_home"]
+            base["_wp_original_on_home_axis"]
         )
 
     else:
 
         is_home_posteam = int(
-            1 - base["is_home"]
+            1 - base["_wp_original_on_home_axis"]
         )
 
 
@@ -1021,8 +1110,8 @@ WP_CLASS_INDEX = {
 def predict_original_team_wp(
 
     wp_states,
-    original_is_home,
-    is_neutral_site=False,
+    original_on_home_axis,
+    neutral_site=False,
 
 ):
 
@@ -1045,7 +1134,7 @@ def predict_original_team_wp(
     )
 
 
-    if original_is_home:
+    if original_on_home_axis:
 
         class_value = 2
 
@@ -1065,18 +1154,18 @@ def predict_original_team_wp(
 
 
     # -----------------------------------------------------
-    # Neutral-site administrative-label symmetry.
+    # Neutral-site WP symmetry.
     #
-    # NFL neutral-site games still receive administrative
-    # home / away designations. Those labels should not
-    # create home-field advantage in the learned WP layer.
+    # The learned WP artifact uses a home-team coordinate
+    # system. For a neutral game, that coordinate must not
+    # create home-field advantage.
     #
-    # Evaluate the same football state under both equivalent
-    # administrative orientations and average the original
-    # team's win probability.
+    # Evaluate the same football state in both mirrored
+    # model orientations and average the original team's
+    # win probability.
     # -----------------------------------------------------
 
-    if not is_neutral_site:
+    if not neutral_site:
 
         return original_probability
 
@@ -1147,7 +1236,7 @@ def predict_original_team_wp(
     )
 
 
-    if original_is_home:
+    if original_on_home_axis:
 
         mirrored_class_value = 0
 
@@ -1191,7 +1280,7 @@ def predict_original_team_wp(
 
 def original_score_diff_from_wp_state(
     state,
-    original_is_home,
+    original_on_home_axis,
 ):
 
     home_diff = float(
@@ -1200,7 +1289,7 @@ def original_score_diff_from_wp_state(
         ]
     )
 
-    if original_is_home:
+    if original_on_home_axis:
 
         return home_diff
 
@@ -1216,16 +1305,11 @@ def evaluate_post_play_states(
         predict_original_team_wp(
             states,
             bool(
-                base["is_home"]
+                base["_wp_original_on_home_axis"]
             ),
             (
-                bool(
-                    base[
-                        "is_neutral_site"
-                    ]
-                )
-                and
-                int(base["qtr"]) < 5
+                base["site"]
+                == "NEUTRAL"
             ),
         )
         .astype(
@@ -1255,8 +1339,8 @@ def evaluate_post_play_states(
             return wp
 
 
-        original_is_home = bool(
-            base["is_home"]
+        original_on_home_axis = bool(
+            base["_wp_original_on_home_axis"]
         )
 
 
@@ -1294,7 +1378,7 @@ def evaluate_post_play_states(
                         )
                         ==
                         int(
-                            base["is_home"]
+                            base["_wp_original_on_home_axis"]
                         )
                     ),
                 )
@@ -1309,7 +1393,7 @@ def evaluate_post_play_states(
             post_diff = (
                 original_score_diff_from_wp_state(
                     state,
-                    original_is_home,
+                    original_on_home_axis,
                 )
             )
 
@@ -1350,7 +1434,7 @@ def evaluate_post_play_states(
                 continue
 
 
-            if original_is_home:
+            if original_on_home_axis:
 
                 opponent_timeouts = float(
                     state[
@@ -1425,8 +1509,8 @@ def evaluate_post_play_states(
 
     eps = 1e-9
 
-    original_is_home = bool(
-        base["is_home"]
+    original_on_home_axis = bool(
+        base["_wp_original_on_home_axis"]
     )
 
 
@@ -1437,7 +1521,7 @@ def evaluate_post_play_states(
         post_diff = (
             original_score_diff_from_wp_state(
                 state,
-                original_is_home,
+                original_on_home_axis,
             )
         )
 
@@ -1473,7 +1557,7 @@ def evaluate_post_play_states(
                     )
                     ==
                     int(
-                        base["is_home"]
+                        base["_wp_original_on_home_axis"]
                     )
                 ),
             )
@@ -1628,16 +1712,11 @@ def current_win_probability(
         predict_original_team_wp(
             [state],
             bool(
-                base["is_home"]
+                base["_wp_original_on_home_axis"]
             ),
             (
-                bool(
-                    base[
-                        "is_neutral_site"
-                    ]
-                )
-                and
-                int(base["qtr"]) < 5
+                base["site"]
+                == "NEUTRAL"
             ),
         )[0]
 
@@ -4432,9 +4511,9 @@ if __name__ == "__main__":
         "defteam_timeouts_remaining":
             3,
 
-        # Current offense is the home team.
-        "is_home":
-            1,
+        # Current offense is playing at home.
+        "site":
+            "HOME",
 
         "roof":
             "outdoors",
