@@ -965,8 +965,18 @@ for _, row in (
 
     go_records.append({
 
+        "game_id":
+            str(
+                row["game_id"]
+            ),
+
         "action":
             row["action"],
+
+        "ydstogo":
+            float(
+                base["ydstogo"]
+            ),
 
         "actual":
             int(
@@ -1224,6 +1234,11 @@ for _, row in (
 
 
     fg_records.append({
+
+        "game_id":
+            str(
+                row["game_id"]
+            ),
 
         "actual":
             int(actual),
@@ -2012,3 +2027,449 @@ print(
     "Positive = model underprediction; "
     "negative = model overprediction."
 )
+
+
+
+# =========================================================
+# GAME-CLUSTERED BOOTSTRAP UNCERTAINTY
+#
+# Resample complete NFL games rather than individual plays
+# because fourth-down observations within one game are not
+# statistically independent.
+# =========================================================
+
+BOOTSTRAP_REPLICATES = 2000
+BOOTSTRAP_SEED = 2025
+
+
+def binary_metric_values(
+    frame,
+    predicted_column,
+):
+
+    y = (
+        frame["actual"]
+        .to_numpy(
+            dtype=float
+        )
+    )
+
+    p = np.clip(
+        frame[predicted_column]
+        .to_numpy(
+            dtype=float
+        ),
+        1e-9,
+        1.0 - 1e-9,
+    )
+
+    metrics = {
+        "Logloss":
+            float(
+                log_loss(
+                    y,
+                    p,
+                    labels=[
+                        0,
+                        1,
+                    ],
+                )
+            ),
+
+        "Brier":
+            float(
+                np.mean(
+                    (p - y) ** 2
+                )
+            ),
+
+        "Actual rate":
+            float(
+                np.mean(y)
+            ),
+
+        "Predicted rate":
+            float(
+                np.mean(p)
+            ),
+
+        "AUC":
+            np.nan,
+    }
+
+    if (
+        np.unique(y).size
+        >
+        1
+    ):
+        metrics["AUC"] = float(
+            roc_auc_score(
+                y,
+                p,
+            )
+        )
+
+    return metrics
+
+
+def clustered_bootstrap_samples(
+    frame,
+    *,
+    seed,
+):
+
+    frame = (
+        frame
+        .reset_index(
+            drop=True
+        )
+    )
+
+    groups = {
+        game_id:
+            group.index.to_numpy(
+                dtype=int
+            )
+
+        for (
+            game_id,
+            group,
+        )
+        in frame.groupby(
+            "game_id",
+            sort=False,
+        )
+    }
+
+    game_ids = np.array(
+        list(
+            groups.keys()
+        ),
+        dtype=object,
+    )
+
+    rng = (
+        np.random
+        .default_rng(seed)
+    )
+
+    for _ in range(
+        BOOTSTRAP_REPLICATES
+    ):
+
+        sampled_games = rng.choice(
+            game_ids,
+            size=len(game_ids),
+            replace=True,
+        )
+
+        sampled_rows = np.concatenate([
+            groups[game_id]
+            for game_id
+            in sampled_games
+        ])
+
+        yield frame.iloc[
+            sampled_rows
+        ]
+
+
+def print_clustered_ci(
+    name,
+    frame,
+    predicted_column,
+    *,
+    seed,
+):
+
+    point = binary_metric_values(
+        frame,
+        predicted_column,
+    )
+
+    distributions = {
+        metric: []
+        for metric
+        in point
+    }
+
+    for sample in clustered_bootstrap_samples(
+        frame,
+        seed=seed,
+    ):
+
+        values = binary_metric_values(
+            sample,
+            predicted_column,
+        )
+
+        for (
+            metric,
+            value,
+        ) in values.items():
+
+            distributions[
+                metric
+            ].append(value)
+
+    print(
+        f"\n{name}"
+    )
+
+    print(
+        "Game-clustered bootstrap "
+        f"replicates: {BOOTSTRAP_REPLICATES:,}"
+    )
+
+    for metric in [
+        "Logloss",
+        "Brier",
+        "AUC",
+        "Actual rate",
+        "Predicted rate",
+    ]:
+
+        values = np.asarray(
+            distributions[metric],
+            dtype=float,
+        )
+
+        lower, upper = (
+            np.nanpercentile(
+                values,
+                [
+                    2.5,
+                    97.5,
+                ],
+            )
+        )
+
+        print(
+            f"{metric:<15} "
+            f"{point[metric]:.5f} "
+            f"[{lower:.5f}, {upper:.5f}]"
+        )
+
+
+# =========================================================
+# Current production-model uncertainty.
+# =========================================================
+
+if len(go_eval) > 0:
+
+    print_clustered_ci(
+        "2025 GO — GAME-CLUSTERED 95% CI",
+        go_eval,
+        "predicted",
+        seed=BOOTSTRAP_SEED,
+    )
+
+
+if len(fg_eval) > 0:
+
+    print_clustered_ci(
+        "2025 FIELD GOAL — GAME-CLUSTERED 95% CI",
+        fg_eval,
+        "predicted",
+        seed=(
+            BOOTSTRAP_SEED
+            +
+            1
+        ),
+    )
+
+
+# =========================================================
+# Paired uncertainty for the short-yardage run calibration.
+#
+# Recover the old raw GO probability by reversing the
+# production logit shift on exactly the states where the
+# calibration is applied.
+# =========================================================
+
+if len(go_eval) > 0:
+
+    go_comparison = (
+        go_eval.copy()
+    )
+
+    go_comparison[
+        "raw_predicted"
+    ] = (
+        go_comparison[
+            "predicted"
+        ]
+        .astype(float)
+    )
+
+    calibration_mask = (
+        (
+            go_comparison[
+                "action"
+            ]
+            ==
+            "NORMAL_GO_RUN"
+        )
+        &
+        (
+            go_comparison[
+                "ydstogo"
+            ]
+            <=
+            engine
+            .NORMAL_GO_RUN_CALIBRATION_MAX_YDSTOGO
+        )
+    )
+
+    calibrated_p = np.clip(
+        go_comparison.loc[
+            calibration_mask,
+            "predicted",
+        ].to_numpy(
+            dtype=float
+        ),
+        1e-9,
+        1.0 - 1e-9,
+    )
+
+    calibrated_logit = np.log(
+        calibrated_p
+        /
+        (
+            1.0
+            -
+            calibrated_p
+        )
+    )
+
+    raw_logit = (
+        calibrated_logit
+        -
+        engine
+        .NORMAL_GO_RUN_LOGIT_SHIFT
+    )
+
+    go_comparison.loc[
+        calibration_mask,
+        "raw_predicted",
+    ] = (
+        1.0
+        /
+        (
+            1.0
+            +
+            np.exp(
+                -raw_logit
+            )
+        )
+    )
+
+
+    old_point = (
+        binary_metric_values(
+            go_comparison,
+            "raw_predicted",
+        )
+    )
+
+    new_point = (
+        binary_metric_values(
+            go_comparison,
+            "predicted",
+        )
+    )
+
+
+    delta_distributions = {
+        "Logloss": [],
+        "Brier": [],
+        "AUC": [],
+    }
+
+
+    for sample in clustered_bootstrap_samples(
+        go_comparison,
+        seed=(
+            BOOTSTRAP_SEED
+            +
+            2
+        ),
+    ):
+
+        old_values = (
+            binary_metric_values(
+                sample,
+                "raw_predicted",
+            )
+        )
+
+        new_values = (
+            binary_metric_values(
+                sample,
+                "predicted",
+            )
+        )
+
+        for metric in (
+            delta_distributions
+        ):
+
+            delta_distributions[
+                metric
+            ].append(
+                new_values[metric]
+                -
+                old_values[metric]
+            )
+
+
+    print(
+        "\n2025 GO CALIBRATION CHANGE — "
+        "PAIRED GAME-CLUSTERED 95% CI"
+    )
+
+    print(
+        "Delta = calibrated production "
+        "minus raw pre-calibration model."
+    )
+
+    print(
+        "For Logloss/Brier, negative is better. "
+        "For AUC, positive is better."
+    )
+
+
+    for metric in [
+        "Logloss",
+        "Brier",
+        "AUC",
+    ]:
+
+        point_delta = (
+            new_point[metric]
+            -
+            old_point[metric]
+        )
+
+        values = np.asarray(
+            delta_distributions[
+                metric
+            ],
+            dtype=float,
+        )
+
+        lower, upper = (
+            np.nanpercentile(
+                values,
+                [
+                    2.5,
+                    97.5,
+                ],
+            )
+        )
+
+        print(
+            f"{metric:<9} "
+            f"{point_delta:+.5f} "
+            f"[{lower:+.5f}, {upper:+.5f}]"
+        )
