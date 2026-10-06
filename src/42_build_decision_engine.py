@@ -2140,7 +2140,7 @@ def go_conversion_probability(
         "final_two_minutes":
             int(
                 base[
-                    "half_seconds_remaining"
+                    "game_seconds_remaining"
                 ]
                 <= 120
             ),
