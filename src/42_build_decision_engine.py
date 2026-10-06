@@ -611,6 +611,36 @@ def normalize_state(state):
 
 
     # -----------------------------------------------------
+    # Distance-to-go input validation.
+    #
+    # A first-down line cannot lie beyond the opponent goal
+    # line. Inside the 1-yard line, allow the conventional
+    # integer representation of 1 yard to go.
+    # -----------------------------------------------------
+
+    max_yards_to_go = max(
+        1.0,
+        float(
+            s["yardline_100"]
+        ),
+    )
+
+    if (
+        float(
+            s["ydstogo"]
+        )
+        >
+        max_yards_to_go
+        + 1e-9
+    ):
+
+        raise ValueError(
+            "ydstogo cannot exceed the distance "
+            "to the opponent goal line."
+        )
+
+
+    # -----------------------------------------------------
     # Public game-site contract.
     #
     # HOME:
@@ -951,6 +981,81 @@ def make_wp_state(
     )
 
 
+    # -----------------------------------------------------
+    # Halftime crossing.
+    #
+    # If a Q2 play consumes the remaining half clock, the
+    # next football state is the Q3 opening kickoff:
+    #
+    #   - Q3 15:00
+    #   - both teams have 3 timeouts
+    #   - no scrimmage down / distance / field position
+    #   - possession orientation follows the known
+    #     second-half kickoff receiver
+    #
+    # Legacy programmatic callers that do not provide
+    # second_half_receiver retain the action-derived
+    # possession orientation, but app states provide it.
+    # -----------------------------------------------------
+
+    crossed_halftime = (
+        int(base["qtr"]) == 2
+        and
+        float(elapsed_seconds)
+        >=
+        float(
+            base["half_seconds_remaining"]
+        )
+    )
+
+
+    if crossed_halftime:
+
+        qtr = 3
+        game_seconds = 1800.0
+        half_seconds = 1800.0
+
+        second_half_receiver = (
+            base.get(
+                "second_half_receiver"
+            )
+        )
+
+        if second_half_receiver is not None:
+
+            second_half_receiver = (
+                str(second_half_receiver)
+                .strip()
+                .upper()
+            )
+
+            if (
+                second_half_receiver
+                ==
+                "OFFENSE"
+            ):
+
+                possession_original = True
+
+            elif (
+                second_half_receiver
+                ==
+                "DEFENSE"
+            ):
+
+                possession_original = False
+
+            else:
+
+                raise ValueError(
+                    "second_half_receiver must be "
+                    "OFFENSE or DEFENSE."
+                )
+
+
+        is_kickoff = True
+
+
     if base["_wp_original_on_home_axis"] == 1:
 
         home_score_diff = (
@@ -1053,14 +1158,24 @@ def make_wp_state(
             home_score_diff,
 
         "home_timeouts_remaining":
-            base[
-                "home_timeouts_remaining"
-            ],
+            (
+                3.0
+                if crossed_halftime
+                else
+                base[
+                    "home_timeouts_remaining"
+                ]
+            ),
 
         "away_timeouts_remaining":
-            base[
-                "away_timeouts_remaining"
-            ],
+            (
+                3.0
+                if crossed_halftime
+                else
+                base[
+                    "away_timeouts_remaining"
+                ]
+            ),
 
         "is_home_posteam":
             float(

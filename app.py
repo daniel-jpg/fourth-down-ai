@@ -1280,6 +1280,25 @@ yardline_100 = (
     )
 )
 
+max_yards_to_go = max(
+    1.0,
+    float(yardline_100),
+)
+
+if (
+    float(ydstogo)
+    >
+    max_yards_to_go
+):
+
+    situation_valid = False
+
+    st.error(
+        "Yards to go cannot exceed the distance "
+        "to the opponent goal line."
+    )
+
+
 col4, col5 = st.columns(2)
 
 
@@ -1312,6 +1331,36 @@ with col5:
         format_func=lambda value:
             ROOF_LABELS[value],
     )
+
+
+second_half_receiver = None
+
+
+if qtr == 2:
+
+    second_half_receiver = st.radio(
+        "Second-half kickoff receiver",
+        options=[
+            "Current offense",
+            "Current defense",
+        ],
+        index=None,
+        horizontal=True,
+        help=(
+            "Who is scheduled to receive the opening "
+            "kickoff of the third quarter. This is known "
+            "from the opening coin toss."
+        ),
+    )
+
+
+    if second_half_receiver is None:
+
+        situation_valid = False
+
+        st.caption(
+            "Select the second-half kickoff receiver."
+        )
 
 
 # =========================================================
@@ -1382,6 +1431,21 @@ if run_model:
         "roof":
             roof,
     }
+
+
+    if qtr == 2:
+
+        state[
+            "second_half_receiver"
+        ] = (
+            "OFFENSE"
+            if
+            second_half_receiver
+            ==
+            "Current offense"
+            else
+            "DEFENSE"
+        )
 
 
     if qtr == 5:
