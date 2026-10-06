@@ -65,25 +65,140 @@ print(
 
 
 # =========================================================
-# 3. Find first subsequent offensive state.
+# 3. Attach exact SAME-PLAY punt metadata.
 #
-# This gives us the actual post-punt field position,
-# including returns, touchbacks, penalties, etc.
+# Do not infer score / possession from a later play.
+#
+# play_id is not reliably chronological across every game,
+# so the punt play itself is the source of truth for:
+#
+# - TD / safety scoring
+# - lost fumbles
+# - multi-fumble recovery sequence
 # =========================================================
 
-state_rows = (
+punt_meta = (
     pbp
     .filter(
-        pl.col("posteam").is_not_null()
-        &
-        pl.col("down").is_not_null()
-        &
-        pl.col("yardline_100").is_not_null()
+        pl.col("punt_attempt")
+        .fill_null(0)
+        ==
+        1
     )
     .select([
         "game_id",
         "play_id",
 
+        "fixed_drive",
+
+        "posteam_score",
+        "defteam_score",
+        "posteam_score_post",
+        "defteam_score_post",
+
+        "fumble_lost",
+
+        "fumbled_1_team",
+        "fumble_recovery_1_team",
+
+        "fumbled_2_team",
+        "fumble_recovery_2_team",
+
+        "touchdown",
+        "td_team",
+        "safety",
+    ])
+    .rename({
+        "fixed_drive":
+            "pbp_fixed_drive",
+
+        "posteam_score":
+            "same_play_posteam_score_before",
+
+        "defteam_score":
+            "same_play_defteam_score_before",
+
+        "posteam_score_post":
+            "same_play_posteam_score_after",
+
+        "defteam_score_post":
+            "same_play_defteam_score_after",
+
+        "fumble_lost":
+            "same_play_fumble_lost",
+
+        "fumbled_1_team":
+            "same_play_fumbled_1_team",
+
+        "fumble_recovery_1_team":
+            "same_play_fumble_recovery_1_team",
+
+        "fumbled_2_team":
+            "same_play_fumbled_2_team",
+
+        "fumble_recovery_2_team":
+            "same_play_fumble_recovery_2_team",
+
+        "touchdown":
+            "same_play_touchdown",
+
+        "td_team":
+            "same_play_td_team",
+
+        "safety":
+            "same_play_safety",
+    })
+)
+
+
+before_meta_join = punts.height
+
+punts = punts.join(
+    punt_meta,
+    on=[
+        "game_id",
+        "play_id",
+    ],
+    how="left",
+)
+
+assert (
+    punts.height
+    ==
+    before_meta_join
+)
+
+
+# =========================================================
+# 4. Reconstruct next offensive state by FIXED DRIVE.
+#
+# fixed_drive + 1 is far safer than assuming a larger
+# play_id means a later football state.
+#
+# We still validate the resulting state before allowing it
+# into the field-position / clock model.
+# =========================================================
+
+drive_states = (
+    pbp
+    .filter(
+        pl.col("fixed_drive")
+        .is_not_null()
+        &
+        pl.col("posteam")
+        .is_not_null()
+        &
+        pl.col("down")
+        .is_not_null()
+        &
+        pl.col("yardline_100")
+        .is_not_null()
+    )
+    .select([
+        "game_id",
+        "fixed_drive",
+
+        "play_id",
         "qtr",
         "game_seconds_remaining",
 
@@ -94,54 +209,81 @@ state_rows = (
         "ydstogo",
         "yardline_100",
 
-        "posteam_score",
-        "defteam_score",
-
         "play_type",
         "desc",
     ])
-    .rename({
+    .sort(
+        [
+            "game_id",
+            "fixed_drive",
+            "qtr",
+            "game_seconds_remaining",
+            "play_id",
+        ],
+        descending=[
+            False,
+            False,
+            False,
+            True,
+            False,
+        ],
+    )
+    .group_by(
+        [
+            "game_id",
+            "fixed_drive",
+        ],
+        maintain_order=True,
+    )
+    .agg([
+        pl.col("play_id")
+        .first()
+        .alias("state_play_id"),
 
-        "play_id":
-            "state_play_id",
+        pl.col("qtr")
+        .first()
+        .alias("state_qtr"),
 
-        "qtr":
-            "state_qtr",
+        pl.col(
+            "game_seconds_remaining"
+        )
+        .first()
+        .alias(
+            "state_game_seconds_remaining"
+        ),
 
-        "game_seconds_remaining":
-            "state_game_seconds_remaining",
+        pl.col("posteam")
+        .first()
+        .alias("state_posteam"),
 
-        "posteam":
-            "state_posteam",
+        pl.col("defteam")
+        .first()
+        .alias("state_defteam"),
 
-        "defteam":
-            "state_defteam",
+        pl.col("down")
+        .first()
+        .alias("state_down"),
 
-        "down":
-            "state_down",
+        pl.col("ydstogo")
+        .first()
+        .alias("state_ydstogo"),
 
-        "ydstogo":
-            "state_ydstogo",
+        pl.col("yardline_100")
+        .first()
+        .alias("state_yardline_100"),
 
-        "yardline_100":
-            "state_yardline_100",
+        pl.col("play_type")
+        .first()
+        .alias("state_play_type"),
 
-        "posteam_score":
-            "state_posteam_score",
-
-        "defteam_score":
-            "state_defteam_score",
-
-        "play_type":
-            "state_play_type",
-
-        "desc":
-            "state_desc",
-    })
-    .sort([
-        "game_id",
-        "state_play_id",
+        pl.col("desc")
+        .first()
+        .alias("state_desc"),
     ])
+    .rename({
+        "fixed_drive":
+            "target_fixed_drive"
+    })
 )
 
 
@@ -149,101 +291,89 @@ punts = (
     punts
     .with_columns(
         (
-            pl.col("play_id")
-            + 0.000001
+            pl.col("pbp_fixed_drive")
+            + 1.0
         )
-        .alias("search_play_id")
+        .alias(
+            "target_fixed_drive"
+        )
     )
-    .sort([
-        "game_id",
-        "search_play_id",
-    ])
-    .join_asof(
-        state_rows,
-
-        left_on="search_play_id",
-        right_on="state_play_id",
-
-        by="game_id",
-
-        strategy="forward",
+    .join(
+        drive_states,
+        on=[
+            "game_id",
+            "target_fixed_drive",
+        ],
+        how="left",
     )
 )
 
 
 # =========================================================
-# 4. Verify future-state extraction.
+# 5. Same-play score and final loose-ball recovery.
 # =========================================================
-
-bad_future = punts.filter(
-    pl.col("state_play_id").is_not_null()
-    &
-    (
-        pl.col("state_play_id")
-        <= pl.col("play_id")
-    )
-)
-
-
-print("\nSTRICT FUTURE CHECK")
-
-print(
-    f"Bad future states: {bad_future.height}"
-)
-
-assert bad_future.height == 0
-
-
-# =========================================================
-# 5. Score differential from ORIGINAL kicking team's
-# perspective.
-# =========================================================
-
-punts = punts.with_columns(
-
-    pl.when(
-        pl.col("state_posteam")
-        ==
-        pl.col("posteam")
-    )
-    .then(
-        pl.col("state_posteam_score")
-        -
-        pl.col("state_defteam_score")
-    )
-
-    .when(
-        pl.col("state_posteam")
-        ==
-        pl.col("defteam")
-    )
-    .then(
-        pl.col("state_defteam_score")
-        -
-        pl.col("state_posteam_score")
-    )
-
-    .otherwise(None)
-
-    .alias(
-        "state_original_score_differential"
-    )
-
-)
-
 
 punts = punts.with_columns([
 
     (
-        pl.col(
-            "state_original_score_differential"
+        (
+            pl.col(
+                "same_play_posteam_score_after"
+            )
+            -
+            pl.col(
+                "same_play_defteam_score_after"
+            )
         )
         -
-        pl.col(
-            "score_differential"
+        (
+            pl.col(
+                "same_play_posteam_score_before"
+            )
+            -
+            pl.col(
+                "same_play_defteam_score_before"
+            )
         )
     )
-    .alias("score_change"),
+    .alias(
+        "same_play_score_change"
+    ),
+
+    pl.when(
+        pl.col(
+            "same_play_fumble_lost"
+        )
+        .fill_null(0)
+        ==
+        1
+    )
+    .then(
+        pl.coalesce([
+            pl.col(
+                "same_play_fumble_recovery_2_team"
+            ),
+
+            # A second fumble that goes out of bounds stays
+            # with the second fumbler.
+            pl.col(
+                "same_play_fumbled_2_team"
+            ),
+
+            pl.col(
+                "same_play_fumble_recovery_1_team"
+            ),
+        ])
+    )
+    .otherwise(
+        pl.lit(
+            None,
+            dtype=pl.String,
+        )
+    )
+    .alias(
+        "final_recovery_team"
+    ),
 
     (
         pl.col(
@@ -254,13 +384,26 @@ punts = punts.with_columns([
             "state_game_seconds_remaining"
         )
     )
-    .alias("seconds_to_state"),
+    .alias(
+        "seconds_to_state"
+    ),
 
 ])
 
 
+# score_change now means score ON THE PUNT PLAY itself.
+punts = punts.with_columns(
+    pl.col(
+        "same_play_score_change"
+    )
+    .alias(
+        "score_change"
+    )
+)
+
+
 # =========================================================
-# 6. Period changes.
+# 6. Period / state validation.
 # =========================================================
 
 punts = punts.with_columns([
@@ -271,7 +414,9 @@ punts = punts.with_columns([
         (pl.col("state_qtr") == 3)
     )
     .fill_null(False)
-    .alias("crossed_halftime"),
+    .alias(
+        "crossed_halftime"
+    ),
 
     (
         (pl.col("qtr") == 4)
@@ -279,29 +424,84 @@ punts = punts.with_columns([
         (pl.col("state_qtr") >= 5)
     )
     .fill_null(False)
-    .alias("entered_overtime"),
+    .alias(
+        "entered_overtime"
+    ),
+
+    (
+        (
+            pl.col("state_qtr")
+            ==
+            pl.col("qtr")
+        )
+        |
+        (
+            (pl.col("qtr") == 1)
+            &
+            (pl.col("state_qtr") == 2)
+        )
+        |
+        (
+            (pl.col("qtr") == 3)
+            &
+            (pl.col("state_qtr") == 4)
+        )
+    )
+    .fill_null(False)
+    .alias(
+        "valid_period_transition"
+    ),
 
 ])
 
 
+punts = punts.with_columns(
+    (
+        pl.col("state_play_id")
+        .is_not_null()
+        &
+        pl.col(
+            "valid_period_transition"
+        )
+        &
+        pl.col(
+            "seconds_to_state"
+        )
+        .is_not_null()
+        &
+        (
+            pl.col(
+                "seconds_to_state"
+            )
+            >=
+            0
+        )
+        &
+        (
+            pl.col(
+                "seconds_to_state"
+            )
+            <=
+            30
+        )
+    )
+    .fill_null(False)
+    .alias(
+        "state_chronological"
+    )
+)
+
+
 # =========================================================
 # 7. Physical punt branch.
-#
-# BROKEN:
-#   bad snap / execution failure
-#
-# BLOCKED:
-#   actual punt attempt gets blocked
-#
-# REGULAR:
-#   everything else
 # =========================================================
 
 punts = punts.with_columns(
 
     pl.when(
         pl.col("execution_status")
-        == "BROKEN"
+        ==
+        "BROKEN"
     )
     .then(
         pl.lit("BROKEN")
@@ -310,7 +510,8 @@ punts = punts.with_columns(
     .when(
         pl.col("pbp_punt_blocked")
         .fill_null(0)
-        == 1
+        ==
+        1
     )
     .then(
         pl.lit("BLOCKED")
@@ -320,63 +521,51 @@ punts = punts.with_columns(
         pl.lit("REGULAR")
     )
 
-    .alias("punt_branch")
+    .alias(
+        "punt_branch"
+    )
 
 )
 
 
 # =========================================================
-# 8. Final transition class.
+# 8. Transition class.
 #
-# Score changes take priority over possession because a
-# punt-return TD is followed by a kickoff and therefore
-# possession may have flipped again by the next state.
+# Scoring comes from the punt play itself.
+#
+# For an ordinary punt:
+# - absent a lost return-team fumble, the receiving team
+#   gets the ball;
+# - if the return team loses the ball, use the FINAL
+#   recovery on the play.
+#
+# Blocked / broken punts may not populate normal fumble
+# fields, so only use the next-drive state when that state
+# passes the chronology guard.
 # =========================================================
 
 punts = punts.with_columns(
 
     pl.when(
-        pl.col("score_change") < 0
+        pl.col("score_change")
+        <
+        0
     )
     .then(
-        pl.lit("opponent_scored")
+        pl.lit(
+            "opponent_scored"
+        )
     )
 
     .when(
-        pl.col("score_change") > 0
+        pl.col("score_change")
+        >
+        0
     )
     .then(
-        pl.lit("kicking_team_scored")
-    )
-
-    .when(
-        (
-            pl.col("touchdown") == 1
+        pl.lit(
+            "kicking_team_scored"
         )
-        &
-        (
-            pl.col("pbp_td_team")
-            ==
-            pl.col("defteam")
-        )
-    )
-    .then(
-        pl.lit("opponent_scored")
-    )
-
-    .when(
-        (
-            pl.col("touchdown") == 1
-        )
-        &
-        (
-            pl.col("pbp_td_team")
-            ==
-            pl.col("posteam")
-        )
-    )
-    .then(
-        pl.lit("kicking_team_scored")
     )
 
     .when(
@@ -384,27 +573,90 @@ punts = punts.with_columns(
         .is_null()
     )
     .then(
-        pl.lit("no_later_state")
+        pl.lit(
+            "no_later_state"
+        )
     )
 
     .when(
-        pl.col("crossed_halftime")
+        pl.col(
+            "crossed_halftime"
+        )
     )
     .then(
-        pl.lit("crossed_halftime")
+        pl.lit(
+            "crossed_halftime"
+        )
     )
 
     .when(
-        pl.col("entered_overtime")
+        pl.col(
+            "entered_overtime"
+        )
     )
     .then(
-        pl.lit("entered_overtime")
+        pl.lit(
+            "entered_overtime"
+        )
     )
 
+    # Ordinary punt where receiving team lost the ball
+    # and the kicking team finished with it.
     .when(
-        pl.col("state_posteam")
+        (
+            pl.col("punt_branch")
+            ==
+            "REGULAR"
+        )
+        &
+        (
+            pl.col(
+                "same_play_fumble_lost"
+            )
+            .fill_null(0)
+            ==
+            1
+        )
+        &
+        (
+            pl.col(
+                "final_recovery_team"
+            )
+            ==
+            pl.col("posteam")
+        )
+    )
+    .then(
+        pl.lit(
+            "kicking_team_ball_no_score"
+        )
+    )
+
+    # All other non-scoring regular punts belong to the
+    # receiving team.
+    .when(
+        pl.col("punt_branch")
         ==
-        pl.col("defteam")
+        "REGULAR"
+    )
+    .then(
+        pl.lit(
+            "opponent_ball_no_score"
+        )
+    )
+
+    # Blocked / broken punt: trust next-drive possession
+    # only if the state passed the chronology guard.
+    .when(
+        pl.col(
+            "state_chronological"
+        )
+        &
+        (
+            pl.col("state_posteam")
+            ==
+            pl.col("defteam")
+        )
     )
     .then(
         pl.lit(
@@ -413,9 +665,15 @@ punts = punts.with_columns(
     )
 
     .when(
-        pl.col("state_posteam")
-        ==
-        pl.col("posteam")
+        pl.col(
+            "state_chronological"
+        )
+        &
+        (
+            pl.col("state_posteam")
+            ==
+            pl.col("posteam")
+        )
     )
     .then(
         pl.lit(
@@ -427,9 +685,83 @@ punts = punts.with_columns(
         pl.lit("other")
     )
 
-    .alias("transition_class")
+    .alias(
+        "transition_class"
+    )
 
 )
+
+
+# =========================================================
+# 8B. Is the reconstructed state safe to use?
+# =========================================================
+
+punts = punts.with_columns(
+
+    pl.when(
+        pl.col(
+            "transition_class"
+        )
+        ==
+        "opponent_ball_no_score"
+    )
+    .then(
+        pl.col(
+            "state_chronological"
+        )
+        &
+        (
+            pl.col("state_posteam")
+            ==
+            pl.col("defteam")
+        )
+    )
+
+    .when(
+        pl.col(
+            "transition_class"
+        )
+        ==
+        "kicking_team_ball_no_score"
+    )
+    .then(
+        pl.col(
+            "state_chronological"
+        )
+        &
+        (
+            pl.col("state_posteam")
+            ==
+            pl.col("posteam")
+        )
+    )
+
+    .when(
+        pl.col(
+            "transition_class"
+        )
+        .is_in([
+            "opponent_scored",
+            "kicking_team_scored",
+        ])
+    )
+    .then(
+        pl.col(
+            "state_chronological"
+        )
+    )
+
+    .otherwise(
+        pl.lit(False)
+    )
+
+    .fill_null(False)
+    .alias(
+        "state_usable"
+    )
+
+)
+
 
 
 # =========================================================
@@ -547,6 +879,8 @@ ordinary_train = (
             ==
             "opponent_ball_no_score"
         )
+        &
+        pl.col("state_usable")
     )
 )
 
@@ -561,6 +895,8 @@ ordinary_val = (
             ==
             "opponent_ball_no_score"
         )
+        &
+        pl.col("state_usable")
     )
 )
 
@@ -955,6 +1291,11 @@ rare_columns = [
 
     "touchdown",
     "pbp_td_team",
+    "safety",
+
+    "same_play_score_change",
+    "final_recovery_team",
+    "state_usable",
 
     "desc",
 ]

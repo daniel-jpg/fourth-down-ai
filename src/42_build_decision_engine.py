@@ -774,18 +774,62 @@ def normalize_state(state):
 
 
     # -----------------------------------------------------
-    # Overtime phase.
+    # Overtime rule metadata.
     #
-    # Current 2025+ NFL regular-season OT requires both
-    # teams to receive an opportunity to possess before
-    # ordinary sudden death, subject to the 10-minute clock.
-    #
-    # The phase cannot be inferred reliably from ordinary
-    # down / distance / score / clock state, so require it
-    # explicitly for overtime decisions.
+    # qtr == 5 remains the model's generic overtime bucket.
+    # ot_format and ot_period carry 2026 rule information
+    # without inventing qtr == 6, 7, ... model states.
     # -----------------------------------------------------
 
     if s["qtr"] >= 5:
+
+        s["ot_format"] = str(
+            s.get(
+                "ot_format",
+                "REGULAR_SEASON",
+            )
+        ).strip().upper()
+
+        allowed_ot_formats = {
+            "REGULAR_SEASON",
+            "POSTSEASON",
+        }
+
+        if (
+            s["ot_format"]
+            not in allowed_ot_formats
+        ):
+
+            raise ValueError(
+                "ot_format must be REGULAR_SEASON "
+                "or POSTSEASON."
+            )
+
+        s["ot_period"] = int(
+            s.get(
+                "ot_period",
+                1,
+            )
+        )
+
+        if s["ot_period"] < 1:
+
+            raise ValueError(
+                "ot_period must be at least 1 "
+                "in overtime."
+            )
+
+        if (
+            s["ot_format"]
+            == "REGULAR_SEASON"
+            and
+            s["ot_period"] != 1
+        ):
+
+            raise ValueError(
+                "2026 regular-season overtime "
+                "has only one period."
+            )
 
         if "ot_phase" not in s:
 
@@ -816,14 +860,22 @@ def normalize_state(state):
 
     else:
 
+        s["ot_format"] = "REGULATION"
+        s["ot_period"] = 0
         s["ot_phase"] = "REGULATION"
 
 
-    default_timeouts = (
-        2.0
-        if s["qtr"] >= 5
-        else 3.0
-    )
+    if s["qtr"] >= 5:
+
+        default_timeouts = (
+            3.0
+            if s["ot_format"] == "POSTSEASON"
+            else 2.0
+        )
+
+    else:
+
+        default_timeouts = 3.0
 
 
     s.setdefault(
@@ -969,6 +1021,10 @@ def make_wp_state(
 
     is_kickoff=False,
 
+    ot_opportunity_completed=False,
+
+    touchdown_original=0,
+
 ):
 
     (
@@ -978,6 +1034,75 @@ def make_wp_state(
     ) = advance_clock(
         base,
         elapsed_seconds,
+    )
+
+
+    # -----------------------------------------------------
+    # Postseason overtime period crossing.
+    #
+    # The model continues to use qtr == 5 for all overtime.
+    # Rule-only ot_period tracks OT1, OT2, ...
+    #
+    # If a play reaches the end of a postseason OT period,
+    # the next period begins with a fresh 15:00 clock.
+    # Elapsed time does not spill into the next period.
+    # -----------------------------------------------------
+
+    ot_period = int(
+        base.get(
+            "ot_period",
+            0,
+        )
+    )
+
+    crossed_postseason_ot_period = (
+        int(base["qtr"]) >= 5
+        and
+        base.get("ot_format")
+        == "POSTSEASON"
+        and
+        float(
+            base[
+                "game_seconds_remaining"
+            ]
+        )
+        > 0.0
+        and
+        float(elapsed_seconds)
+        >=
+        float(
+            base[
+                "game_seconds_remaining"
+            ]
+        )
+    )
+
+    if crossed_postseason_ot_period:
+
+        ot_period += 1
+
+        # qtr == 5 is the model's generic OT bucket.
+        qtr = 5
+
+        # Every postseason overtime period starts at 15:00.
+        game_seconds = 900.0
+        half_seconds = 900.0
+
+
+    # Postseason OT uses three timeouts per overtime half:
+    #
+    #   OT1 + OT2 -> one timeout pool
+    #   OT3 + OT4 -> fresh timeout pool
+    #   OT5 + OT6 -> fresh timeout pool
+    #
+    # Therefore reset when a period crossing enters an
+    # odd-numbered OT period after OT1.
+    reset_postseason_ot_timeouts = (
+        crossed_postseason_ot_period
+        and
+        ot_period >= 3
+        and
+        ot_period % 2 == 1
     )
 
 
@@ -1133,6 +1258,30 @@ def make_wp_state(
         "_score_change_original":
             float(score_change_original),
 
+        "_ot_opportunity_completed":
+            bool(
+                ot_opportunity_completed
+            ),
+
+        "_touchdown_original":
+            int(
+                touchdown_original
+            ),
+
+        "_crossed_postseason_ot_period":
+            bool(
+                crossed_postseason_ot_period
+            ),
+
+        "ot_format":
+            base.get(
+                "ot_format",
+                "REGULATION",
+            ),
+
+        "ot_period":
+            float(ot_period),
+
         "game_seconds_remaining":
             game_seconds,
 
@@ -1160,7 +1309,11 @@ def make_wp_state(
         "home_timeouts_remaining":
             (
                 3.0
-                if crossed_halftime
+                if (
+                    crossed_halftime
+                    or
+                    reset_postseason_ot_timeouts
+                )
                 else
                 base[
                     "home_timeouts_remaining"
@@ -1170,7 +1323,11 @@ def make_wp_state(
         "away_timeouts_remaining":
             (
                 3.0
-                if crossed_halftime
+                if (
+                    crossed_halftime
+                    or
+                    reset_postseason_ot_timeouts
+                )
                 else
                 base[
                     "away_timeouts_remaining"
@@ -1388,9 +1545,11 @@ def predict_original_team_wp(
 #     resolve conservative clock-kill terminal wins exactly,
 #     then leave all other states to the learned WP model.
 #
-# 2025+ regular-season overtime:
-#     resolve rule-defined terminal outcomes exactly, then
-#     leave nonterminal states to the learned WP model.
+# 2026 overtime:
+#     resolve rule-defined terminal outcomes exactly.
+#     Regular season may terminate when its 10-minute
+#     period expires; postseason period boundaries continue
+#     into another 15-minute period.
 # =========================================================
 
 def original_score_diff_from_wp_state(
@@ -1412,14 +1571,341 @@ def original_score_diff_from_wp_state(
 
 
 
-# Development-data two-point conversion success rate.
-# NFL play-by-play, 2014-2024:
-# 639 successes / 1,335 attempts.
-TWO_POINT_SUCCESS_PROB = (
-    639.0
+# Development-data Try outcome rates.
+#
+# NFL play-by-play, 2015-2024.
+#
+# XP:
+#   offense +1: 12,015 / 12,749
+#   defense +2:      9 / 12,749
+#   no score:       725 / 12,749
+#
+# Two-point attempt:
+#   offense +2:   610 / 1,274
+#   defense +2:     5 / 1,274
+#   no score:      659 / 1,274
+#
+# Defensive Try returns became live scoring outcomes in
+# the modern rules era, so use 2015+ consistently here.
+XP_SUCCESS_PROB = (
+    12015.0
     /
-    1335.0
+    12749.0
 )
+
+XP_DEFENSIVE_RETURN_PROB = (
+    9.0
+    /
+    12749.0
+)
+
+XP_NO_SCORE_PROB = (
+    725.0
+    /
+    12749.0
+)
+
+
+TWO_POINT_SUCCESS_PROB = (
+    610.0
+    /
+    1274.0
+)
+
+TWO_POINT_DEFENSIVE_RETURN_PROB = (
+    5.0
+    /
+    1274.0
+)
+
+TWO_POINT_NO_SCORE_PROB = (
+    659.0
+    /
+    1274.0
+)
+
+
+
+def touchdown_try_required(
+    base,
+    state,
+):
+
+    scorer = int(
+        state.get(
+            "_touchdown_original",
+            0,
+        )
+    )
+
+    if scorer == 0:
+
+        return False
+
+
+    eps = 1e-9
+
+    post_diff = (
+        original_score_diff_from_wp_state(
+            state,
+            bool(
+                base[
+                    "_wp_original_on_home_axis"
+                ]
+            ),
+        )
+    )
+
+    # Positive means the team that scored the touchdown
+    # is ahead AFTER the six touchdown points.
+    scorer_post_diff = (
+        float(scorer)
+        *
+        float(post_diff)
+    )
+
+
+    # -----------------------------------------------------
+    # Regulation.
+    #
+    # Normally every touchdown gets a Try.
+    #
+    # On a Q4-expiring touchdown, skip it if even a
+    # successful Try cannot affect the game's result.
+    # -----------------------------------------------------
+
+    if int(base["qtr"]) < 5:
+
+        if (
+            int(base["qtr"]) == 4
+            and
+            float(
+                state[
+                    "game_seconds_remaining"
+                ]
+            )
+            <= eps
+        ):
+
+            return (
+                scorer_post_diff
+                <= eps
+                and
+                scorer_post_diff
+                >= -2.0 - eps
+            )
+
+        return True
+
+
+    phase = base["ot_phase"]
+
+    opportunity_completed = bool(
+        state.get(
+            "_ot_opportunity_completed",
+            False,
+        )
+    )
+
+    remaining_seconds = float(
+        state[
+            "game_seconds_remaining"
+        ]
+    )
+
+    regular_season_ot = (
+        str(
+            base.get(
+                "ot_format",
+                "REGULAR_SEASON",
+            )
+        )
+        ==
+        "REGULAR_SEASON"
+    )
+
+
+    # -----------------------------------------------------
+    # Ordinary sudden death:
+    # touchdown itself ends the game.
+    # -----------------------------------------------------
+
+    if phase == "SUDDEN_DEATH":
+
+        return False
+
+
+    # -----------------------------------------------------
+    # Regular-season clock expiration.
+    #
+    # If the TD itself already decides the winner, no Try.
+    # If the scoring team is tied or within two points,
+    # the untimed Try can still affect the result.
+    # -----------------------------------------------------
+
+    if (
+        regular_season_ot
+        and
+        remaining_seconds <= eps
+    ):
+
+        return (
+            scorer_post_diff
+            <= eps
+            and
+            scorer_post_diff
+            >= -2.0 - eps
+        )
+
+
+    # -----------------------------------------------------
+    # Opening possession.
+    #
+    # Normal offensive TD:
+    # opponent still receives its guaranteed opportunity,
+    # so the scoring team takes its Try.
+    #
+    # Defensive TD, or a touchdown after the receiving
+    # team's opportunity was already completed on a kick:
+    # game is already over.
+    # -----------------------------------------------------
+
+    if phase == "OPENING":
+
+        if scorer < 0:
+
+            return False
+
+        if opportunity_completed:
+
+            return False
+
+        return True
+
+
+    # -----------------------------------------------------
+    # Response possession.
+    #
+    # Both guaranteed opportunities are now ending.
+    #
+    # A Try is useful only if the scoring team is:
+    #   tied,
+    #   down 1,
+    #   or down 2
+    # after the six touchdown points.
+    # -----------------------------------------------------
+
+    if phase == "RESPONSE":
+
+        return (
+            scorer_post_diff
+            <= eps
+            and
+            scorer_post_diff
+            >= -2.0 - eps
+        )
+
+
+    return True
+
+
+
+def touchdown_try_state(
+    base,
+    state,
+    try_points,
+):
+
+    scorer = int(
+        state.get(
+            "_touchdown_original",
+            0,
+        )
+    )
+
+    if scorer not in {
+        -1,
+        1,
+    }:
+
+        raise ValueError(
+            "touchdown_try_state requires "
+            "_touchdown_original of -1 or 1."
+        )
+
+
+    child = dict(
+        state
+    )
+
+
+    # Convert points scored by the touchdown team into the
+    # original fourth-down team's perspective.
+    original_points = (
+        float(scorer)
+        *
+        float(try_points)
+    )
+
+
+    if bool(
+        base[
+            "_wp_original_on_home_axis"
+        ]
+    ):
+
+        child[
+            "home_score_differential"
+        ] = (
+            float(
+                child[
+                    "home_score_differential"
+                ]
+            )
+            +
+            original_points
+        )
+
+    else:
+
+        child[
+            "home_score_differential"
+        ] = (
+            float(
+                child[
+                    "home_score_differential"
+                ]
+            )
+            -
+            original_points
+        )
+
+
+    child[
+        "_score_change_original"
+    ] = (
+        float(
+            child.get(
+                "_score_change_original",
+                0.0,
+            )
+        )
+        +
+        original_points
+    )
+
+
+    # The Try is now resolved. Prevent recursive
+    # re-processing as another touchdown.
+    child[
+        "_touchdown_original"
+    ] = 0
+
+
+    # The Try is untimed. Keep the game clock exactly where
+    # the touchdown left it.
+    return child
+
 
 
 def evaluate_post_play_states(
@@ -1443,6 +1929,214 @@ def evaluate_post_play_states(
             copy=True,
         )
     )
+
+
+    # -----------------------------------------------------
+    # Resolve touchdown Trys.
+    #
+    # Every touchdown state is stored as exactly +/-6.
+    #
+    # For a required Try:
+    #   kick  -> +1 with XP_SUCCESS_PROB
+    #   two   -> +2 with TWO_POINT_SUCCESS_PROB
+    #
+    # The touchdown-scoring team chooses the option that
+    # maximizes its own win probability.
+    #
+    # Therefore:
+    #   original team TD -> maximize original-team WP
+    #   opponent TD      -> minimize original-team WP
+    #
+    # Evaluate all child states in one batch so this remains
+    # practical for large Monte Carlo simulations.
+    # -----------------------------------------------------
+
+    try_resolved = np.zeros(
+        len(states),
+        dtype=bool,
+    )
+
+    try_children = []
+
+    try_entries = []
+
+
+    for index, state in enumerate(
+        states
+    ):
+
+        scorer = int(
+            state.get(
+                "_touchdown_original",
+                0,
+            )
+        )
+
+        if scorer == 0:
+
+            continue
+
+
+        if not touchdown_try_required(
+            base,
+            state,
+        ):
+
+            continue
+
+
+        start = len(
+            try_children
+        )
+
+
+        # Failed Try: zero additional points.
+        try_children.append(
+            touchdown_try_state(
+                base,
+                state,
+                0.0,
+            )
+        )
+
+
+        # Successful XP.
+        try_children.append(
+            touchdown_try_state(
+                base,
+                state,
+                1.0,
+            )
+        )
+
+
+        # Successful two-point conversion.
+        try_children.append(
+            touchdown_try_state(
+                base,
+                state,
+                2.0,
+            )
+        )
+
+
+        # Defense returns the Try for two points.
+        try_children.append(
+            touchdown_try_state(
+                base,
+                state,
+                -2.0,
+            )
+        )
+
+
+        try_entries.append(
+            (
+                index,
+                scorer,
+                start,
+            )
+        )
+
+
+    if try_children:
+
+        child_wp = (
+            evaluate_post_play_states(
+                base,
+                try_children,
+            )
+        )
+
+
+        for (
+            index,
+            scorer,
+            start,
+        ) in try_entries:
+
+            miss_wp = float(
+                child_wp[
+                    start
+                ]
+            )
+
+            xp_success_wp = float(
+                child_wp[
+                    start + 1
+                ]
+            )
+
+            two_success_wp = float(
+                child_wp[
+                    start + 2
+                ]
+            )
+
+            defensive_return_wp = float(
+                child_wp[
+                    start + 3
+                ]
+            )
+
+
+            xp_value = (
+                XP_SUCCESS_PROB
+                *
+                xp_success_wp
+
+                +
+
+                XP_DEFENSIVE_RETURN_PROB
+                *
+                defensive_return_wp
+
+                +
+
+                XP_NO_SCORE_PROB
+                *
+                miss_wp
+            )
+
+
+            two_value = (
+                TWO_POINT_SUCCESS_PROB
+                *
+                two_success_wp
+
+                +
+
+                TWO_POINT_DEFENSIVE_RETURN_PROB
+                *
+                defensive_return_wp
+
+                +
+
+                TWO_POINT_NO_SCORE_PROB
+                *
+                miss_wp
+            )
+
+
+            if scorer > 0:
+
+                wp[index] = max(
+                    xp_value,
+                    two_value,
+                )
+
+            else:
+
+                wp[index] = min(
+                    xp_value,
+                    two_value,
+                )
+
+
+            try_resolved[
+                index
+            ] = True
+
 
 
     # -----------------------------------------------------
@@ -1633,6 +2327,17 @@ def evaluate_post_play_states(
 
     phase = base["ot_phase"]
 
+    ot_format = str(
+        base.get(
+            "ot_format",
+            "REGULAR_SEASON",
+        )
+    ).strip().upper()
+
+    regular_season_ot = (
+        ot_format == "REGULAR_SEASON"
+    )
+
     eps = 1e-9
 
     original_on_home_axis = bool(
@@ -1643,6 +2348,11 @@ def evaluate_post_play_states(
     for index, state in enumerate(
         states
     ):
+
+        if try_resolved[index]:
+
+            continue
+
 
         post_diff = (
             original_score_diff_from_wp_state(
@@ -1700,116 +2410,14 @@ def evaluate_post_play_states(
         #
         # Failure -> terminal loss.
         # Success -> tie, then either:
-        #   * 0:00 remaining: game ends tied (utility 0.5)
-        #   * time remaining: tied sudden-death continuation
-        # -------------------------------------------------
-
-        response_td_down_eight = (
-
-            phase == "RESPONSE"
-
-            and
-
-            abs(
-                float(
-                    base[
-                        "score_differential"
-                    ]
-                )
-                +
-                8.0
+        #   * regular-season 0:00: tie (utility 0.5)
+        #   * otherwise: tied sudden-death continuation
+        opportunity_completed = bool(
+            state.get(
+                "_ot_opportunity_completed",
+                False,
             )
-            <= eps
-
-            and
-
-            score_change
-            >=
-            6.0 - eps
-
-            and
-
-            score_change
-            <
-            8.0 - eps
         )
-
-
-        if response_td_down_eight:
-
-            remaining_seconds = float(
-                state[
-                    "game_seconds_remaining"
-                ]
-            )
-
-            if remaining_seconds <= eps:
-
-                tie_value = 0.5
-
-            else:
-
-                tie_state = dict(
-                    state
-                )
-
-                score_adjustment = (
-                    8.0
-                    -
-                    score_change
-                )
-
-                if original_on_home_axis:
-
-                    tie_state[
-                        "home_score_differential"
-                    ] = (
-                        float(
-                            tie_state[
-                                "home_score_differential"
-                            ]
-                        )
-                        +
-                        score_adjustment
-                    )
-
-                else:
-
-                    tie_state[
-                        "home_score_differential"
-                    ] = (
-                        float(
-                            tie_state[
-                                "home_score_differential"
-                            ]
-                        )
-                        -
-                        score_adjustment
-                    )
-
-                tie_state[
-                    "_score_change_original"
-                ] = 8.0
-
-                tie_value = float(
-                    predict_original_team_wp(
-                        [tie_state],
-                        original_on_home_axis,
-                        (
-                            base["site"]
-                            ==
-                            "NEUTRAL"
-                        ),
-                    )[0]
-                )
-
-            wp[index] = (
-                TWO_POINT_SUCCESS_PROB
-                *
-                tie_value
-            )
-
-            continue
 
 
         # -------------------------------------------------
@@ -1822,6 +2430,8 @@ def evaluate_post_play_states(
         # -------------------------------------------------
 
         if (
+            regular_season_ot
+            and
             float(
                 state[
                     "game_seconds_remaining"
@@ -1864,6 +2474,16 @@ def evaluate_post_play_states(
 
                 wp[index] = 0.0
 
+            elif opportunity_completed:
+
+                if post_diff > eps:
+
+                    wp[index] = 1.0
+
+                elif post_diff < -eps:
+
+                    wp[index] = 0.0
+
             continue
 
 
@@ -1884,6 +2504,8 @@ def evaluate_post_play_states(
                 abs(score_change) > eps
                 or
                 not possession_original
+                or
+                opportunity_completed
             )
 
             if possession_ended:
@@ -2446,6 +3068,19 @@ def go_donor_to_state(
 
     if transition == "offense_scored":
 
+        is_touchdown = (
+            safe_float(
+                donor.get(
+                    "touchdown",
+                    0.0,
+                ),
+                0.0,
+            )
+            >=
+            0.5
+        )
+
+
         score_change = safe_float(
             donor.get(
                 "score_change",
@@ -2486,6 +3121,12 @@ def go_donor_to_state(
                 score_change,
 
             is_kickoff=True,
+
+            touchdown_original=(
+                1
+                if is_touchdown
+                else 0
+            ),
         )
 
 
@@ -2494,6 +3135,19 @@ def go_donor_to_state(
     # -----------------------------------------------------
 
     if transition == "opponent_scored":
+
+        is_touchdown = (
+            safe_float(
+                donor.get(
+                    "touchdown",
+                    0.0,
+                ),
+                0.0,
+            )
+            >=
+            0.5
+        )
+
 
         score_change = safe_float(
             donor.get(
@@ -2533,6 +3187,12 @@ def go_donor_to_state(
                 score_change,
 
             is_kickoff=True,
+
+            touchdown_original=(
+                -1
+                if is_touchdown
+                else 0
+            ),
         )
 
 
@@ -3517,6 +4177,162 @@ def field_goal_probabilities(
         )
 
 
+    # ---------------------------------------------------------
+    # Extreme-distance field-goal tail.
+    #
+    # Development data through 2024 becomes extremely sparse
+    # beyond 60 yards. A simple development-only logistic audit
+    # of 58+ yard attempts produced a distance logit slope of
+    # -0.3080364923753445.
+    #
+    # Do not use that audit as a hard replacement because doing
+    # so would create a discontinuity near the edge of support.
+    # Instead:
+    #
+    # 1. Anchor at this production model's own 60-yard make
+    #    probability for the current roof / kicker context.
+    # 2. Apply the frozen long-distance logit slope beyond 60.
+    # 3. Never increase the production model's make probability.
+    # 4. Preserve blocked and broken probabilities from their
+    #    existing models; missed probability absorbs the
+    #    remaining failure mass.
+    #
+    # FIELD_GOAL eligibility remains capped at 70 yards
+    # elsewhere in the engine.
+    # ---------------------------------------------------------
+
+    if distance > 60.0:
+
+        anchor_distance = 60.0
+
+        anchor_make_row = (
+            make_row.copy()
+        )
+
+        anchor_make_row[
+            "fg_distance_estimate"
+        ] = anchor_distance
+
+        anchor_make_row[
+            "fg_distance_sq"
+        ] = (
+            anchor_distance ** 2
+        )
+
+        anchor_make_clean = float(
+
+            fg_bundle[
+                "make_model"
+            ]
+            .predict_proba(
+
+                anchor_make_row[
+                    fg_bundle[
+                        "make_features"
+                    ]
+                ]
+
+            )[0, 1]
+
+        )
+
+        anchor_p_made = (
+            p_clean
+            *
+            anchor_make_clean
+        )
+
+        eps = 1e-9
+
+        anchor_p_made = float(
+            np.clip(
+                anchor_p_made,
+                eps,
+                1.0 - eps,
+            )
+        )
+
+        tail_logit_slope = (
+            -0.3080364923753445
+        )
+
+        anchor_logit = (
+            np.log(
+                anchor_p_made
+                /
+                (
+                    1.0
+                    -
+                    anchor_p_made
+                )
+            )
+        )
+
+        tail_logit = (
+            anchor_logit
+            +
+            tail_logit_slope
+            *
+            (
+                distance
+                -
+                anchor_distance
+            )
+        )
+
+        tail_p_made = float(
+            1.0
+            /
+            (
+                1.0
+                +
+                np.exp(
+                    -tail_logit
+                )
+            )
+        )
+
+        probabilities[
+            "made"
+        ] = min(
+            probabilities[
+                "made"
+            ],
+            tail_p_made,
+        )
+
+        probabilities[
+            "missed"
+        ] = max(
+            0.0,
+            (
+                1.0
+                -
+                probabilities[
+                    "made"
+                ]
+                -
+                probabilities[
+                    "blocked"
+                ]
+                -
+                probabilities[
+                    "broken"
+                ]
+            ),
+        )
+
+        tail_total = sum(
+            probabilities.values()
+        )
+
+        for key in probabilities:
+
+            probabilities[key] /= (
+                tail_total
+            )
+
+
     return probabilities
 
 
@@ -3622,6 +4438,84 @@ def blocked_fg_score_probability():
 
 
 # =========================================================
+# Rule 16 blocked-FG muff recovery
+# =========================================================
+
+FG_RULE16_MUFF_RECOVERY_PROB = (
+    1.0
+    /
+    248.0
+)
+
+FG_RULE16_MUFF_ELAPSED_SECONDS = 7.0
+
+FG_RULE16_MUFF_YARDLINE_RESIDUAL = 0.0
+
+
+def blocked_fg_live_probabilities():
+
+    p_muff = (
+        FG_RULE16_MUFF_RECOVERY_PROB
+    )
+
+    remaining = (
+        1.0
+        -
+        p_muff
+    )
+
+    baseline_score = (
+        blocked_fg_score_probability()
+    )
+
+    p_score = (
+        baseline_score
+        *
+        remaining
+    )
+
+    p_ordinary = (
+        (
+            1.0
+            -
+            baseline_score
+        )
+        *
+        remaining
+    )
+
+    total = (
+        p_score
+        +
+        p_muff
+        +
+        p_ordinary
+    )
+
+    if not np.isclose(
+        total,
+        1.0,
+    ):
+
+        raise RuntimeError(
+            "Blocked-FG live probabilities "
+            "do not sum to 1."
+        )
+
+
+    return {
+        "opponent_scored":
+            p_score,
+
+        "kicking_team_muff_recovery":
+            p_muff,
+
+        "opponent_ball_no_score":
+            p_ordinary,
+    }
+
+
+# =========================================================
 # Simulate FIELD GOAL
 # =========================================================
 
@@ -3675,8 +4569,20 @@ def simulate_field_goal(
     )
 
 
+    blocked_live = (
+        blocked_fg_live_probabilities()
+    )
+
     p_block_score = (
-        blocked_fg_score_probability()
+        blocked_live[
+            "opponent_scored"
+        ]
+    )
+
+    p_block_muff = (
+        blocked_live[
+            "kicking_team_muff_recovery"
+        ]
     )
 
 
@@ -3790,8 +4696,12 @@ def simulate_field_goal(
         # transition system.
         # -------------------------------------------------
 
-        if (
+        live_roll = (
             rng.random()
+        )
+
+        if (
+            live_roll
             <
             p_block_score
         ):
@@ -3813,9 +4723,76 @@ def simulate_field_goal(
                     elapsed_seconds=8.0,
 
                     score_change_original=
-                        -7.0,
+                        -6.0,
 
                     is_kickoff=True,
+
+                    touchdown_original=-1,
+                )
+
+            )
+
+            continue
+
+
+        # -------------------------------------------------
+        # RECEIVING-TEAM MUFF, KICKING TEAM RECOVERS
+        #
+        # 2025 CAR-NO empirical transition:
+        #   recovery at the original fourth-down yardline,
+        #   first-and-10,
+        #   seven seconds elapsed.
+        #
+        # Under Rule 16, because the kick crossed the line
+        # and the receiving team muffed it, that team has
+        # completed its opportunity to possess even though
+        # the original kicking team recovered.
+        # -------------------------------------------------
+
+        if (
+            live_roll
+            <
+            (
+                p_block_score
+                +
+                p_block_muff
+            )
+        ):
+
+            recovery_yardline = (
+                clip_yardline(
+                    float(
+                        base[
+                            "yardline_100"
+                        ]
+                    )
+                    +
+                    FG_RULE16_MUFF_YARDLINE_RESIDUAL
+                )
+            )
+
+            states.append(
+
+                make_wp_state(
+
+                    base,
+
+                    possession_original=True,
+
+                    yardline_100=
+                        recovery_yardline,
+
+                    down=1,
+
+                    ydstogo=min(
+                        10.0,
+                        recovery_yardline,
+                    ),
+
+                    elapsed_seconds=
+                        FG_RULE16_MUFF_ELAPSED_SECONDS,
+
+                    ot_opportunity_completed=True,
                 )
 
             )
@@ -4146,6 +5123,71 @@ def punt_rare_donor_state(
     )
 
 
+    regular_punt = (
+        str(
+            donor.get(
+                "punt_branch",
+                "",
+            )
+        )
+        ==
+        "REGULAR"
+    )
+
+    receiving_team_lost_ball = (
+        safe_float(
+            donor.get(
+                "pbp_fumble_lost",
+                0.0,
+            ),
+            0.0,
+        )
+        >=
+        0.5
+    )
+
+    is_touchdown = (
+        safe_float(
+            donor.get(
+                "touchdown",
+                0.0,
+            ),
+            0.0,
+        )
+        >=
+        0.5
+    )
+
+
+    receiving_team_safety = (
+        safe_float(
+            donor.get(
+                "safety",
+                0.0,
+            ),
+            0.0,
+        )
+        >=
+        0.5
+    )
+
+    opportunity_completed = (
+        regular_punt
+        and
+        transition
+        in {
+            "kicking_team_ball_no_score",
+            "kicking_team_scored",
+        }
+        and
+        (
+            receiving_team_lost_ball
+            or
+            receiving_team_safety
+        )
+    )
+
+
     # Opponent return / defensive score.
     if (
         transition
@@ -4171,7 +5213,11 @@ def punt_rare_donor_state(
 
             base,
 
-            possession_original=True,
+            possession_original=(
+                False
+                if receiving_team_safety
+                else True
+            ),
 
             yardline_100=np.nan,
 
@@ -4188,6 +5234,12 @@ def punt_rare_donor_state(
                 score_change,
 
             is_kickoff=True,
+
+            touchdown_original=(
+                -1
+                if is_touchdown
+                else 0
+            ),
         )
 
 
@@ -4216,7 +5268,11 @@ def punt_rare_donor_state(
 
             base,
 
-            possession_original=False,
+            possession_original=(
+                True
+                if receiving_team_safety
+                else False
+            ),
 
             yardline_100=np.nan,
 
@@ -4233,6 +5289,15 @@ def punt_rare_donor_state(
                 score_change,
 
             is_kickoff=True,
+
+            touchdown_original=(
+                1
+                if is_touchdown
+                else 0
+            ),
+
+            ot_opportunity_completed=
+                opportunity_completed,
         )
 
 
@@ -4301,6 +5366,9 @@ def punt_rare_donor_state(
 
             elapsed_seconds=
                 elapsed,
+
+            ot_opportunity_completed=
+                opportunity_completed,
         )
 
 
