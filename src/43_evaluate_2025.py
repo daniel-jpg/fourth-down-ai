@@ -641,8 +641,19 @@ OT_PHASE_MAP = {
 }
 
 
-ot_states = pd.read_parquet(
+OT_STATES_PATH = Path(
     "data/overtime_states.parquet"
+)
+
+if not OT_STATES_PATH.exists():
+    raise FileNotFoundError(
+        "Missing data/overtime_states.parquet. "
+        "Build it first with: "
+        "python src/45_build_overtime_state_dataset.py"
+    )
+
+ot_states = pd.read_parquet(
+    OT_STATES_PATH
 )
 
 ot_states_2025 = (
