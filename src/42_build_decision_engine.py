@@ -2178,7 +2178,6 @@ def action_eligible(
 GO_FEATURES = [
 
     "ydstogo",
-    "yardline_100",
 
     "goal_to_go",
 

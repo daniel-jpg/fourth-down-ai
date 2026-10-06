@@ -192,7 +192,6 @@ print(
 FEATURES = [
 
     "ydstogo",
-    "yardline_100",
 
     "goal_to_go",
 
