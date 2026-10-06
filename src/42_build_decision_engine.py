@@ -2118,7 +2118,7 @@ def go_conversion_probability(
         "short_yardage":
             int(
                 base["ydstogo"]
-                <= 2
+                <= 1
             ),
 
         "inside_10":
