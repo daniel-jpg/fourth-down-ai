@@ -633,6 +633,65 @@ def numeric_or(
     return float(default)
 
 
+
+OT_PHASE_MAP = {
+    "OPENING_POSSESSION": "OPENING",
+    "SECOND_POSSESSION": "RESPONSE",
+    "SUDDEN_DEATH": "SUDDEN_DEATH",
+}
+
+
+ot_states = pd.read_parquet(
+    "data/overtime_states.parquet"
+)
+
+ot_states_2025 = (
+    ot_states[
+        ot_states["season"] == 2025
+    ][
+        [
+            "game_id",
+            "play_id",
+            "season_type",
+            "ot_phase",
+            "both_teams_guaranteed",
+        ]
+    ]
+    .copy()
+)
+
+
+OT_STATE_LOOKUP = {}
+
+for _, ot_row in ot_states_2025.iterrows():
+
+    key = (
+        str(ot_row["game_id"]),
+        int(round(float(ot_row["play_id"]))),
+    )
+
+    phase = OT_PHASE_MAP.get(
+        str(ot_row["ot_phase"])
+    )
+
+    if phase is None:
+        raise RuntimeError(
+            f"Unknown OT phase: {ot_row['ot_phase']}"
+        )
+
+    OT_STATE_LOOKUP[key] = {
+        "ot_phase": phase,
+        "ot_format": (
+            "POSTSEASON"
+            if str(ot_row["season_type"]) == "POST"
+            else "REGULAR_SEASON"
+        ),
+        "both_teams_guaranteed": int(
+            ot_row["both_teams_guaranteed"]
+        ),
+    }
+
+
 def row_to_state(row):
 
     required = [
@@ -785,6 +844,52 @@ def row_to_state(row):
             ]
         )
 
+
+    if state["qtr"] >= 5:
+
+        if (
+            "game_id" not in row.index
+            or
+            "play_id" not in row.index
+        ):
+            raise RuntimeError(
+                "OT evaluation row is missing "
+                "game_id or play_id."
+            )
+
+        ot_key = (
+            str(row["game_id"]),
+            int(
+                round(
+                    float(row["play_id"])
+                )
+            ),
+        )
+
+        ot_metadata = (
+            OT_STATE_LOOKUP.get(
+                ot_key
+            )
+        )
+
+        if ot_metadata is None:
+            raise RuntimeError(
+                "Missing OT metadata for "
+                f"{ot_key[0]} play {ot_key[1]}"
+            )
+
+        state["ot_phase"] = (
+            ot_metadata["ot_phase"]
+        )
+
+        state["ot_format"] = (
+            ot_metadata["ot_format"]
+        )
+
+        state["ot_period"] = max(
+            1,
+            int(state["qtr"]) - 4,
+        )
 
     return state
 
