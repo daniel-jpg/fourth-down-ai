@@ -208,4 +208,4 @@ Currently supports:
 - Regulation fourth-down decisions
 - 2025+ NFL regular-season overtime rules
 
-Postseason overtime is not currently modeled separately.
+Regular-season and postseason overtime are modeled separately under their respective timing and continuation rules.

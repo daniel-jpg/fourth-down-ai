@@ -495,6 +495,11 @@ for column in [
     "td_team",
     "fumble",
     "fumble_lost",
+
+    "posteam_score",
+    "defteam_score",
+    "posteam_score_post",
+    "defteam_score_post",
 ]:
 
     if column in pbp.columns:
@@ -751,7 +756,7 @@ go = go.with_columns([
         )
     )
     .alias(
-        "score_change"
+        "future_state_score_change"
     ),
 
     (
@@ -768,6 +773,98 @@ go = go.with_columns([
     ),
 
 ])
+
+
+
+# =========================================================
+# 13B. Score produced by THIS play only.
+#
+# Touchdowns are six points here. The Try is a separate
+# football event and must be evaluated separately by the
+# decision engine.
+#
+# Safeties remain +/-2.
+# =========================================================
+
+go = go.with_columns(
+
+    (
+        (
+            pl.col(
+                "pbp_posteam_score_post"
+            )
+            -
+            pl.col(
+                "pbp_defteam_score_post"
+            )
+        )
+        -
+        (
+            pl.col(
+                "pbp_posteam_score"
+            )
+            -
+            pl.col(
+                "pbp_defteam_score"
+            )
+        )
+    )
+    .alias(
+        "same_play_score_change"
+    )
+
+)
+
+
+go = go.with_columns(
+
+    pl.when(
+        (pl.col("touchdown") == 1)
+        &
+        (
+            pl.col("pbp_td_team")
+            ==
+            pl.col("posteam")
+        )
+    )
+    .then(
+        pl.lit(6.0)
+    )
+
+    .when(
+        (pl.col("touchdown") == 1)
+        &
+        (
+            pl.col("pbp_td_team")
+            ==
+            pl.col("defteam")
+        )
+    )
+    .then(
+        pl.lit(-6.0)
+    )
+
+    .when(
+        pl.col(
+            "same_play_score_change"
+        )
+        .is_not_null()
+    )
+    .then(
+        pl.col(
+            "same_play_score_change"
+        )
+    )
+
+    .otherwise(
+        pl.lit(0.0)
+    )
+
+    .alias(
+        "score_change"
+    )
+
+)
 
 
 # =========================================================
