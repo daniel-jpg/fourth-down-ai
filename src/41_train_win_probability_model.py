@@ -1295,6 +1295,1050 @@ evaluate(
 )
 
 
+
+# =========================================================
+# 10A. Validation-only WP calibration diagnostics.
+#
+# IMPORTANT:
+# - Uses only 2023-2024 validation data.
+# - Does not modify the production model.
+# - 2025 must not be used to fit or select calibration.
+# =========================================================
+
+from sklearn.linear_model import LogisticRegression
+
+
+def home_wp_arrays(
+    frame,
+):
+
+    (
+        _,
+        _,
+        _,
+        p_home,
+    ) = get_probabilities(
+        frame
+    )
+
+    y_home = (
+        frame[
+            "outcome_class"
+        ]
+        .to_numpy()
+        ==
+        2
+    ).astype(int)
+
+    p_home = np.clip(
+        np.asarray(
+            p_home,
+            dtype=float,
+        ),
+        1e-6,
+        1.0 - 1e-6,
+    )
+
+    return (
+        y_home,
+        p_home,
+    )
+
+
+def binary_wp_metrics(
+    y,
+    p,
+):
+
+    y = np.asarray(
+        y,
+        dtype=int,
+    )
+
+    p = np.clip(
+        np.asarray(
+            p,
+            dtype=float,
+        ),
+        1e-9,
+        1.0 - 1e-9,
+    )
+
+    return {
+        "logloss":
+            float(
+                log_loss(
+                    y,
+                    p,
+                    labels=[
+                        0,
+                        1,
+                    ],
+                )
+            ),
+
+        "brier":
+            float(
+                np.mean(
+                    (p - y) ** 2
+                )
+            ),
+
+        "auc":
+            float(
+                roc_auc_score(
+                    y,
+                    p,
+                )
+            ),
+
+        "actual":
+            float(
+                np.mean(y)
+            ),
+
+        "predicted":
+            float(
+                np.mean(p)
+            ),
+    }
+
+
+def print_home_wp_calibration(
+    name,
+    frame,
+):
+
+    y, p = home_wp_arrays(
+        frame
+    )
+
+    print(
+        f"\n{name}"
+    )
+
+    print(
+        "probability_bin  plays  "
+        "mean_predicted  actual_rate  "
+        "calibration_gap"
+    )
+
+    weighted_absolute_gap = 0.0
+    total_rows = 0
+
+    for i in range(10):
+
+        lower = (
+            i / 10.0
+        )
+
+        upper = (
+            (i + 1)
+            /
+            10.0
+        )
+
+        if i == 0:
+
+            mask = (
+                (p >= lower)
+                &
+                (p <= upper)
+            )
+
+        else:
+
+            mask = (
+                (p > lower)
+                &
+                (p <= upper)
+            )
+
+        n = int(
+            np.sum(mask)
+        )
+
+        if n == 0:
+            continue
+
+        mean_predicted = float(
+            np.mean(
+                p[mask]
+            )
+        )
+
+        actual_rate = float(
+            np.mean(
+                y[mask]
+            )
+        )
+
+        gap = (
+            actual_rate
+            -
+            mean_predicted
+        )
+
+        weighted_absolute_gap += (
+            n
+            *
+            abs(gap)
+        )
+
+        total_rows += n
+
+        label = (
+            f"({lower:.1f}, {upper:.1f}]"
+            if i > 0
+            else
+            f"[{lower:.1f}, {upper:.1f}]"
+        )
+
+        print(
+            f"{label:<16} "
+            f"{n:>6}  "
+            f"{mean_predicted:>14.3f}  "
+            f"{actual_rate:>11.3f}  "
+            f"{gap:>+15.3f}"
+        )
+
+    if total_rows > 0:
+
+        print(
+            "Weighted absolute calibration error: "
+            f"{weighted_absolute_gap / total_rows:.4f}"
+        )
+
+
+def fit_platt_calibrator(
+    frame,
+):
+
+    y, p = home_wp_arrays(
+        frame
+    )
+
+    logit = np.log(
+        p
+        /
+        (1.0 - p)
+    ).reshape(
+        -1,
+        1,
+    )
+
+    calibrator = LogisticRegression(
+        C=1e6,
+        solver="lbfgs",
+        max_iter=1000,
+    )
+
+    calibrator.fit(
+        logit,
+        y,
+    )
+
+    return calibrator
+
+
+def apply_platt_calibrator(
+    calibrator,
+    p,
+):
+
+    p = np.clip(
+        np.asarray(
+            p,
+            dtype=float,
+        ),
+        1e-6,
+        1.0 - 1e-6,
+    )
+
+    logit = np.log(
+        p
+        /
+        (1.0 - p)
+    ).reshape(
+        -1,
+        1,
+    )
+
+    return (
+        calibrator
+        .predict_proba(
+            logit
+        )[:, 1]
+    )
+
+
+def cross_year_wp_calibration(
+    fit_year,
+    test_year,
+):
+
+    fit_frame = (
+        validation.filter(
+            pl.col("season")
+            ==
+            fit_year
+        )
+    )
+
+    test_frame = (
+        validation.filter(
+            pl.col("season")
+            ==
+            test_year
+        )
+    )
+
+    calibrator = (
+        fit_platt_calibrator(
+            fit_frame
+        )
+    )
+
+    y_test, raw_p = (
+        home_wp_arrays(
+            test_frame
+        )
+    )
+
+    calibrated_p = (
+        apply_platt_calibrator(
+            calibrator,
+            raw_p,
+        )
+    )
+
+    raw_metrics = (
+        binary_wp_metrics(
+            y_test,
+            raw_p,
+        )
+    )
+
+    calibrated_metrics = (
+        binary_wp_metrics(
+            y_test,
+            calibrated_p,
+        )
+    )
+
+    intercept = float(
+        calibrator
+        .intercept_[0]
+    )
+
+    slope = float(
+        calibrator
+        .coef_[0, 0]
+    )
+
+    print(
+        f"\nFIT {fit_year} -> TEST {test_year}"
+    )
+
+    print(
+        f"Fit rows:       "
+        f"{fit_frame.height:,}"
+    )
+
+    print(
+        f"Test rows:      "
+        f"{test_frame.height:,}"
+    )
+
+    print(
+        f"Intercept:      "
+        f"{intercept:+.5f}"
+    )
+
+    print(
+        f"Logit slope:    "
+        f"{slope:.5f}"
+    )
+
+    print(
+        f"Actual home:    "
+        f"{raw_metrics['actual']:.5f}"
+    )
+
+    print(
+        f"Raw pred home:  "
+        f"{raw_metrics['predicted']:.5f}"
+    )
+
+    print(
+        f"Cal pred home:  "
+        f"{calibrated_metrics['predicted']:.5f}"
+    )
+
+    print(
+        f"Logloss:        "
+        f"{raw_metrics['logloss']:.5f}"
+        f" -> "
+        f"{calibrated_metrics['logloss']:.5f}"
+    )
+
+    print(
+        f"Brier:          "
+        f"{raw_metrics['brier']:.5f}"
+        f" -> "
+        f"{calibrated_metrics['brier']:.5f}"
+    )
+
+    print(
+        f"AUC:            "
+        f"{raw_metrics['auc']:.5f}"
+        f" -> "
+        f"{calibrated_metrics['auc']:.5f}"
+    )
+
+
+print_home_wp_calibration(
+    "WP HOME-WIN CALIBRATION — 2023-2024",
+    validation,
+)
+
+print_home_wp_calibration(
+    "WP HOME-WIN CALIBRATION — 2023",
+    validation.filter(
+        pl.col("season")
+        ==
+        2023
+    ),
+)
+
+print_home_wp_calibration(
+    "WP HOME-WIN CALIBRATION — 2024",
+    validation.filter(
+        pl.col("season")
+        ==
+        2024
+    ),
+)
+
+
+print(
+    "\nWP HOME-WIN CROSS-YEAR PLATT CALIBRATION"
+)
+
+cross_year_wp_calibration(
+    2023,
+    2024,
+)
+
+cross_year_wp_calibration(
+    2024,
+    2023,
+)
+
+
+combined_calibrator = (
+    fit_platt_calibrator(
+        validation
+    )
+)
+
+print(
+    "\nCOMBINED 2023-2024 WP DIAGNOSTIC"
+)
+
+print(
+    "Intercept: "
+    f"{float(combined_calibrator.intercept_[0]):+.5f}"
+)
+
+print(
+    "Logit slope: "
+    f"{float(combined_calibrator.coef_[0, 0]):.5f}"
+)
+
+print(
+    "Diagnostic only; production WP is unchanged."
+)
+
+
+
+# =========================================================
+# 10B. Current production WP calibration diagnostic.
+#
+# This evaluates the model actually loaded by the decision
+# engine:
+#
+#   models/win_probability_model.joblib
+#
+# Calibration is fit only on 2023-2024 validation data.
+#
+# We calibrate the HOME-vs-AWAY conditional probability:
+#
+#   q = P(home) / (P(home) + P(away))
+#
+# and preserve the model's tie probability exactly.
+# =========================================================
+
+import json
+import joblib
+
+
+production_wp_model = joblib.load(
+    "models/win_probability_model.joblib"
+)
+
+
+with open(
+    "data/win_probability_spec.json",
+    "r",
+) as f:
+
+    production_wp_spec = (
+        json.load(f)
+    )
+
+
+PRODUCTION_WP_FEATURES = (
+    production_wp_spec[
+        "features"
+    ]
+)
+
+
+PRODUCTION_WP_CLASS_INDEX = {
+
+    int(value):
+        index
+
+    for index, value
+    in enumerate(
+        production_wp_model.classes_
+    )
+}
+
+
+assert 0 in PRODUCTION_WP_CLASS_INDEX
+assert 2 in PRODUCTION_WP_CLASS_INDEX
+
+
+def production_wp_probabilities(
+    frame,
+):
+
+    X = (
+        frame
+        .select(
+            PRODUCTION_WP_FEATURES
+        )
+        .to_numpy()
+    )
+
+    probabilities = (
+        production_wp_model
+        .predict_proba(X)
+    )
+
+    p_away = probabilities[
+        :,
+        PRODUCTION_WP_CLASS_INDEX[0],
+    ]
+
+
+    if (
+        1
+        in
+        PRODUCTION_WP_CLASS_INDEX
+    ):
+
+        p_tie = probabilities[
+            :,
+            PRODUCTION_WP_CLASS_INDEX[1],
+        ]
+
+    else:
+
+        p_tie = np.zeros(
+            frame.height,
+            dtype=float,
+        )
+
+
+    p_home = probabilities[
+        :,
+        PRODUCTION_WP_CLASS_INDEX[2],
+    ]
+
+
+    return (
+        probabilities,
+        p_away,
+        p_tie,
+        p_home,
+    )
+
+
+def production_conditional_arrays(
+    frame,
+):
+
+    (
+        probabilities,
+        p_away,
+        p_tie,
+        p_home,
+    ) = production_wp_probabilities(
+        frame
+    )
+
+    y = (
+        frame[
+            "outcome_class"
+        ]
+        .to_numpy()
+    )
+
+    y_home = (
+        y == 2
+    ).astype(int)
+
+
+    non_tie_mass = np.clip(
+        p_home
+        +
+        p_away,
+        1e-9,
+        1.0,
+    )
+
+
+    q_home = np.clip(
+        p_home
+        /
+        non_tie_mass,
+        1e-6,
+        1.0 - 1e-6,
+    )
+
+
+    return (
+        y,
+        y_home,
+        probabilities,
+        p_away,
+        p_tie,
+        p_home,
+        q_home,
+    )
+
+
+def fit_production_wp_calibrator(
+    frame,
+):
+
+    (
+        _,
+        y_home,
+        _,
+        _,
+        _,
+        _,
+        q_home,
+    ) = production_conditional_arrays(
+        frame
+    )
+
+
+    conditional_logit = np.log(
+        q_home
+        /
+        (1.0 - q_home)
+    ).reshape(
+        -1,
+        1,
+    )
+
+
+    calibrator = LogisticRegression(
+        C=1e6,
+        solver="lbfgs",
+        max_iter=1000,
+    )
+
+
+    calibrator.fit(
+        conditional_logit,
+        y_home,
+    )
+
+
+    return calibrator
+
+
+def apply_production_wp_calibrator(
+    frame,
+    calibrator,
+):
+
+    (
+        y,
+        _,
+        raw_probabilities,
+        p_away,
+        p_tie,
+        p_home,
+        q_home,
+    ) = production_conditional_arrays(
+        frame
+    )
+
+
+    conditional_logit = np.log(
+        q_home
+        /
+        (1.0 - q_home)
+    ).reshape(
+        -1,
+        1,
+    )
+
+
+    calibrated_q = (
+        calibrator
+        .predict_proba(
+            conditional_logit
+        )[:, 1]
+    )
+
+
+    non_tie_mass = np.clip(
+        1.0
+        -
+        p_tie,
+        0.0,
+        1.0,
+    )
+
+
+    calibrated_home = (
+        non_tie_mass
+        *
+        calibrated_q
+    )
+
+
+    calibrated_away = (
+        non_tie_mass
+        *
+        (
+            1.0
+            -
+            calibrated_q
+        )
+    )
+
+
+    calibrated_probabilities = (
+        raw_probabilities.copy()
+    )
+
+
+    calibrated_probabilities[
+        :,
+        PRODUCTION_WP_CLASS_INDEX[0],
+    ] = calibrated_away
+
+
+    if (
+        1
+        in
+        PRODUCTION_WP_CLASS_INDEX
+    ):
+
+        calibrated_probabilities[
+            :,
+            PRODUCTION_WP_CLASS_INDEX[1],
+        ] = p_tie
+
+
+    calibrated_probabilities[
+        :,
+        PRODUCTION_WP_CLASS_INDEX[2],
+    ] = calibrated_home
+
+
+    return (
+        y,
+        raw_probabilities,
+        calibrated_probabilities,
+    )
+
+
+def production_wp_metrics(
+    y,
+    probabilities,
+):
+
+    p_away = probabilities[
+        :,
+        PRODUCTION_WP_CLASS_INDEX[0],
+    ]
+
+    p_home = probabilities[
+        :,
+        PRODUCTION_WP_CLASS_INDEX[2],
+    ]
+
+
+    y_home = (
+        y == 2
+    ).astype(float)
+
+
+    y_away = (
+        y == 0
+    ).astype(float)
+
+
+    return {
+
+        "multiclass_logloss":
+            float(
+                log_loss(
+                    y,
+                    probabilities,
+                    labels=
+                        production_wp_model
+                        .classes_,
+                )
+            ),
+
+        "home_brier":
+            float(
+                np.mean(
+                    (
+                        p_home
+                        -
+                        y_home
+                    )
+                    ** 2
+                )
+            ),
+
+        "away_brier":
+            float(
+                np.mean(
+                    (
+                        p_away
+                        -
+                        y_away
+                    )
+                    ** 2
+                )
+            ),
+
+        "home_auc":
+            float(
+                roc_auc_score(
+                    y_home,
+                    p_home,
+                )
+            ),
+
+        "actual_home":
+            float(
+                y_home.mean()
+            ),
+
+        "pred_home":
+            float(
+                p_home.mean()
+            ),
+
+        "pred_away":
+            float(
+                p_away.mean()
+            ),
+    }
+
+
+def production_cross_year_calibration(
+    fit_year,
+    test_year,
+):
+
+    fit_frame = (
+        validation.filter(
+            pl.col("season")
+            ==
+            fit_year
+        )
+    )
+
+
+    test_frame = (
+        validation.filter(
+            pl.col("season")
+            ==
+            test_year
+        )
+    )
+
+
+    calibrator = (
+        fit_production_wp_calibrator(
+            fit_frame
+        )
+    )
+
+
+    (
+        y,
+        raw_probabilities,
+        calibrated_probabilities,
+    ) = (
+        apply_production_wp_calibrator(
+            test_frame,
+            calibrator,
+        )
+    )
+
+
+    raw = production_wp_metrics(
+        y,
+        raw_probabilities,
+    )
+
+
+    calibrated = production_wp_metrics(
+        y,
+        calibrated_probabilities,
+    )
+
+
+    probability_sums = (
+        calibrated_probabilities
+        .sum(axis=1)
+    )
+
+
+    print(
+        f"\nFIT {fit_year} -> TEST {test_year}"
+    )
+
+    print(
+        f"Fit rows:       "
+        f"{fit_frame.height:,}"
+    )
+
+    print(
+        f"Test rows:      "
+        f"{test_frame.height:,}"
+    )
+
+    print(
+        "Intercept:      "
+        f"{float(calibrator.intercept_[0]):+.5f}"
+    )
+
+    print(
+        "Logit slope:    "
+        f"{float(calibrator.coef_[0, 0]):.5f}"
+    )
+
+    print(
+        "Actual home:    "
+        f"{raw['actual_home']:.5f}"
+    )
+
+    print(
+        "Raw pred home:  "
+        f"{raw['pred_home']:.5f}"
+    )
+
+    print(
+        "Cal pred home:  "
+        f"{calibrated['pred_home']:.5f}"
+    )
+
+    print(
+        "Multiclass LL:  "
+        f"{raw['multiclass_logloss']:.5f}"
+        " -> "
+        f"{calibrated['multiclass_logloss']:.5f}"
+    )
+
+    print(
+        "Home Brier:     "
+        f"{raw['home_brier']:.5f}"
+        " -> "
+        f"{calibrated['home_brier']:.5f}"
+    )
+
+    print(
+        "Away Brier:     "
+        f"{raw['away_brier']:.5f}"
+        " -> "
+        f"{calibrated['away_brier']:.5f}"
+    )
+
+    print(
+        "Home AUC:       "
+        f"{raw['home_auc']:.5f}"
+        " -> "
+        f"{calibrated['home_auc']:.5f}"
+    )
+
+    print(
+        "Max sum error:  "
+        f"{float(np.max(np.abs(probability_sums - 1.0))):.3e}"
+    )
+
+
+print(
+    "\nCURRENT PRODUCTION WP — "
+    "CROSS-YEAR CONDITIONAL PLATT CALIBRATION"
+)
+
+
+production_cross_year_calibration(
+    2023,
+    2024,
+)
+
+
+production_cross_year_calibration(
+    2024,
+    2023,
+)
+
+
+production_combined_calibrator = (
+    fit_production_wp_calibrator(
+        validation
+    )
+)
+
+
+print(
+    "\nCURRENT PRODUCTION WP — "
+    "COMBINED 2023-2024 DIAGNOSTIC"
+)
+
+print(
+    "Intercept: "
+    f"{float(production_combined_calibrator.intercept_[0]):+.5f}"
+)
+
+print(
+    "Logit slope: "
+    f"{float(production_combined_calibrator.coef_[0, 0]):.5f}"
+)
+
+print(
+    "Diagnostic only; production WP is unchanged."
+)
+
+
 # =========================================================
 # 11. Simple directional sanity test.
 #
