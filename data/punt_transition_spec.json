@@ -5,13 +5,13 @@
   "broken_probability": 0.0010446343779677114,
   "blocked_probability_given_normal_execution": 0.005751497290616979,
   "regular_transition_probabilities": {
-    "entered_overtime": 0.00019123201223884877,
-    "kicking_team_scored": 0.0008605440550748196,
-    "opponent_ball_no_score": 0.981546110818951,
     "opponent_scored": 0.0035377922264187025,
-    "no_later_state": 0.000239040015298561,
     "kicking_team_ball_no_score": 0.011904192761868337,
-    "crossed_halftime": 0.0017210881101496392
+    "kicking_team_scored": 0.0008605440550748196,
+    "crossed_halftime": 0.0017210881101496392,
+    "no_later_state": 0.000239040015298561,
+    "opponent_ball_no_score": 0.981546110818951,
+    "entered_overtime": 0.00019123201223884877
   },
   "ordinary_field_position_model": "models/punt_field_position_model.joblib",
   "ordinary_transition_pool": "data/punt_ordinary_transition_pool.parquet",
@@ -24,7 +24,7 @@
     "score_differential",
     "posteam_timeouts_remaining",
     "defteam_timeouts_remaining",
-    "is_home"
+    "site_advantage"
   ],
   "ordinary_transition_policy": "predict opponent yardline, then sample OOF yardline residual and clock cost jointly from similar starting-field-position bucket",
   "rare_transition_policy": "empirical pooled sampling"

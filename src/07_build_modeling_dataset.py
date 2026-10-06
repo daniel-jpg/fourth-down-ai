@@ -60,9 +60,46 @@ else:
     is_home_expr = pl.lit(None).cast(pl.Int8)
 
 
+if "location" not in model_df.columns:
+    raise RuntimeError(
+        "Expected nflverse venue column 'location' "
+        "was not found in labeled fourth-down data."
+    )
+
+
+is_neutral_site_expr = (
+    pl.col("location")
+    .eq("Neutral")
+    .fill_null(False)
+    .cast(pl.Int8)
+)
+
+
+site_advantage_expr = (
+    pl.when(
+        pl.col("location") == "Neutral"
+    )
+    .then(pl.lit(0))
+    .when(
+        is_home_expr == 1
+    )
+    .then(pl.lit(1))
+    .otherwise(pl.lit(-1))
+    .cast(pl.Int8)
+)
+
+
 model_df = model_df.with_columns([
 
     is_home_expr.alias("is_home"),
+
+    is_neutral_site_expr.alias(
+        "is_neutral_site"
+    ),
+
+    site_advantage_expr.alias(
+        "site_advantage"
+    ),
 
     (
         pl.col("yardline_100") + 18
@@ -111,7 +148,10 @@ candidate_columns = [
     "defteam",
     "home_team",
     "away_team",
+    "location",
     "is_home",
+    "is_neutral_site",
+    "site_advantage",
 
     # Core state
     "qtr",

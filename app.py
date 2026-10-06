@@ -1286,18 +1286,31 @@ col4, col5 = st.columns(2)
 with col4:
 
     offense_location = st.radio(
-        "Current offense",
+        "Offense designation",
         options=[
             "🏠 Home",
             "✈️ Away",
         ],
         index=1,
         horizontal=True,
+        help=(
+            "NFL neutral-site games still have an "
+            "administrative home and away team."
+        ),
     )
 
     offense_home = (
         offense_location
         == "🏠 Home"
+    )
+
+    neutral_site = st.checkbox(
+        "Neutral site",
+        value=False,
+        help=(
+            "Use for games played at a neutral venue, "
+            "such as the Super Bowl."
+        ),
     )
 
 with col5:
@@ -1377,6 +1390,11 @@ if run_model:
         "is_home":
             int(
                 offense_home
+            ),
+
+        "is_neutral_site":
+            int(
+                neutral_site
             ),
 
         "roof":

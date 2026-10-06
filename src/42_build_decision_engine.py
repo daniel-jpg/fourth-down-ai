@@ -622,6 +622,38 @@ def normalize_state(state):
         )
 
 
+    s.setdefault(
+        "is_neutral_site",
+        0,
+    )
+
+    s["is_neutral_site"] = int(
+        s["is_neutral_site"]
+    )
+
+    if (
+        s["is_neutral_site"]
+        not in [0, 1]
+    ):
+
+        raise ValueError(
+            "is_neutral_site must be 0 or 1."
+        )
+
+
+    if s["is_neutral_site"]:
+
+        s["site_advantage"] = 0
+
+    elif s["is_home"] == 1:
+
+        s["site_advantage"] = 1
+
+    else:
+
+        s["site_advantage"] = -1
+
+
     # -----------------------------------------------------
     # Overtime phase.
     #
@@ -990,6 +1022,7 @@ def predict_original_team_wp(
 
     wp_states,
     original_is_home,
+    is_neutral_site=False,
 
 ):
 
@@ -1021,12 +1054,127 @@ def predict_original_team_wp(
         class_value = 0
 
 
-    return probabilities[
-        :,
-        WP_CLASS_INDEX[
-            class_value
-        ],
-    ]
+    original_probability = (
+        probabilities[
+            :,
+            WP_CLASS_INDEX[
+                class_value
+            ],
+        ]
+    )
+
+
+    # -----------------------------------------------------
+    # Neutral-site administrative-label symmetry.
+    #
+    # NFL neutral-site games still receive administrative
+    # home / away designations. Those labels should not
+    # create home-field advantage in the learned WP layer.
+    #
+    # Evaluate the same football state under both equivalent
+    # administrative orientations and average the original
+    # team's win probability.
+    # -----------------------------------------------------
+
+    if not is_neutral_site:
+
+        return original_probability
+
+
+    mirrored = frame.copy()
+
+
+    mirrored[
+        "home_score_differential"
+    ] = (
+        -
+        mirrored[
+            "home_score_differential"
+        ]
+    )
+
+
+    home_timeouts = (
+        mirrored[
+            "home_timeouts_remaining"
+        ]
+        .copy()
+    )
+
+
+    mirrored[
+        "home_timeouts_remaining"
+    ] = (
+        mirrored[
+            "away_timeouts_remaining"
+        ]
+        .to_numpy()
+    )
+
+
+    mirrored[
+        "away_timeouts_remaining"
+    ] = (
+        home_timeouts
+        .to_numpy()
+    )
+
+
+    mirrored[
+        "is_home_posteam"
+    ] = (
+        1.0
+        -
+        mirrored[
+            "is_home_posteam"
+        ]
+    )
+
+
+    mirrored_X = (
+        mirrored[
+            WP_FEATURES
+        ]
+        .to_numpy()
+    )
+
+
+    mirrored_probabilities = (
+        wp_model
+        .predict_proba(
+            mirrored_X
+        )
+    )
+
+
+    if original_is_home:
+
+        mirrored_class_value = 0
+
+    else:
+
+        mirrored_class_value = 2
+
+
+    mirrored_probability = (
+        mirrored_probabilities[
+            :,
+            WP_CLASS_INDEX[
+                mirrored_class_value
+            ],
+        ]
+    )
+
+
+    return (
+        0.5
+        *
+        (
+            original_probability
+            +
+            mirrored_probability
+        )
+    )
 
 
 # =========================================================
@@ -1069,6 +1217,15 @@ def evaluate_post_play_states(
             states,
             bool(
                 base["is_home"]
+            ),
+            (
+                bool(
+                    base[
+                        "is_neutral_site"
+                    ]
+                )
+                and
+                int(base["qtr"]) < 5
             ),
         )
         .astype(
@@ -1473,6 +1630,15 @@ def current_win_probability(
             bool(
                 base["is_home"]
             ),
+            (
+                bool(
+                    base[
+                        "is_neutral_site"
+                    ]
+                )
+                and
+                int(base["qtr"]) < 5
+            ),
         )[0]
 
     )
@@ -1697,8 +1863,6 @@ GO_FEATURES = [
     "posteam_timeouts_remaining",
     "defteam_timeouts_remaining",
 
-    "is_home",
-
     "short_yardage",
     "inside_10",
     "inside_20",
@@ -1756,9 +1920,6 @@ def go_conversion_probability(
             base[
                 "defteam_timeouts_remaining"
             ],
-
-        "is_home":
-            base["is_home"],
 
         "short_yardage":
             int(
@@ -3221,7 +3382,7 @@ PUNT_FEATURES = [
     "posteam_timeouts_remaining",
     "defteam_timeouts_remaining",
 
-    "is_home",
+    "site_advantage",
 ]
 
 

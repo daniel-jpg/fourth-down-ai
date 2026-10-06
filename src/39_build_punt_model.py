@@ -589,7 +589,7 @@ FEATURES = [
     "posteam_timeouts_remaining",
     "defteam_timeouts_remaining",
 
-    "is_home",
+    "site_advantage",
 ]
 
 

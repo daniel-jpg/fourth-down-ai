@@ -204,8 +204,6 @@ FEATURES = [
     "posteam_timeouts_remaining",
     "defteam_timeouts_remaining",
 
-    "is_home",
-
     "short_yardage",
     "inside_10",
     "inside_20",
