@@ -2796,6 +2796,163 @@ def simulate_go(
         ).abs()
 
 
+        # -------------------------------------------------
+        # Two-minute-warning clock context.
+        #
+        # Empirical seconds_to_state is materially shorter
+        # in the minute before the Q2/Q4 two-minute warning.
+        # Preserve the joint transition donor, but favor
+        # donors from similar pre-warning clock context.
+        #
+        # Apply this only to normal GO decisions; fake-play
+        # behavior remains unchanged.
+        # -------------------------------------------------
+
+        base_half_seconds = float(
+            base[
+                "half_seconds_remaining"
+            ]
+        )
+
+
+        use_warning_clock_context = (
+
+            action
+            in (
+                "NORMAL_GO_RUN",
+                "NORMAL_GO_PASS",
+            )
+
+            and
+
+            int(
+                base[
+                    "qtr"
+                ]
+            )
+            in (2, 4)
+
+            and
+
+            base_half_seconds
+            > 120.0
+
+            and
+
+            base_half_seconds
+            <= 180.0
+
+        )
+
+
+        if use_warning_clock_context:
+
+            donor_qtr = (
+                donor_pool[
+                    "qtr"
+                ]
+                .astype(int)
+                .to_numpy()
+            )
+
+
+            donor_game_seconds = (
+                donor_pool[
+                    "game_seconds_remaining"
+                ]
+                .astype(float)
+                .to_numpy()
+            )
+
+
+            donor_half_seconds = (
+                np.where(
+
+                    donor_qtr == 2,
+
+                    (
+                        donor_game_seconds
+                        -
+                        1800.0
+                    ),
+
+                    np.where(
+
+                        donor_qtr == 4,
+
+                        donor_game_seconds,
+
+                        np.nan,
+
+                    ),
+
+                )
+            )
+
+
+            clock_gap = (
+                np.abs(
+                    donor_half_seconds
+                    -
+                    base_half_seconds
+                )
+                /
+                60.0
+            )
+
+
+            donor_warning_context = (
+
+                np.isin(
+                    donor_qtr,
+                    [2, 4],
+                )
+
+                &
+
+                np.isfinite(
+                    donor_half_seconds
+                )
+
+                &
+
+                (
+                    donor_half_seconds
+                    > 120.0
+                )
+
+                &
+
+                (
+                    donor_half_seconds
+                    <= 180.0
+                )
+
+            )
+
+
+            # Non-warning-context donors remain available
+            # as sparse-data fallback, but receive very
+            # little sampling weight.
+            clock_gap = np.where(
+                donor_warning_context,
+                clock_gap,
+                5.0,
+            )
+
+
+            donor_pool[
+                "_clock_context_gap"
+            ] = clock_gap
+
+
+        else:
+
+            donor_pool[
+                "_clock_context_gap"
+            ] = 0.0
+
+
         donor_pool[
             "_similarity"
         ] = (
@@ -2841,15 +2998,78 @@ def simulate_go(
 
         )
 
-        donor_indices = (
-            rng.integers(
-                0,
-                len(
-                    donor_pool
-                ),
-                size=count,
+        if use_warning_clock_context:
+
+            clock_weights = np.exp(
+                -
+                donor_pool[
+                    "_clock_context_gap"
+                ]
+                .astype(float)
+                .to_numpy()
             )
-        )
+
+
+            weight_sum = float(
+                np.sum(
+                    clock_weights
+                )
+            )
+
+
+            if (
+                np.all(
+                    np.isfinite(
+                        clock_weights
+                    )
+                )
+                and
+                np.isfinite(
+                    weight_sum
+                )
+                and
+                weight_sum > 0.0
+            ):
+
+                clock_weights = (
+                    clock_weights
+                    /
+                    weight_sum
+                )
+
+
+                donor_indices = rng.choice(
+                    len(
+                        donor_pool
+                    ),
+                    size=count,
+                    replace=True,
+                    p=clock_weights,
+                )
+
+            else:
+
+                donor_indices = (
+                    rng.integers(
+                        0,
+                        len(
+                            donor_pool
+                        ),
+                        size=count,
+                    )
+                )
+
+        else:
+
+            donor_indices = (
+                rng.integers(
+                    0,
+                    len(
+                        donor_pool
+                    ),
+                    size=count,
+                )
+            )
 
 
         donors = (

@@ -1113,6 +1113,9 @@ pool_columns = [
     "play_id",
     "season",
 
+    "qtr",
+    "game_seconds_remaining",
+
     "action",
 
     "is_pass",
