@@ -1999,11 +1999,11 @@ def action_eligible(
 
     ]:
 
-        if fg_distance > 66:
+        if fg_distance > 70:
 
             return (
                 False,
-                "FG distance beyond development support",
+                "FG distance beyond extended 70-yard support",
             )
 
 

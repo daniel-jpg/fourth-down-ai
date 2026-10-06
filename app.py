@@ -400,6 +400,15 @@ export default function(component) {
             +
             ` • Estimated FG: ${fgDistance} yd`;
 
+    } else if (fgDistance <= 70) {
+
+        directionInfo.textContent =
+            `← offense attacking left`
+            +
+            ` • Estimated FG: ${fgDistance} yd`
+            +
+            ` — extreme distance (extrapolated)`;
+
     } else {
 
         directionInfo.textContent =
