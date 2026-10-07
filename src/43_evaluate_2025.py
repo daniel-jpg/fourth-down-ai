@@ -963,6 +963,16 @@ for _, row in (
     )
 
 
+    raw_p_conversion = (
+        engine
+        .go_conversion_probability(
+            base,
+            row["action"],
+            apply_calibration=False,
+        )
+    )
+
+
     go_records.append({
 
         "game_id":
@@ -989,6 +999,9 @@ for _, row in (
 
         "predicted":
             p_conversion,
+
+        "raw_predicted":
+            raw_p_conversion,
     })
 
 
@@ -2282,9 +2295,8 @@ if len(fg_eval) > 0:
 # =========================================================
 # Paired uncertainty for the short-yardage run calibration.
 #
-# Recover the old raw GO probability by reversing the
-# production logit shift on exactly the states where the
-# calibration is applied.
+# Raw pre-calibration probabilities are recorded directly
+# from the engine with apply_calibration=False.
 # =========================================================
 
 if len(go_eval) > 0:
@@ -2292,78 +2304,6 @@ if len(go_eval) > 0:
     go_comparison = (
         go_eval.copy()
     )
-
-    go_comparison[
-        "raw_predicted"
-    ] = (
-        go_comparison[
-            "predicted"
-        ]
-        .astype(float)
-    )
-
-    calibration_mask = (
-        (
-            go_comparison[
-                "action"
-            ]
-            ==
-            "NORMAL_GO_RUN"
-        )
-        &
-        (
-            go_comparison[
-                "ydstogo"
-            ]
-            <=
-            engine
-            .NORMAL_GO_RUN_CALIBRATION_MAX_YDSTOGO
-        )
-    )
-
-    calibrated_p = np.clip(
-        go_comparison.loc[
-            calibration_mask,
-            "predicted",
-        ].to_numpy(
-            dtype=float
-        ),
-        1e-9,
-        1.0 - 1e-9,
-    )
-
-    calibrated_logit = np.log(
-        calibrated_p
-        /
-        (
-            1.0
-            -
-            calibrated_p
-        )
-    )
-
-    raw_logit = (
-        calibrated_logit
-        -
-        engine
-        .NORMAL_GO_RUN_LOGIT_SHIFT
-    )
-
-    go_comparison.loc[
-        calibration_mask,
-        "raw_predicted",
-    ] = (
-        1.0
-        /
-        (
-            1.0
-            +
-            np.exp(
-                -raw_logit
-            )
-        )
-    )
-
 
     old_point = (
         binary_metric_values(
