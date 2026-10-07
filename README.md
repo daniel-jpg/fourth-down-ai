@@ -2,7 +2,7 @@
 
 An NFL fourth-down decision engine that compares **go for it, field goal, and punt** decisions using machine learning, empirical transition models, and Monte Carlo simulation.
 
-The project supports both regulation and 2025+ NFL regular-season overtime situations and includes an interactive Streamlit interface.
+The project supports regulation, 2025+ NFL regular-season overtime, and postseason overtime, with an interactive Streamlit interface.
 
 ## Live Demo
 
@@ -15,70 +15,77 @@ The project supports both regulation and 2025+ NFL regular-season overtime situa
 ## Features
 
 - Compares go-for-it, field-goal, and punt decisions
-- Separately evaluates run and pass attempts
-- Estimates downstream win probability / game value
-- Models field-goal outcomes and post-kick transitions
-- Models punt field position and rare punt outcomes
-- Uses empirical fourth-down transition pools
-- Supports regular-season overtime:
-  - Opening possession
-  - Response possession
-  - Sudden death
-  - 10-minute overtime period
-  - 2 timeouts per team
-  - Tie value at expiration
-- Interactive Streamlit app
+- Separately evaluates pass/dropback and run attempts
+- Estimates downstream win probability in regulation and game value in overtime
+- Uses action-specific conversion, field-goal, punt, and win-probability models
+- Uses empirical transition pools for realistic post-play states
+- Supports adaptive Monte Carlo evaluation for close decisions
+- Preserves punt touchbacks as a discrete receiving-team own-20 outcome
+- Supports field-goal attempts through 70 yards with explicit sparse-support warnings
+- Supports regular-season and postseason overtime
+- Keeps fake punts and fake field goals experimental and out of production recommendations
+- Includes automated regression and policy smoke tests
+- Includes a Streamlit web app for interactive use
 
 ## How It Works
 
-The decision engine combines several components:
+For each fourth-down situation, the engine:
 
-1. **Fourth-down conversion modeling**
-   - Estimates conversion probability
-   - Separately evaluates run and pass attempts
+1. **Normalizes the game state**
+   - Quarter and clock
+   - Score
+   - Field position
+   - Yards to go
+   - Timeouts
+   - Home / away / neutral site
+   - Stadium / roof
+   - Overtime format and possession phase when applicable
 
-2. **Field-goal modeling**
-   - Estimates made, missed, blocked, and other outcomes
-   - Simulates resulting possession, field position, and clock state
+2. **Checks action eligibility and support**
+   - Unsupported or out-of-range actions are marked unavailable
+   - Long field goals receive explicit support warnings
 
-3. **Punt modeling**
-   - Estimates resulting field position
-   - Includes ordinary and rare punt outcomes
+3. **Models action outcomes**
+   - GO decisions use action-specific conversion models
+   - Field goals model makes, misses, blocks, and broken plays
+   - Punts model field position, clock runoff, touchbacks, and rare transitions
 
-4. **Win-probability modeling**
-   - Estimates the value of resulting game states
+4. **Simulates post-play game states**
+   - Each eligible action produces a distribution of possible next states
 
-5. **Monte Carlo simulation**
-   - Simulates possible outcomes for each available action
-   - Recommends the highest-value decision
+5. **Evaluates continuation value**
+   - Regulation uses win probability
+   - Overtime uses game value with rule-aware terminal handling
+
+6. **Compares actions with Monte Carlo simulation**
+   - Production begins with 300 simulations per eligible action
+   - If the top two actions are not clearly separated by the approximate Monte Carlo standard-error threshold, the app reruns from scratch with 1,200 simulations per action
+
+The displayed Monte Carlo standard error measures simulation noise only. It does not represent total model uncertainty.
 
 ## Overtime Support
 
-The engine supports 2025+ NFL regular-season overtime decision states.
+The engine supports both **regular-season** and **postseason** overtime.
 
-It distinguishes among:
+The app lets the user choose:
 
-- **Opening possession**
-- **Response possession**
-- **Sudden death**
+- **Overtime format**
+  - Regular season
+  - Playoffs
+- **OT possession**
+  - Opening possession
+  - Response possession
+  - Sudden death
 
-Overtime logic handles possession requirements, terminal scoring events, clock expiration, and tied-game value.
+The UI applies format-specific clock and timeout rules, and the engine handles possession requirements, scoring transitions, terminal outcomes, clock expiration, and postseason period continuation.
 
-The overtime implementation was tested with:
+Overtime decisions are evaluated using **game value**:
 
-- 12 direct rule-layer checks
-- 1,330 valid overtime states
-- 27 timeout combinations
-- 144 regulation regression states
-- Held-out 2025 regular-season overtime plays
+- Win = 1.0
+- Tie at expiration = 0.5
+- Loss = 0.0
 
-Final audit results:
-
-```text
-HARD FAILURES: 0
-REVIEW FLAGS: 0
-Regulation mismatches: 0
-```
+The overtime rule layer has been stress-tested with direct rule checks, large state sweeps, timeout combinations, regulation regression states, and held-out overtime plays.
 
 ## Interactive App
 
@@ -90,16 +97,25 @@ streamlit run app.py
 
 The app allows you to specify:
 
-- Down and distance
-- Field position
-- Score differential
-- Quarter / overtime phase
-- Game clock
-- Home or away possession
-- Offensive and defensive timeouts
-- Stadium / roof context
+- Quarter and game clock
+- Yards to go
+- Offense and defense score
+- Offense and defense timeouts
+- Line of scrimmage
+- Home / Away / Neutral site
+- Stadium / roof
+- Overtime format and possession phase
 
-It then displays the estimated value of each available fourth-down option and recommends the highest-value action.
+It displays:
+
+- Recommended strategy
+- Expected win probability or overtime game value
+- Advantage over the next-best strategy
+- PASS vs RUN guidance when GO FOR IT is recommended
+- Monte Carlo uncertainty messaging for close decisions
+- Action eligibility explanations
+- Long-field-goal support warnings
+- Detailed model output and comparison charts
 
 ## Installation
 
@@ -117,10 +133,16 @@ python -m venv .venv
 source .venv/bin/activate
 ```
 
-Install dependencies:
+Install runtime dependencies:
 
 ```bash
 pip install -r requirements.txt
+```
+
+For development and tests:
+
+```bash
+pip install -r requirements-dev.txt
 ```
 
 Run the app:
@@ -129,16 +151,26 @@ Run the app:
 streamlit run app.py
 ```
 
+Run the test suite:
+
+```bash
+python -m pytest -q
+```
+
 ## Project Structure
 
 ```text
 fourth-down-ai/
 ├── app.py
 ├── requirements.txt
+├── requirements-dev.txt
 ├── assets/
 │   └── fourth-down-ai-demo.png
 ├── data/
 ├── models/
+├── tests/
+│   ├── test_engine_regressions.py
+│   └── test_policy_smoke.py
 └── src/
     ├── 01_build_fourth_down_dataset.py
     ├── ...
@@ -147,11 +179,16 @@ fourth-down-ai/
     ├── 41_train_win_probability_model.py
     ├── 42_build_decision_engine.py
     ├── 43_evaluate_2025.py
-    ├── 45_build_overtime_state_dataset.py
-    └── 46_audit_overtime_engine.py
+    ├── 46_audit_overtime_engine.py
+    ├── 47_evaluate_validation_calibration.py
+    ├── 48_evaluate_policy_simulation_stability.py
+    ├── 49_evaluate_strategy_simulation_stability.py
+    ├── 50_evaluate_adaptive_vs_4000.py
+    ├── 51_evaluate_punt_distribution.py
+    └── 52_evaluate_punt_own20_atom.py
 ```
 
-The numbered scripts document the modeling, auditing, and validation pipeline used to build the final engine.
+The numbered scripts document the modeling, auditing, calibration, and validation pipeline used to build the production engine.
 
 ## Main Components
 
@@ -159,7 +196,7 @@ The numbered scripts document the modeling, auditing, and validation pipeline us
 
 `src/42_build_decision_engine.py`
 
-Loads the trained models and empirical transition pools, simulates each available action, and calculates its expected value.
+Loads the trained models and empirical transition pools, simulates each eligible action, and compares expected game value.
 
 ### Web App
 
@@ -167,21 +204,101 @@ Loads the trained models and empirical transition pools, simulates each availabl
 
 Streamlit interface for entering a game situation and viewing the recommended fourth-down decision.
 
+### Held-Out Evaluation
+
+`src/43_evaluate_2025.py`
+
+Reports final 2025 benchmark performance. The 2025 season is reserved for held-out evaluation rather than production tuning.
+
 ### Overtime Audit
 
 `src/46_audit_overtime_engine.py`
 
-Tests overtime rules, state validity, timeout combinations, held-out overtime plays, and regulation behavior.
+Tests overtime rules, state validity, timeout behavior, terminal scoring logic, postseason continuation, and regulation regressions.
 
-## Data and Models
+### Simulation Stability
 
-The repository contains the trained models and transition artifacts required to run the decision engine.
+`src/48_evaluate_policy_simulation_stability.py`
 
-Large intermediate datasets, virtual environments, local development files, and temporary audit outputs are intentionally excluded through `.gitignore`.
+`src/49_evaluate_strategy_simulation_stability.py`
+
+`src/50_evaluate_adaptive_vs_4000.py`
+
+Evaluate Monte Carlo stability and the production adaptive simulation policy.
+
+### Punt Validation
+
+`src/51_evaluate_punt_distribution.py`
+
+`src/52_evaluate_punt_own20_atom.py`
+
+Validate the production punt field-position distribution and the discrete own-20 touchback mass.
+
+## Data and Evaluation Design
+
+The project uses a chronological development and evaluation setup.
+
+- **2014-2022:** primary model-training period
+- **2023-2024:** development validation and calibration analysis
+- **2025:** held-out final benchmark and reporting only
+
+The production engine combines:
+
+- Win-probability modeling
+- Normal GO conversion modeling
+- Field-goal outcome modeling
+- Punt field-position and transition modeling
+- Empirical transition pools
+- Monte Carlo simulation
+
+The 2025 season is intentionally kept out of production calibration and model-selection decisions.
+
+## Held-Out 2025 Snapshot
+
+| Metric | Result |
+| --- | ---: |
+| WP log loss — all states | 0.53652 |
+| WP AUC — all states | 0.81781 |
+| GO conversion log loss | 0.64830 |
+| GO conversion Brier score | 0.22817 |
+| GO conversion AUC | 0.65750 |
+| Field-goal log loss | 0.35617 |
+| Field-goal Brier score | 0.10931 |
+| Field-goal AUC | 0.74792 |
+
+On the fixed 1,000-play held-out policy sample:
+
+- Exact agreement with the historical action: **53.20%**
+- Mean model-estimated edge over the historical action: **+1.412 percentage points**
+- Decisions with more than a 1-point model-estimated edge: **31.29%**
+- Fake-play recommendations: **0**
+
+The policy edge is model-estimated, not an observed causal improvement in win probability.
+
+## Punt Validation
+
+On 2023-2024 validation punts, the production simulator matched the overall inside-the-20 rate closely:
+
+- Observed: **40.15%**
+- Simulated: **40.17%**
+
+The touchback-preservation update also restores a distinct receiving-team own-20 mass instead of smearing touchbacks through the continuous residual distribution.
+
+## Testing
+
+The v1.1.0 release has **26 automated tests** covering:
+
+- Engine regressions
+- Overtime and terminal-state behavior
+- Field-goal behavior
+- Punt touchback preservation
+- Policy-level smoke scenarios
+
+GitHub Actions runs the suite automatically on pushes and pull requests to `main`.
 
 ## Tech Stack
 
-- Python
+- Python 3.12
 - Streamlit
 - NumPy
 - pandas
@@ -192,20 +309,24 @@ Large intermediate datasets, virtual environments, local development files, and 
 - nflreadpy
 - PyArrow
 - joblib
+- pytest
 
 ## Limitations
 
-- This is a decision-support research model, not a causal guarantee of the optimal football decision.
-- Postseason overtime is not separately modeled.
+- This is a predictive decision-support model, not a causal guarantee of the optimal football decision.
 - Monte Carlo standard error reflects simulation noise, not total model uncertainty.
+- The model cannot capture every relevant football factor, including exact personnel, injuries, play design, coaching tendencies, wind, and other unobserved context.
+- Normal-run recommendations are intentionally restricted to the development-supported short-yardage range.
+- Very long field goals are data-sparse. Attempts from 61-67 yards use a sparse-data tail; 68-70 yard attempts are explicitly marked outside observed development support.
+- Attempts beyond 70 yards are outside the model range.
 - Kicker-specific context defaults to the development-data median unless supplied programmatically.
-- Fake punt and fake field-goal recommendations are experimental.
+- Fake punt and fake field-goal actions are experimental and are not eligible for production recommendations.
+- The 2025 season is held out for evaluation and should not be used to retroactively tune v1.1.0.
 
-## Status
+## Release
 
-Currently supports:
+**Current stable release: v1.1.0**
 
-- Regulation fourth-down decisions
-- 2025+ NFL regular-season overtime rules
+See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
-Regular-season and postseason overtime are modeled separately under their respective timing and continuation rules.
+v1.1.0 is treated as a frozen release. Future feature work should target a later release rather than changing the tagged version.
