@@ -394,12 +394,21 @@ export default function(component) {
     yardline + 18;
 
 
-    if (fgDistance <= 66) {
+    if (fgDistance <= 60) {
 
         directionInfo.textContent =
             `← offense attacking left`
             +
             ` • Estimated FG: ${fgDistance} yd`;
+
+    } else if (fgDistance <= 67) {
+
+        directionInfo.textContent =
+            `← offense attacking left`
+            +
+            ` • Estimated FG: ${fgDistance} yd`
+            +
+            ` — extreme distance (sparse-data tail)`;
 
     } else if (fgDistance <= 70) {
 
@@ -408,7 +417,7 @@ export default function(component) {
             +
             ` • Estimated FG: ${fgDistance} yd`
             +
-            ` — extreme distance (extrapolated)`;
+            ` — extreme distance (outside observed support)`;
 
     } else {
 
