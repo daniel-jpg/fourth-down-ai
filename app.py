@@ -1365,6 +1365,11 @@ st.subheader(
 col1, col2, col3 = st.columns(3)
 
 
+ot_format = None
+ot_phase = None
+ot_period = 1
+
+
 with col1:
 
     qtr = st.radio(
@@ -1389,32 +1394,6 @@ with col1:
         value="07:38",
         max_chars=5,
     )
-
-    ot_phase = None
-
-    if qtr == 5:
-
-        st.caption(
-            "Regular-season overtime"
-        )
-
-        ot_phase = st.selectbox(
-            "OT phase",
-            options=[
-                "OPENING",
-                "RESPONSE",
-                "SUDDEN_DEATH",
-            ],
-            format_func=lambda value: {
-                "OPENING":
-                    "Opening possession",
-                "RESPONSE":
-                    "Response possession",
-                "SUDDEN_DEATH":
-                    "Sudden death",
-            }[value],
-        )
-
 
 with col2:
 
@@ -1482,31 +1461,87 @@ with col2:
     )
 
 
+if qtr == 5:
+
+    (
+        ot_format_col,
+        ot_possession_col,
+    ) = st.columns(
+        [1, 2]
+    )
+
+    with ot_format_col:
+
+        ot_format = st.radio(
+            "Overtime format",
+            options=[
+                "REGULAR_SEASON",
+                "POSTSEASON",
+            ],
+            format_func=lambda value: {
+                "REGULAR_SEASON":
+                    "Regular season",
+                "POSTSEASON":
+                    "Playoffs",
+            }[value],
+            horizontal=True,
+        )
+
+    with ot_possession_col:
+
+        ot_phase = st.radio(
+            "OT possession",
+            options=[
+                "OPENING",
+                "RESPONSE",
+                "SUDDEN_DEATH",
+            ],
+            format_func=lambda value: {
+                "OPENING":
+                    "Opening possession",
+                "RESPONSE":
+                    "Response possession",
+                "SUDDEN_DEATH":
+                    "Sudden death",
+            }[value],
+            horizontal=True,
+        )
+
+
 with col3:
+
+    regular_season_ot = (
+        qtr == 5
+        and
+        ot_format == "REGULAR_SEASON"
+    )
 
     timeout_options = (
         [0, 1, 2]
-        if qtr == 5
+        if regular_season_ot
         else [0, 1, 2, 3]
+    )
+
+    timeout_default_index = (
+        2
+        if regular_season_ot
+        else 3
     )
 
     offense_timeouts = st.radio(
         "Offense timeouts",
         options=timeout_options,
-        index=(
-            2
-            if qtr == 5
-            else 3
-        ),
+        index=timeout_default_index,
         horizontal=True,
     )
 
     defense_timeouts = st.radio(
         "Defense timeouts",
         options=timeout_options,
-        index=2,
+        index=timeout_default_index,
         horizontal=True,
     )
+
 
 parsed_clock = (
     parse_game_clock(
@@ -1526,23 +1561,39 @@ if clock_valid:
         parsed_clock
     )
 
-    if (
-        qtr == 5
-        and
-        (
-            minutes * 60
-            +
-            seconds
-        )
-        > 600
-    ):
+    if qtr == 5:
 
-        clock_valid = False
-
-        st.error(
-            "Regular-season OT clock "
-            "cannot exceed 10:00."
+        ot_clock_limit = (
+            600
+            if ot_format == "REGULAR_SEASON"
+            else 900
         )
+
+        if (
+            (
+                minutes * 60
+                +
+                seconds
+            )
+            >
+            ot_clock_limit
+        ):
+
+            clock_valid = False
+
+            if ot_format == "REGULAR_SEASON":
+
+                st.error(
+                    "Regular-season OT clock "
+                    "cannot exceed 10:00."
+                )
+
+            else:
+
+                st.error(
+                    "Playoff OT clock "
+                    "cannot exceed 15:00."
+                )
 
 else:
 
@@ -1578,7 +1629,7 @@ if (
 
         st.error(
             "A fourth-down decision cannot occur "
-            "after regular-season OT has expired."
+            "after the OT period clock has expired."
         )
 
     elif (
@@ -1805,6 +1856,14 @@ if run_model:
 
         state["ot_phase"] = (
             ot_phase
+        )
+
+        state["ot_format"] = (
+            ot_format
+        )
+
+        state["ot_period"] = (
+            ot_period
         )
 
 
