@@ -3,6 +3,7 @@ import os
 import runpy
 
 import numpy as np
+import pandas as pd
 import pytest
 
 
@@ -19,6 +20,7 @@ field_goal_probabilities = ENGINE["field_goal_probabilities"]
 blocked_fg_live_probabilities = ENGINE["blocked_fg_live_probabilities"]
 make_wp_state = ENGINE["make_wp_state"]
 evaluate_post_play_states = ENGINE["evaluate_post_play_states"]
+sample_ordinary_punt_state = ENGINE["sample_ordinary_punt_state"]
 go_conversion_probability = ENGINE["go_conversion_probability"]
 
 
@@ -611,4 +613,84 @@ def test_normal_run_three_yards_is_recalibrated(
     assert probability == pytest.approx(
         expected,
         abs=1e-12,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Punt ordinary-state sampling
+# ---------------------------------------------------------------------------
+
+def test_punt_touchback_donor_forces_own_20(monkeypatch):
+    globals_dict = sample_ordinary_punt_state.__globals__
+
+    pool = pd.DataFrame(
+        {
+            "start_yardline_bucket": [60.0],
+            "yardline_residual": [-15.0],
+            "pbp_touchback": [1.0],
+            "seconds_to_state": [9.0],
+        }
+    )
+
+    monkeypatch.setitem(
+        globals_dict,
+        "punt_pool",
+        pool,
+    )
+
+    state = base_state(
+        yardline_100=60.0,
+        ydstogo=10.0,
+    )
+
+    result = sample_ordinary_punt_state(
+        state,
+        predicted_yardline=70.0,
+        rng=np.random.default_rng(1),
+    )
+
+    assert result["yardline_100"] == pytest.approx(
+        80.0
+    )
+    assert result["ydstogo"] == pytest.approx(
+        10.0
+    )
+
+
+def test_punt_non_touchback_uses_prediction_plus_residual(
+    monkeypatch,
+):
+    globals_dict = sample_ordinary_punt_state.__globals__
+
+    pool = pd.DataFrame(
+        {
+            "start_yardline_bucket": [60.0],
+            "yardline_residual": [4.5],
+            "pbp_touchback": [0.0],
+            "seconds_to_state": [9.0],
+        }
+    )
+
+    monkeypatch.setitem(
+        globals_dict,
+        "punt_pool",
+        pool,
+    )
+
+    state = base_state(
+        yardline_100=60.0,
+        ydstogo=10.0,
+    )
+
+    result = sample_ordinary_punt_state(
+        state,
+        predicted_yardline=70.0,
+        rng=np.random.default_rng(2),
+    )
+
+    assert result["yardline_100"] == pytest.approx(
+        74.5
+    )
+    assert result["ydstogo"] == pytest.approx(
+        10.0
     )
