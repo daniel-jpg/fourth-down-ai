@@ -1,3 +1,4 @@
+import math
 import contextlib
 import importlib.util
 import io
@@ -930,6 +931,18 @@ def build_strategy_summary(
                         "expected_win_probability"
                     ]
                 ),
+
+            "mc_se":
+                float(
+                    go.iloc[0][
+                        "mc_se"
+                    ]
+                ),
+
+            "source_action":
+                go.iloc[0][
+                    "action"
+                ],
         })
 
 
@@ -961,6 +974,16 @@ def build_strategy_summary(
                             "expected_win_probability"
                         ]
                     ),
+
+                "mc_se":
+                    float(
+                        rows.iloc[0][
+                            "mc_se"
+                        ]
+                    ),
+
+                "source_action":
+                    action,
             })
 
 
@@ -993,6 +1016,318 @@ def build_strategy_summary(
         best,
         second,
     )
+
+
+
+# =========================================================
+# Adaptive Monte Carlo recommendation.
+#
+# Validation-derived procedure:
+#
+#   300 simulations/action
+#   -> if top-two action gap < 1.96 combined MC SE,
+#      rerun from scratch at 1,200 simulations/action.
+#
+# The fixed-budget engine API remains unchanged.
+# =========================================================
+
+ADAPTIVE_BASE_SIMULATIONS = 300
+ADAPTIVE_HIGH_SIMULATIONS = 1200
+ADAPTIVE_Z_THRESHOLD = 1.96
+
+ADAPTIVE_BASE_SEED = 42
+ADAPTIVE_HIGH_SEED = 43
+
+
+def combined_mc_gap_z(
+    best_value,
+    best_se,
+    second_value,
+    second_se,
+):
+
+    values = [
+        best_value,
+        best_se,
+        second_value,
+        second_se,
+    ]
+
+    if not all(
+        math.isfinite(float(value))
+        for value in values
+    ):
+
+        return math.nan
+
+
+    gap = float(
+        best_value
+        -
+        second_value
+    )
+
+
+    combined_se = math.sqrt(
+        float(best_se) ** 2
+        +
+        float(second_se) ** 2
+    )
+
+
+    if combined_se > 0.0:
+
+        return (
+            gap
+            /
+            combined_se
+        )
+
+
+    if gap > 0.0:
+
+        return math.inf
+
+
+    return 0.0
+
+
+def action_gap_z(results):
+
+    eligible = (
+        results[
+            results["eligible"]
+        ]
+        .copy()
+    )
+
+
+    eligible = eligible[
+        ~eligible[
+            "action"
+        ]
+        .str.startswith(
+            "FAKE_"
+        )
+    ]
+
+
+    eligible = (
+        eligible
+        .sort_values(
+            "expected_win_probability",
+            ascending=False,
+        )
+        .reset_index(
+            drop=True
+        )
+    )
+
+
+    if len(eligible) < 2:
+
+        return math.inf
+
+
+    best = eligible.iloc[0]
+    second = eligible.iloc[1]
+
+
+    return combined_mc_gap_z(
+
+        float(
+            best[
+                "expected_win_probability"
+            ]
+        ),
+
+        float(
+            best["mc_se"]
+        ),
+
+        float(
+            second[
+                "expected_win_probability"
+            ]
+        ),
+
+        float(
+            second["mc_se"]
+        ),
+    )
+
+
+def strategy_gap_z(
+    best,
+    second,
+):
+
+    if second is None:
+
+        return math.inf
+
+
+    return combined_mc_gap_z(
+
+        float(best["wp"]),
+        float(best["mc_se"]),
+
+        float(second["wp"]),
+        float(second["mc_se"]),
+    )
+
+
+def go_playcall_gap_z(go):
+
+    pass_row = go[
+        go["action"]
+        ==
+        "NORMAL_GO_PASS"
+    ]
+
+    run_row = go[
+        go["action"]
+        ==
+        "NORMAL_GO_RUN"
+    ]
+
+
+    if (
+        len(pass_row) == 0
+        or
+        len(run_row) == 0
+    ):
+
+        return math.inf
+
+
+    pass_row = pass_row.iloc[0]
+    run_row = run_row.iloc[0]
+
+
+    if (
+        float(
+            pass_row[
+                "expected_win_probability"
+            ]
+        )
+        >=
+        float(
+            run_row[
+                "expected_win_probability"
+            ]
+        )
+    ):
+
+        first = pass_row
+        second = run_row
+
+    else:
+
+        first = run_row
+        second = pass_row
+
+
+    return combined_mc_gap_z(
+
+        float(
+            first[
+                "expected_win_probability"
+            ]
+        ),
+
+        float(
+            first["mc_se"]
+        ),
+
+        float(
+            second[
+                "expected_win_probability"
+            ]
+        ),
+
+        float(
+            second["mc_se"]
+        ),
+    )
+
+
+def adaptive_recommend(
+    state,
+):
+
+    initial = engine.recommend(
+
+        state,
+
+        n_simulations=
+            ADAPTIVE_BASE_SIMULATIONS,
+
+        seed=
+            ADAPTIVE_BASE_SEED,
+    )
+
+
+    initial_z = action_gap_z(
+        initial["results"]
+    )
+
+
+    escalate = (
+        (
+            not math.isfinite(
+                initial_z
+            )
+        )
+        or
+        (
+            initial_z
+            <
+            ADAPTIVE_Z_THRESHOLD
+        )
+    )
+
+
+    if escalate:
+
+        result = engine.recommend(
+
+            state,
+
+            n_simulations=
+                ADAPTIVE_HIGH_SIMULATIONS,
+
+            seed=
+                ADAPTIVE_HIGH_SEED,
+        )
+
+        simulations = (
+            ADAPTIVE_HIGH_SIMULATIONS
+        )
+
+    else:
+
+        result = initial
+
+        simulations = (
+            ADAPTIVE_BASE_SIMULATIONS
+        )
+
+
+    result[
+        "adaptive_escalated"
+    ] = escalate
+
+    result[
+        "adaptive_simulations_per_action"
+    ] = simulations
+
+    result[
+        "initial_action_gap_z"
+    ] = initial_z
+
+
+    return result
 
 
 # =========================================================
@@ -1465,13 +1800,11 @@ if run_model:
 
 
     with st.spinner(
-        "Running 4,000 simulations per eligible action..."
+        "Running adaptive decision simulation..."
     ):
 
-        result = engine.recommend(
-            state,
-            n_simulations=4000,
-            seed=42,
+        result = adaptive_recommend(
+            state
         )
 
 
@@ -1482,6 +1815,12 @@ if run_model:
         second,
     ) = build_strategy_summary(
         result["results"]
+    )
+
+
+    strategy_z = strategy_gap_z(
+        best,
+        second,
     )
 
 
@@ -1632,9 +1971,13 @@ if run_model:
 
 
         near_tie = (
-            strategy_edge < 1.0
+            math.isfinite(
+                strategy_z
+            )
             and
-            relative_strategy_edge < 0.20
+            strategy_z
+            <
+            ADAPTIVE_Z_THRESHOLD
         )
 
 
@@ -1646,8 +1989,8 @@ if run_model:
                 f"{value_phrase}, but only "
                 f"{strategy_edge:.2f} percentage points "
                 f"above {second['strategy']}. "
-                f"The model does not strongly distinguish "
-                f"between these choices."
+                f"Monte Carlo uncertainty does not clearly "
+                f"separate these choices."
             )
 
         else:
@@ -1720,6 +2063,24 @@ if run_model:
             )
 
 
+            playcall_z = (
+                go_playcall_gap_z(
+                    go
+                )
+            )
+
+
+            playcall_uncertain = (
+                math.isfinite(
+                    playcall_z
+                )
+                and
+                playcall_z
+                <
+                ADAPTIVE_Z_THRESHOLD
+            )
+
+
             if pass_wp > run_wp:
 
                 preferred_call = (
@@ -1738,14 +2099,14 @@ if run_model:
             )
 
 
-            if playcall_edge < 1.0:
+            if playcall_uncertain:
 
                 st.info(
                     f"**Slight lean: "
                     f"{preferred_call}** "
                     f"(+{playcall_edge:.2f} pp)\n\n"
-                    f"Run vs. pass is too close "
-                    f"to distinguish reliably."
+                    f"Monte Carlo uncertainty does not "
+                    f"clearly separate run and pass."
                 )
 
             else:
