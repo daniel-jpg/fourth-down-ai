@@ -1224,6 +1224,8 @@ residual_pool = (
         "state_yardline_100",
         "yardline_residual",
 
+        "pbp_touchback",
+
         "seconds_to_state",
 
     ])

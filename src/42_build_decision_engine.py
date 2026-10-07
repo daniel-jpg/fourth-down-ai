@@ -5104,22 +5104,41 @@ def sample_ordinary_punt_state(
     ]
 
 
-    receiving_yardline = (
-        clip_yardline(
-
-            predicted_yardline
-
-            +
-
-            safe_float(
-                donor[
-                    "yardline_residual"
-                ],
+    donor_touchback = (
+        safe_float(
+            donor.get(
+                "pbp_touchback",
                 0.0,
-            )
-
+            ),
+            0.0,
         )
+        >=
+        0.5
     )
+
+
+    if donor_touchback:
+
+        receiving_yardline = 80.0
+
+    else:
+
+        receiving_yardline = (
+            clip_yardline(
+
+                predicted_yardline
+
+                +
+
+                safe_float(
+                    donor[
+                        "yardline_residual"
+                    ],
+                    0.0,
+                )
+
+            )
+        )
 
 
     elapsed = safe_float(

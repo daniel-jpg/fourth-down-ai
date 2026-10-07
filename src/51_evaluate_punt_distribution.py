@@ -1000,7 +1000,7 @@ available_buckets = np.array(
 )
 
 
-def residual_candidates(
+def donor_candidates(
     start_yardline,
 ):
 
@@ -1049,14 +1049,7 @@ def residual_candidates(
         ]
 
 
-    return (
-        candidate[
-            "yardline_residual"
-        ]
-        .to_numpy(
-            dtype=float
-        )
-    )
+    return candidate
 
 
 # ---------------------------------------------------------
@@ -1102,8 +1095,8 @@ for i, row in pdf.iterrows():
     )
 
 
-    residuals = (
-        residual_candidates(
+    donors = (
+        donor_candidates(
             start_yardline
         )
     )
@@ -1112,9 +1105,19 @@ for i, row in pdf.iterrows():
     sampled_indices = (
         rng.integers(
             0,
-            len(residuals),
+            len(donors),
             size=
                 SIMULATIONS_PER_ROW,
+        )
+    )
+
+
+    sampled = (
+        donors.iloc[
+            sampled_indices
+        ]
+        .reset_index(
+            drop=True
         )
     )
 
@@ -1122,9 +1125,12 @@ for i, row in pdf.iterrows():
     raw_draws = (
         prediction
         +
-        residuals[
-            sampled_indices
+        sampled[
+            "yardline_residual"
         ]
+        .to_numpy(
+            dtype=float
+        )
     )
 
 
@@ -1140,6 +1146,30 @@ for i, row in pdf.iterrows():
         count=
             SIMULATIONS_PER_ROW,
     )
+
+
+    # Preserve the discrete NFL punt-touchback state.
+    sampled_touchback = (
+        pd.to_numeric(
+            sampled[
+                "pbp_touchback"
+            ],
+            errors="coerce",
+        )
+        .fillna(
+            0.0
+        )
+        .to_numpy(
+            dtype=float
+        )
+        >=
+        0.5
+    )
+
+
+    draws[
+        sampled_touchback
+    ] = 80.0
 
 
     actual = float(
