@@ -1500,6 +1500,86 @@ for i, row in (
     )
 
 
+
+    # Monte Carlo uncertainty of the top-two action gap.
+    #
+    # This measures simulation noise only. It does not
+    # include model or calibration uncertainty.
+    second_best_action = None
+    second_best_q = np.nan
+
+    best_mc_se = np.nan
+    second_mc_se = np.nan
+
+    edge_mc_se = np.nan
+    edge_mc_z = np.nan
+
+
+    if len(eligible_rows) >= 2:
+
+        best_row = (
+            eligible_rows.iloc[0]
+        )
+
+        second_row = (
+            eligible_rows.iloc[1]
+        )
+
+
+        second_best_action = (
+            second_row["action"]
+        )
+
+        second_best_q = float(
+            second_row[
+                "expected_win_probability"
+            ]
+        )
+
+
+        best_mc_se = float(
+            best_row["mc_se"]
+        )
+
+        second_mc_se = float(
+            second_row["mc_se"]
+        )
+
+
+        if (
+            np.isfinite(best_mc_se)
+            and
+            np.isfinite(second_mc_se)
+        ):
+
+            edge_mc_se = float(
+                np.sqrt(
+                    best_mc_se ** 2
+                    +
+                    second_mc_se ** 2
+                )
+            )
+
+            q_gap = float(
+                recommended_q
+                -
+                second_best_q
+            )
+
+
+            if edge_mc_se > 0.0:
+
+                edge_mc_z = float(
+                    q_gap
+                    /
+                    edge_mc_se
+                )
+
+            elif q_gap > 0.0:
+
+                edge_mc_z = np.inf
+
+
     historical_action = (
         row[
             "action"
@@ -1603,6 +1683,36 @@ for i, row in (
 
         "recommended_q":
             recommended_q,
+
+        "second_best_action":
+            second_best_action,
+
+        "second_best_q":
+            second_best_q,
+
+        "best_mc_se_pct":
+            (
+                100.0 * best_mc_se
+                if np.isfinite(best_mc_se)
+                else np.nan
+            ),
+
+        "second_mc_se_pct":
+            (
+                100.0 * second_mc_se
+                if np.isfinite(second_mc_se)
+                else np.nan
+            ),
+
+        "edge_mc_se_pct":
+            (
+                100.0 * edge_mc_se
+                if np.isfinite(edge_mc_se)
+                else np.nan
+            ),
+
+        "edge_mc_z":
+            edge_mc_z,
 
         "historical_q":
             historical_q,
@@ -1842,6 +1952,110 @@ print(
     f"1 percentage point: "
     f"{100 * close_calls.mean():.2f}%"
 )
+
+
+
+# =========================================================
+# POLICY MONTE CARLO GAP DIAGNOSTIC
+#
+# Approximate:
+#
+#   z_gap =
+#       (Q_best - Q_second)
+#       /
+#       sqrt(SE_best^2 + SE_second^2)
+#
+# This quantifies Monte Carlo sampling noise only.
+# =========================================================
+
+mc_gap_rows = (
+    policy_results[
+        policy_results[
+            "edge_mc_z"
+        ].notna()
+    ]
+    .copy()
+)
+
+
+print(
+    "\nPOLICY MONTE CARLO GAP DIAGNOSTIC"
+)
+
+
+print(
+    "Rows with >=2 eligible actions: "
+    f"{len(mc_gap_rows):,}"
+)
+
+
+if len(mc_gap_rows) > 0:
+
+    print(
+        "Median combined top-two MC SE: "
+        f"{mc_gap_rows['edge_mc_se_pct'].median():.3f} pp"
+    )
+
+
+    finite_z = (
+        mc_gap_rows[
+            "edge_mc_z"
+        ]
+        .replace(
+            [
+                np.inf,
+                -np.inf,
+            ],
+            np.nan,
+        )
+        .dropna()
+    )
+
+
+    if len(finite_z) > 0:
+
+        print(
+            "Median gap / combined MC SE: "
+            f"{finite_z.median():.2f}"
+        )
+
+
+    print(
+        "Gap < 1 combined MC SE: "
+        f"{100.0 * (mc_gap_rows['edge_mc_z'] < 1.0).mean():.2f}%"
+    )
+
+
+    print(
+        "Gap < 1.96 combined MC SE: "
+        f"{100.0 * (mc_gap_rows['edge_mc_z'] < 1.96).mean():.2f}%"
+    )
+
+
+    close_mc_rows = (
+        mc_gap_rows[
+            mc_gap_rows[
+                "edge_over_second_best_pct"
+            ]
+            <=
+            1.0
+        ]
+    )
+
+
+    print(
+        "Nominal <=1 pp decisions: "
+        f"{len(close_mc_rows):,}"
+    )
+
+
+    if len(close_mc_rows) > 0:
+
+        print(
+            "Among <=1 pp decisions, "
+            "gap < 1.96 combined MC SE: "
+            f"{100.0 * (close_mc_rows['edge_mc_z'] < 1.96).mean():.2f}%"
+        )
 
 
 fake_recommendations = (
