@@ -1,0 +1,108 @@
+name: Frozen 2026 kickoff validation (automatic, once)
+
+# No manual script runs needed. Every week, check whether the previously
+# registered 2026 W6-18 100-game threshold is available. Step 66 prints
+# availability only below the threshold. When it is met, save its ONE
+# untouched result to a tracked report file and skip all future evaluations.
+on:
+  schedule:
+    # Tuesday 16:19 UTC (after Monday NFL games and PBP ingestion).
+    - cron: "19 16 * * 2"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/forward_2026_validation_once.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: frozen-2026-kickoff-forward-once
+  cancel-in-progress: false
+
+jobs:
+  prospective-evaluation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Check out frozen research and production baseline
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Enforce one-time evaluation and end-of-season cutoff
+        id: existing
+        shell: bash
+        run: |
+          if test -f reports/2026_forward_kickoff_wp_final.txt; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "One-time prospective validation already completed; not running again."
+          elif test "$(date -u +%Y%m%d)" -gt "20270331"; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Prospective-validation schedule ended; no repeated tests."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Python
+        if: steps.existing.outputs.skip == 'false'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install frozen evaluation dependencies
+        if: steps.existing.outputs.skip == 'false'
+        run: python -m pip install -r requirements.txt
+
+      - name: Check prospective gate and run fixed comparison ONCE if ready
+        if: steps.existing.outputs.skip == 'false'
+        id: compare
+        shell: bash
+        run: |
+          set -euo pipefail
+          python src/66_forward_2026_continuation_wp.py 2>&1 | tee forward-2026-check.log
+
+          if grep -q '^PREDECLARED RESEARCH DECISION:' forward-2026-check.log; then
+            mkdir -p reports
+            cp forward-2026-check.log reports/2026_forward_kickoff_wp_final.txt
+            echo "evaluation_commit=$(git rev-parse HEAD)" >> reports/2026_forward_kickoff_wp_final.txt
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          elif grep -q '^NOT READY: need >=' forward-2026-check.log; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Too few completed games: forecast metrics never computed."
+          else
+            echo "Unexpected script output: fail closed."
+            exit 1
+          fi
+
+      - name: Upload availability log or once-only result
+        if: steps.existing.outputs.skip == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frozen-2026-kickoff-forward-check
+          path: forward-2026-check.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Publish one-time research result without changing production
+        if: steps.compare.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reports/2026_forward_kickoff_wp_final.txt
+          git diff --cached --check
+          git commit -m "Record frozen 2026 forward kickoff WP validation once"
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+      - name: Explicit scope reminder
+        if: steps.compare.outputs.publish == 'true'
+        run: |
+          echo "This report measures observational ordinary-kickoff WP."
+          echo "It does NOT validate counterfactual FG-versus-GO policies."
+          echo "No production model, engine, or Streamlit code was updated."
