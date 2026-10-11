@@ -216,11 +216,28 @@ engine favors GO in 12/14. This is a modeling defect investigation,
 calibration point estimates improved with a similar encoding, but
 their game-cluster uncertainty intervals include no improvement.
 
+The broader [Step 81 retrospective calibration](reports/2023_2025_broad_q4_native_kickoff_calibration.md)
+then compared the SAME frozen WP model on **1,617 actual 2023–2025 Q4
+post-score kickoffs** across **762 games**, retaining penalty outcomes and
+return touchdowns. The native input encoding had lower pooled Brier loss
+(**0.11561 to 0.10743**, gain +0.00818, paired whole-game 95% bootstrap
+CI **[+0.00264,+0.01398]**). All three years had favorable point
+estimates, but individual-year CIs included zero. Crucially, the
+**away-kicking-team subgroup was slightly worse** (gain -0.00119).
+These seasons were already examined and this does not validate the
+counterfactual fourth-down play selection.
+
 The candidate remains **research-only**, without a production promotion
-or 2026 outcome access. See
+or 2026 outcome access. In the Q4 Streamlit experimental panel, you can
+now optionally enable **Advanced: also show native kickoff-input
+correction (research-only)**, which compares its strategy/action WPs
+against the untouched official model and the separate 538-kickoff
+scenario. The candidate is off by default, runs in a private engine,
+and never changes the official recommendation. See
 [`src/kickoff_q4_native_features_candidate.py`](src/kickoff_q4_native_features_candidate.py),
 [Step 80 evaluation](src/80_evaluate_q4_native_kickoff_candidate.py),
-and the [full report](reports/2025_q4_kickoff_site_model_defect.md).
+[Step 81 analysis](src/81_broader_post_score_kickoff_calibration.py),
+and the [initial site-defect report](reports/2025_q4_kickoff_site_model_defect.md).
 
 ## Installation
 
