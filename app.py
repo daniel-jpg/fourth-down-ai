@@ -1783,6 +1783,7 @@ experimental_onside_enabled = False
 experimental_onside_attempt_probability = 0.25
 experimental_onside_recovery_probability = 0.10
 experimental_ordinary_only = False
+experimental_native_candidate_enabled = False
 
 if qtr == 4:
 
@@ -1854,6 +1855,30 @@ if qtr == 4:
                     "ordinary kickoffs (exclude penalty-affected snaps)",
                     value=False,
                 )
+
+                experimental_native_candidate_enabled = st.checkbox(
+                    "Advanced: also show native kickoff-input correction "
+                    "(research-only)",
+                    value=False,
+                    help=(
+                        "Uses the original frozen WP model with the native "
+                        "Q4 post-score kickoff yardline/distance features. "
+                        "It does not use 2025 first-snap donor sampling. "
+                        "The official recommendation never changes."
+                    ),
+                )
+
+                if experimental_native_candidate_enabled:
+
+                    st.caption(
+                        "Retrospective 2023–2025 post-score Q4 kicks "
+                        "(1,617 observations) had a lower pooled Brier "
+                        "score with this candidate (0.11561 to 0.10743), "
+                        "but the away-kicking-team subgroup was slightly "
+                        "worse. Historical data were previously examined; "
+                        "this is not a validated replacement or causal "
+                        "fourth-down policy test."
+                    )
 
                 if (
                     float(score_differential) + 3.0 < 0
@@ -2261,6 +2286,7 @@ if run_model:
                 preview_recommendation,
                 preview_observed_2025_recommendation,
                 preview_observed_2025_resolved_recommendation,
+                preview_native_kickoff_feature_candidate,
                 preview_observed_2025_with_onside,
                 observed_2025_onside_summary,
                 observed_2025_pool_summary,
@@ -2323,6 +2349,25 @@ if run_model:
                         else observed_2025_resolved_summary()
                     )
                     frozen_2025_coverage = observed_2025_kickoff_coverage()
+
+                if experimental_native_candidate_enabled:
+
+                    native_candidate_result = preview_native_kickoff_feature_candidate(
+                        state,
+                    )
+                    native_candidate_rank = preview_strategy_rank_with_uncertainty(
+                        native_candidate_result
+                    )
+                    native_candidate_table = action_comparison(
+                        result,
+                        native_candidate_result,
+                    )
+
+                else:
+
+                    native_candidate_result = None
+                    native_candidate_rank = None
+                    native_candidate_table = None
 
                 scenario_table = action_comparison(
                     result,
@@ -2573,6 +2618,65 @@ if run_model:
                 hide_index=True,
                 width="stretch",
             )
+
+            if native_candidate_rank is not None:
+
+                st.markdown(
+                    "**Additional model-input comparison (research-only)**"
+                )
+
+                st.caption(
+                    "Unlike the 538-kickoff experiment above, this "
+                    "candidate changes only two kickoff input fields "
+                    "in the frozen WP model: yardline_100=35 and "
+                    "ydstogo=0 for unresolved normal Q4 post-score "
+                    "kickoffs. The original model and weights are "
+                    "otherwise identical."
+                )
+
+                st.metric(
+                    "Native kickoff-input candidate strategy",
+                    (
+                        "NO CLEAR STRATEGY"
+                        if native_candidate_rank["near_tie"]
+                        else native_candidate_rank["leader"]
+                    ),
+                )
+
+                if native_candidate_rank["runner_up"] is not None:
+
+                    st.caption(
+                        f"Candidate top: {native_candidate_rank['leader']} "
+                        f"at {native_candidate_rank['leader_wp_pct']:.2f}% "
+                        f"(supporting play: "
+                        f"{native_candidate_rank['leader_action']}); "
+                        f"gap over {native_candidate_rank['runner_up']} "
+                        f"{native_candidate_rank['gap_pp']:.2f} pp. "
+                        "MC-only near-tie: "
+                        f"{native_candidate_rank['near_tie']}. "
+                        "These are research predictions, not validated "
+                        "advantages."
+                    )
+
+                st.dataframe(
+                    native_candidate_table.rename(columns={
+                        "2025+ scenario WP (%)": "Native input WP (%)",
+                        "Scenario MC SE (pp)": "Native MC SE (pp)",
+                        "Scenario minus production (pp)":
+                            "Native minus official (pp)",
+                    }).round(2),
+                    hide_index=True,
+                    width="stretch",
+                )
+
+                st.caption(
+                    "The 2023–2025 retrospective kickoff calibration "
+                    "showed overall improvement but a small deterioration "
+                    "for away kicking teams. Neither that study nor this "
+                    "simulation establishes real-world fourth-down "
+                    "counterfactuals. The official selection above "
+                    "remains unchanged."
+                )
 
             st.caption(
                 "Scenario runs 2,400 simulations per action in a "
