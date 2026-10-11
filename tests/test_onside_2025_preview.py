@@ -72,7 +72,7 @@ def test_onside_sensitive_extension_rejects_nonapplicable_games():
             {**RAMS,"qtr":5},
             attempt_probability=.25,recovery_probability=.10,
         )
-    with pytest.raises(ValueError,match="remain.*trailing"):
+    with pytest.raises(ValueError,match="leave.*trailing"):
         preview_observed_2025_with_onside(
             {**RAMS,"score_differential":-3.},
             attempt_probability=.25,recovery_probability=.10,
