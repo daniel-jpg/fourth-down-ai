@@ -29,9 +29,10 @@ def _number(value, default=np.nan) -> float:
 def native_like_q4_scoring_kickoffs(
     states: Sequence[Mapping], *, kickoff_yardline_100: float = 35.0
 ) -> list[Mapping]:
-    """Only transform unresolved, synthetic, post-score Q4 kickoff states.
+    """Only transform unresolved, standard-location Q4 FG/TD kickoff states.
 
-    Copy-on-write: no changes to caller's states or other model features.
+    Excludes safeties (free kicks), nonstandard 50-yard kicks, and already-
+    resolved possession states. Copy-on-write: no changes to caller's states or other model features.
     Uses a fixed STANDARD kickoff location; unusual spots are not modeled.
     """
     if not np.isfinite(kickoff_yardline_100) or not 0 < kickoff_yardline_100 < 100:
@@ -46,7 +47,8 @@ def native_like_q4_scoring_kickoffs(
             q == 4
             and is_kickoff == 1
             and np.isfinite(score_delta)
-            and score_delta != 0
+            and abs(score_delta) in (3, 6, 7, 8)
+            and not bool(state.get("_kickoff_from_50", False))
             and np.isnan(current_yard)
         )
         if should_encode:
