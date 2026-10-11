@@ -25,6 +25,13 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-dev.txt
 
+      - name: Syntax-check deployed Streamlit app and kickoff modules
+        run: |
+          python -m py_compile app.py
+          python -m py_compile src/streamlit_kickoff_preview.py
+          python -m py_compile src/kickoff_2025_resolved.py
+          python -m py_compile src/kickoff_2025_onside_sensitivity.py
+
       - name: Run regression tests
         run: |
           python -m pytest -v
