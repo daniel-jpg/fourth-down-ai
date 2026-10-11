@@ -197,6 +197,26 @@ exploratory studies have **examined 2025**; those results must not be described
 as an untouched independent holdout for future model selection. 2026 Week 6+
 is reserved for a future prospective benchmark.
 
+## Readable explanation of the fourth-down recommendation
+
+The decision page now provides a collapsed **"Why this recommendation?
+Immediate action odds"** section. It displays the existing engine's
+fourth-down pass/run conversion probabilities, FG make/miss/block rates,
+and punt regular/block/broken-play probabilities alongside each normal
+action's expected game-winning probability and Monte Carlo standard
+error. There are no new model estimates or simulation calls: the
+explainer parses the frozen engine's returned action details, excludes
+ineligible and experimental fake plays, and fails closed on malformed or
+non-normalized probabilities.
+
+**Important:** a successful conversion or made kick is an immediate
+outcome, **not** the probability of winning the game. Win probabilities
+also depend on remaining time, score, field position, possession and
+the frozen continuation model. Kicker-specific field-goal strength
+defaults to the training-data median unless supplied in the engine.
+See [the presentation-only explainer](src/fourth_down_action_explainer.py)
+and [its tests](tests/test_fourth_down_action_explainer.py).
+
 ## Q4 Kickoff Feature-Encoding Audit (Research)
 
 A [14-situation Q4 robustness audit](reports/2025_q4_kickoff_site_model_defect.md)
