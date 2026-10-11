@@ -2193,8 +2193,11 @@ if run_model:
             st.metric(
                 "Experimental scenario leader (not official)",
                 scenario_rank["leader"],
-                f"{scenario_rank['leader_wp_pct']:.2f}% scenario WP",
-                delta_color="off",
+            )
+
+            st.caption(
+                f"Scenario-estimated win probability for leader: "
+                f"{scenario_rank['leader_wp_pct']:.2f}%"
             )
 
             if scenario_rank["runner_up"] is not None:
