@@ -175,3 +175,21 @@ def test_static_loader_rejects_missing_csv(tmp_path):
     from src.kickoff_2025_empirical import load_frozen_pool
     with pytest.raises(FileNotFoundError, match="Missing frozen"):
         load_frozen_pool(tmp_path / "does-not-exist.csv")
+
+
+
+def test_real_touchback_can_have_nonzero_kickoff_to_snap_clock_gap():
+    # PBP clock difference is measured to the next scrimmage snap, and
+    # need not equal the kickoff's on-field return time.
+    real = pool()
+    real.loc[0, "elapsed_seconds"] = 1.
+    validate_frozen_pool(real, min_count=4, min_games=4)
+    draws = resolve_post_score_q4_2025(
+        [state() for _ in range(200)], real,
+        rng=np.random.default_rng(14),
+    )
+    assert any(
+        row["_kickoff_transition_type"] == "touchback"
+        and row["game_seconds_remaining"] == 298.
+        for row in draws
+    )
