@@ -43,6 +43,16 @@ def check() -> list[str]:
         if actual != expected:
             errors.append(f"Frozen blob mismatch: {path}: {actual} != {expected}")
 
+    # The future-data workflow has a separate source-hash gate. Both locks
+    # must agree so a harmless-looking source edit cannot leave a broken
+    # prospective workflow unnoticed.
+    workflow_path = ROOT / ".github/workflows/forward_2026_native_challenger_once.yml"
+    if workflow_path.is_file():
+        workflow = workflow_path.read_text(encoding="utf-8")
+        pinned = FROZEN_BLOBS["src/83_forward_2026_native_challenger_once.py"]
+        if f'expected="{pinned}"' not in workflow:
+            errors.append("Step 83 workflow source pin differs from frozen scorer blob")
+
     readme = (ROOT / "README.md").read_text(encoding="utf-8") if (ROOT / "README.md").is_file() else ""
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8") if (ROOT / "CHANGELOG.md").is_file() else ""
     checklist = (ROOT / "reports/90_release_candidate_checklist.md")
