@@ -105,8 +105,10 @@ def validate_frozen_pool(
     tb = pool["transition_type"].eq("touchback")
     if not pool.loc[tb, "own_yardline"].isin([20, 35]).all():
         raise ValueError("2025 touchbacks must start at own 20/35.")
-    if not pool.loc[tb, "elapsed_seconds"].eq(0).all():
-        raise ValueError("Touchbacks must not cost kickoff return time.")
+    # Clock delta is between the kickoff row and the FIRST receiving snap,
+    # not necessarily the kick's flight time. Historical PBP may record
+    # small nonzero intervals even for a labeled touchback. Preserve the
+    # observed elapsed distribution rather than overwrite it with zero.
     if not pool.loc[~tb, "elapsed_seconds"].between(1, 35).all():
         raise ValueError("Invalid ordinary return clock.")
     if min(tb.sum(), (~tb).sum()) < max(1, min_count // 20):
