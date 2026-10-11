@@ -1,0 +1,91 @@
+{
+  "data_year": 2025,
+  "regulation_only": true,
+  "week_range": [
+    1,
+    18
+  ],
+  "kickoff_spot_yardline_100": 35,
+  "kickoff_seconds_floor_exclusive": 40.0,
+  "model": "2025 frozen ordinary kickoff-to-first-snap donor preview",
+  "date_context": "2025 previously inspected; not a fresh holdout",
+  "scope": "Historical selected Q4 standard-35 kickoffs with >40 seconds. Excludes special kickoff spots, non-Q4, and endgame <=40 sec.",
+  "classification_note": "Exclusive priority: matched ordinary, onside description, official return TD, penalty, other unmatched. Other unmatched may include clock expiry, missing first snap, turnover, penalties not captured by text/flag, or unusual kicks. No invented resolution.",
+  "not_a_forecast": true,
+  "no_2026_outcomes": true,
+  "groups": [
+    {
+      "name": "2025 Q4 STANDARD 35, >40 SEC",
+      "total_kickoffs": 584,
+      "games": 258,
+      "counts": {
+        "modeled_ordinary": 488,
+        "onside_attempt": 41,
+        "kickoff_return_td": 1,
+        "penalty_or_rekick": 52,
+        "other_unmatched": 2
+      },
+      "ordinary_share": 0.8356164383561644,
+      "ordinary_share_game_cluster_ci95": [
+        0.8055057830868411,
+        0.8649616229834874
+      ],
+      "low_support": false,
+      "special_flag_overlaps": 4
+    },
+    {
+      "name": "2025 Q4 FINAL 5 MIN, >40 SEC",
+      "total_kickoffs": 218,
+      "games": 168,
+      "counts": {
+        "modeled_ordinary": 171,
+        "onside_attempt": 32,
+        "kickoff_return_td": 0,
+        "penalty_or_rekick": 15,
+        "other_unmatched": 0
+      },
+      "ordinary_share": 0.7844036697247706,
+      "ordinary_share_game_cluster_ci95": [
+        0.7342342342342343,
+        0.8340915666136265
+      ],
+      "low_support": false,
+      "special_flag_overlaps": 3
+    },
+    {
+      "name": "Q4 FINAL 5, RECEIVER LEADS 1-3",
+      "total_kickoffs": 20,
+      "games": 20,
+      "counts": {
+        "modeled_ordinary": 15,
+        "onside_attempt": 5,
+        "kickoff_return_td": 0,
+        "penalty_or_rekick": 0,
+        "other_unmatched": 0
+      },
+      "ordinary_share": 0.75,
+      "ordinary_share_game_cluster_ci95": null,
+      "low_support": true,
+      "special_flag_overlaps": 0
+    },
+    {
+      "name": "Q4 FINAL 5, RECEIVER TRAILS 1-3",
+      "total_kickoffs": 31,
+      "games": 27,
+      "counts": {
+        "modeled_ordinary": 29,
+        "onside_attempt": 0,
+        "kickoff_return_td": 0,
+        "penalty_or_rekick": 2,
+        "other_unmatched": 0
+      },
+      "ordinary_share": 0.9354838709677419,
+      "ordinary_share_game_cluster_ci95": [
+        0.8484848484848485,
+        1.0
+      ],
+      "low_support": false,
+      "special_flag_overlaps": 0
+    }
+  ]
+}
