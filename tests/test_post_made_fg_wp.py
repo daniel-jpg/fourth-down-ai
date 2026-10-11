@@ -67,6 +67,7 @@ def test_report_is_observed_action_only_and_flags_low_support():
         "game_id":["g1","g1","g2"],
         "actual_home_win":[1.,0.,1.],
         "p_kickoff_synthetic":[.5,.4,.7],
+        "p_kickoff_native":[.6,.3,.8],
         "p_first_snap":[.6,.3,.9],
     })
     ci=lambda delta,games:(float(delta.min()),float(delta.max()))
@@ -78,6 +79,12 @@ def test_report_is_observed_action_only_and_flags_low_support():
     assert score["pending_brier"]==pytest.approx(
         np.mean((observed["actual_home_win"]-
                  observed["p_kickoff_synthetic"])**2))
+    assert score["native_pending_brier"]==pytest.approx(
+        np.mean((observed["actual_home_win"]-
+                 observed["p_kickoff_native"])**2))
+    assert score["native_vs_synthetic_brier_improvement"]==pytest.approx(
+        score["pending_brier"]-score["native_pending_brier"]
+    )
     none=mod.grouped_observed_scoring_calibration(
         "empty",observed.iloc[:0],cluster_ci=ci)
     assert none["status"]=="NO DATA"
