@@ -4,7 +4,8 @@ Run from the repository root:
   ./.venv/bin/python src/55_audit_2025_kickoffs.py
 
 This script MUST NOT write datasets, fit models, select a production
-kickoff touchback rate, or modify any win-probability estimates. 2025
+kickoff touchback rate, or modify any win-probability estimates. Its pairing
+helper also accepts 2026 for independent evaluation of 2025-trained models. 2025
 is evaluation-only. Ordinary kickoff transitions are observational;
 onside kicks, unusual penalties, return touchdowns and recovered kicks
 may appear under 'other/unmatched' rather than in the ordinary sample.
@@ -40,8 +41,8 @@ def audit_kickoff_pairs(pbp: pd.DataFrame, season: int) -> pd.DataFrame:
     nflverse play-by-play. Each candidate is matched to the FIRST valid
     subsequent offensive snap BEFORE the next kickoff in its own game.
     """
-    if season not in (2024, 2025):
-        raise ValueError("Audit is restricted to 2024 development / 2025 holdout.")
+    if season not in (2024, 2025, 2026):
+        raise ValueError("Audit supports 2024 development, 2025 context training, and 2026 evaluation only.")
     missing = REQUIRED.difference(pbp.columns)
     if missing:
         raise ValueError(f"Missing required PBP columns: {sorted(missing)}")
