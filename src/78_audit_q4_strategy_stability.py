@@ -162,8 +162,8 @@ def summarize(scenarios:list[dict])->dict:
         "official":counts["official"],
         "expanded_2025":counts["expanded_2025"],
         "point_margin_sign_changed_between_models":sum(
-            np.sign(r["official"]["go_minus_fg_pp"])
-            !=np.sign(r["expanded_2025"]["go_minus_fg_pp"])
+            (r["official"]["go_minus_fg_pp"] >= 0)
+            != (r["expanded_2025"]["go_minus_fg_pp"] >= 0)
             for r in rows
         ),
         "strategy_leader_changed_between_models":sum(
