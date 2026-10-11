@@ -2407,9 +2407,10 @@ if run_model:
                         "successful recoveries. "
                         "**These input probabilities are assumptions, "
                         "not calibrated estimates.** "
-                        "The default also includes verified penalty "
-                        "first possessions; return touchdowns, actual "
-                        "re-kicks and special kickoff spots remain excluded."
+                        "Verified penalty first possessions are included "
+                        "unless the previous 488-only Advanced mode is active. "
+                        "Return touchdowns, actual re-kicks and special "
+                        "kickoff spots remain excluded."
                     )
 
                 late_resolved = (
