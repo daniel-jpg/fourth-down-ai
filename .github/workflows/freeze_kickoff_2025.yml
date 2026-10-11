@@ -1,0 +1,60 @@
+name: Freeze observed 2025 kickoffs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/freeze_kickoff_2025.yml"
+      - "src/kickoff_2025_empirical.py"
+      - "src/68_freeze_2025_kickoff_pool.py"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: freeze-2025-q4-ordinary-kickoffs
+  cancel-in-progress: false
+
+jobs:
+  freeze:
+    name: Freeze and verify 2025 donor CSV
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Freeze matched 2025 Q4 ordinary kickoffs
+        run: python src/68_freeze_2025_kickoff_pool.py
+
+      - name: Validate artifact with all software tests
+        run: python -m pytest -q
+
+      - name: Commit verified source data to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/kickoff_2025_reg_q4_ordinary.csv
+          if git diff --cached --quiet; then
+            echo "Already frozen: no CSV changes"
+          else
+            git diff --cached --check
+            git commit -m "Freeze actual 2025 Q4 kickoff transitions for experimental preview"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
