@@ -64,3 +64,5 @@ models/*
 # Misc generated output
 # =========================================================
 *.log
+
+!data/kickoff_2024_dev_transition_pool.parquet
