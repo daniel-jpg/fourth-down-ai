@@ -1777,6 +1777,7 @@ if qtr == 2:
 # =========================================================
 
 experimental_kickoff_enabled = False
+experimental_use_2024_assumptions = False
 experimental_touchback_rate = 0.30
 
 if qtr == 4:
@@ -1787,40 +1788,63 @@ if qtr == 4:
     ):
 
         st.caption(
-            "Compare your fourth-down decision under newer kickoff "
-            "touchback placement rules. This is an unvalidated what-if "
-            "simulation; it does not replace the official model."
+            "Compare the official model with a separate simulation using "
+            "observed 2025 NFL kickoff outcomes. This is an experimental "
+            "scenario, not a validated replacement for the default model."
         )
 
         experimental_kickoff_enabled = st.checkbox(
             "Show the experimental kickoff-adjusted comparison",
             value=False,
             help=(
-                "This separately simulates the ordinary post-score kickoff "
-                "for 2025+ touchback placement, using a 2024 historical "
-                "return distribution and your assumed touchback rate. "
-                "It is not a validated production improvement."
+                "Defaults to frozen observed 2025 regular-season ordinary "
+                "Q4 kickoff returns and touchbacks. The preview is isolated "
+                "from the production model and is not an independently "
+                "validated 2026+ prediction."
             ),
         )
 
         if experimental_kickoff_enabled:
 
-            assumed_touchback_pct = st.select_slider(
-                "Assumed ordinary kickoff touchback rate",
-                options=[20, 25, 30, 35, 40],
-                value=30,
-                format_func=lambda value: f"{value}%",
-            )
-
-            experimental_touchback_rate = (
-                float(assumed_touchback_pct) / 100.0
-            )
-
             st.caption(
-                "This is an assumed 20-40% sensitivity range, NOT a "
-                "live estimate. Unmodeled outcomes include onside kicks, "
-                "return touchdowns, and unusual penalties."
+                "Default: observed 2025 regular-season Q4 kickoffs. "
+                "Touchbacks, returns, field positions, and elapsed times "
+                "are sampled together from real historical plays."
             )
+
+            experimental_use_2024_assumptions = st.checkbox(
+                "Advanced: use older 2024 return data with an assumed "
+                "touchback rate instead",
+                value=False,
+            )
+
+            if experimental_use_2024_assumptions:
+
+                assumed_touchback_pct = st.select_slider(
+                    "Assumed ordinary kickoff touchback rate",
+                    options=[20, 25, 30, 35, 40],
+                    value=30,
+                    format_func=lambda value: f"{value}%",
+                )
+
+                experimental_touchback_rate = (
+                    float(assumed_touchback_pct) / 100.0
+                )
+
+                st.caption(
+                    "Legacy sensitivity mode only. This rate is a "
+                    "what-if assumption, not a live forecast."
+                )
+
+            else:
+
+                st.caption(
+                    "No touchback rate needs to be guessed. "
+                    "This historical 2025 distribution is not guaranteed "
+                    "to match future rules or coaching decisions. "
+                    "Onside kickoffs, return touchdowns and unusual "
+                    "penalties are not represented."
+                )
 
 
 # =========================================================
@@ -2146,18 +2170,29 @@ if run_model:
             "2025+ kickoff-adjusted comparison (experimental)"
         )
 
-        st.caption(
-            "For sensitivity analysis only. The official production "
-            "recommendation above remains unchanged. Uses 2024 "
-            "return samples, 2025+ ordinary touchback placement, "
-            f"and an assumed {experimental_touchback_rate:.0%} "
-            "touchback rate; it is NOT a calibrated forecast."
-        )
+        if experimental_use_2024_assumptions:
+
+            st.caption(
+                "Older 2024 kickoff returns, 2025+ touchback placement, "
+                f"and a manually assumed {experimental_touchback_rate:.0%} "
+                "touchback rate. Sensitivity analysis only."
+            )
+
+        else:
+
+            st.caption(
+                "2025 observed regular-season Q4 ordinary kickoffs: "
+                "empirical touchbacks and returns under 2025 rules. "
+                "No assumed touchback rate. This is descriptive history, "
+                "not a calibrated 2026+ forecast."
+            )
 
         try:
 
             from src.streamlit_kickoff_preview import (
                 preview_recommendation,
+                preview_observed_2025_recommendation,
+                observed_2025_pool_summary,
                 action_comparison,
                 preview_rank_with_uncertainty,
             )
@@ -2166,10 +2201,20 @@ if run_model:
                 "Running a separate experimental kickoff scenario..."
             ):
 
-                scenario_result = preview_recommendation(
-                    state,
-                    touchback_rate=experimental_touchback_rate,
-                )
+                if experimental_use_2024_assumptions:
+
+                    scenario_result = preview_recommendation(
+                        state,
+                        touchback_rate=experimental_touchback_rate,
+                    )
+                    frozen_2025_details = None
+
+                else:
+
+                    scenario_result = preview_observed_2025_recommendation(
+                        state,
+                    )
+                    frozen_2025_details = observed_2025_pool_summary()
 
                 scenario_table = action_comparison(
                     result,
@@ -2189,6 +2234,15 @@ if run_model:
             )
 
         else:
+
+            if frozen_2025_details is not None:
+
+                st.caption(
+                    f"Frozen 2025 sample: {frozen_2025_details['kickoffs']} "
+                    f"ordinary kickoffs from {frozen_2025_details['games']} "
+                    f"games; observed touchbacks "
+                    f"{frozen_2025_details['touchback_rate']:.1%}."
+                )
 
             st.metric(
                 "Experimental scenario leader (not official)",
@@ -2235,7 +2289,7 @@ if run_model:
                 "private engine instance. MC SE measures simulation "
                 "noise only; it does not include model or kickoff "
                 "assumption uncertainty. Ordinary kickoffs only, "
-                "not an updated training model."
+                "not a validated 2026+ prediction or retrained WP model."
             )
 
     # =====================================================
