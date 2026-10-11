@@ -52,8 +52,10 @@ def test_only_unresolved_q4_scoring_kickoffs_are_changed():
     earlier = kickoff(qtr=3)
     snapped = kickoff(is_kickoff=0, yardline_100=65, down=1, ydstogo=10)
     special_spot = kickoff(yardline_100=40)
+    safety = kickoff(_score_change_original=-2)
+    kick50 = kickoff(_kickoff_from_50=True)
     changed = native_like_q4_scoring_kickoffs(
-        [s, not_scored, earlier, snapped, special_spot]
+        [s, not_scored, earlier, snapped, special_spot, safety, kick50]
     )
     assert changed[0]["yardline_100"] == 35.
     assert changed[0]["ydstogo"] == 0.
@@ -63,6 +65,8 @@ def test_only_unresolved_q4_scoring_kickoffs_are_changed():
     assert changed[2] is earlier
     assert changed[3] is snapped
     assert changed[4] is special_spot
+    assert changed[5] is safety
+    assert changed[6] is kick50
     assert np.isnan(s["yardline_100"])  # no mutation of original state
 
 
