@@ -2937,6 +2937,69 @@ if run_model:
                 "Unavailable",
             )
 
+    # Help readers understand the immediate event assumptions already
+    # used by the official engine. This is presentation-only: it does
+    # not call another simulator or alter action rankings.
+    with st.expander(
+        "Why this recommendation? Immediate action odds",
+        expanded=False,
+    ):
+
+        st.caption(
+            "The percentages below come directly from the frozen "
+            "model's simulation output. A fourth-down conversion or "
+            "made field goal is an immediate event, NOT the same as "
+            "the probability of ultimately winning the game."
+        )
+
+        try:
+
+            from src.fourth_down_action_explainer import (
+                action_assumptions_table,
+            )
+
+            immediate_odds = action_assumptions_table(result["results"])
+
+        except ValueError:
+
+            st.caption(
+                "The immediate action assumptions could not be "
+                "verified for this state; the official recommendation "
+                "above remains unchanged."
+            )
+
+        else:
+
+            if not immediate_odds.empty:
+
+                st.dataframe(
+                    immediate_odds,
+                    hide_index=True,
+                    width="stretch",
+                )
+
+            else:
+
+                st.caption(
+                    "No eligible normal-play outcome breakdown available."
+                )
+
+        st.caption(
+            "The estimated game-winning probability also reflects "
+            "field position, possession, remaining time and the "
+            "frozen continuation model. Monte Carlo SE is simulation "
+            "noise only. These are not independently calibrated "
+            "real-world outcome guarantees."
+        )
+
+        if "FIELD_GOAL" in action_lookup:
+
+            st.caption(
+                "Field-goal probabilities use development-data "
+                "median kicker context unless specific kicker inputs "
+                "were provided to the engine."
+            )
+
     display = production[
         [
             "decision",
