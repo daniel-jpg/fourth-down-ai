@@ -1,0 +1,97 @@
+name: Freeze exceptional 2025 kickoffs and verified continuations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/76_freeze_penalty_return_continuation.py"
+      - "tests/test_penalty_return_2025_audit.py"
+      - ".github/workflows/freeze_penalty_return_2025.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: frozen-2025-penalty-return-td-coverage
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout immutable historical PBP helpers
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install pinned dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Check exception accounting and first-snap boundaries
+        run: python -m pytest -q tests/test_penalty_return_2025_audit.py
+
+      - name: Reconstruct 2025 penalties, re-kicks and return touchdowns
+        run: |
+          set -o pipefail
+          python src/76_freeze_penalty_return_continuation.py 2>&1 | tee exceptional-2025-kickoffs.log
+
+      - name: Verify historical evidence and full CI
+        run: |
+          set -euo pipefail
+          python -m pytest -q
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import pandas as pd
+
+          data=json.loads(Path("data/kickoff_2025_penalty_return_coverage.json").read_text())
+          assert data["year"]==2025
+          assert data["penalty_total"]==52
+          assert data["return_td_total"]==1
+          assert data["other_unmatched_total"]==2
+          assert data["special_total"]==55
+          assert sum(data["outcome_reason_counts"].values())==55
+          assert data["no_2026_data"] and data["not_a_2026_return_td_rate"]
+          rows=pd.read_csv("data/kickoff_2025_penalty_first_snaps.csv")
+          assert len(rows)==55
+          assert rows["verified_penalty_first_snap"].sum()==data["verified_penalty_first_snap"]
+          assert rows["outcome_group"].eq("penalty_or_rekick").sum()==52
+          assert rows["outcome_group"].eq("kickoff_return_td").sum()==1
+          assert rows["outcome_group"].eq("other_unmatched").sum()==2
+          PY
+
+      - name: Commit only verified historical evidence
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f data/kickoff_2025_penalty_return_coverage.json data/kickoff_2025_penalty_first_snaps.csv
+          if git diff --cached --quiet; then
+            echo "Historical exceptional kickoff evidence unchanged."
+          else
+            git diff --cached --check
+            git commit -m "Freeze real 2025 penalty, re-kick and return-TD kickoff evidence"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+
+      - name: Upload audit and selected historical transitions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 2025-penalty-return-td-coverage
+          path: |
+            exceptional-2025-kickoffs.log
+            data/kickoff_2025_penalty_return_coverage.json
+            data/kickoff_2025_penalty_first_snaps.csv
+          if-no-files-found: warn
+          retention-days: 30
