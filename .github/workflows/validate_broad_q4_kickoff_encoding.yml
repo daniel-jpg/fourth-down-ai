@@ -1,0 +1,85 @@
+name: Broader observed 2023-25 Q4 kickoff candidate calibration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/81_broader_post_score_kickoff_calibration.py"
+      - "tests/test_broader_q4_kickoff_calibration.py"
+      - ".github/workflows/validate_broad_q4_kickoff_encoding.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  historical-calibration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout frozen production WP model and candidate
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install pinned packages
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Test pre-kickoff selection, conversion source, and outcome retention
+        run: |
+          python -m pytest -q tests/test_broader_q4_kickoff_calibration.py tests/test_q4_native_kickoff_candidate.py
+
+      - name: Score real 2023-25 Q4 post-score kickoff predictions
+        run: |
+          set -o pipefail
+          python src/81_broader_post_score_kickoff_calibration.py 2>&1 | tee broad-q4-kickoff-2023-2025.log
+
+      - name: Verify paired scoring evidence and no production promotion
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import pandas as pd
+          j=json.loads(Path("artifacts/81_broad_q4_native_kickoff_calibration.json").read_text())
+          assert j["historical_years"]==[2023,2024,2025]
+          assert j["2026_game_data_used"] is False
+          assert j["not_pristine_holdout"] is True
+          assert j["no_future_event_selection"] is True
+          assert j["return_tds_and_penalty_outcomes_retained"] is True
+          assert j["frozen_2014_22_wp_model"] is True
+          assert j["production_promotion"]=="NOT AUTHORIZED"
+          assert j["cohort_count"]>=100
+          assert j["unique_games"]>=50
+          assert len(j["groups"])>=15
+          for item in j["groups"][:4]:
+              assert item["n"]>0
+              assert len(item["candidate_brier_gain_game_cluster_ci95"])==2
+          data=pd.read_csv("artifacts/81_broad_q4_kickoff_scored_rows.csv")
+          assert len(data)==j["cohort_count"]
+          assert set(data["season"])=={2023,2024,2025}
+          assert set(data["post_score_type"]).issubset({
+              "made_fg","post_extra_point","post_two_point"
+          })
+          assert set(data["kicker_site"]).issubset({"HOME","AWAY"})
+          assert data[["p_synthetic","p_native_candidate","p_native_pbp"]].notna().all().all()
+          PY
+          git diff --exit-code -- models/win_probability_model.joblib
+          git diff --exit-code -- src/42_build_decision_engine.py
+          git diff --exit-code -- app.py
+
+      - name: Save read-only broad calibration report, sample, and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: read-only-2023-25-q4-native-kickoff-calibration
+          path: |
+            broad-q4-kickoff-2023-2025.log
+            artifacts/81_broad_q4_native_kickoff_calibration.json
+            artifacts/81_broad_q4_kickoff_scored_rows.csv
+          if-no-files-found: warn
+          retention-days: 30
