@@ -1,0 +1,66 @@
+name: Attribute late-Q4 kickoff home-away model instability
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/79_audit_post_fg_site_encoding.py"
+      - "tests/test_post_fg_site_encoding.py"
+      - ".github/workflows/audit_post_fg_site_encoding.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  site-axis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout frozen model artifacts
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install development dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Verify complete donor integration and neutral mirror
+        run: python -m pytest -q tests/test_post_fg_site_encoding.py
+
+      - name: Audit made-FG conditional kickoff HOME, AWAY and NEUTRAL WP
+        run: |
+          set -o pipefail
+          python src/79_audit_post_fg_site_encoding.py 2>&1 | tee site-axis-kickoff.log
+
+      - name: Validate artifact and preserve official production
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          j=json.loads(Path("artifacts/79_kickoff_site_encoding_wp_attribution.json").read_text())
+          assert len(j["by_site"])==3
+          assert j["2025_historical_donors"]==538
+          assert j["2026_outcomes_used"] is False
+          assert j["not_action_level_fourth_down_value"] is True
+          assert j["frozen_production_win_probability_model"] is True
+          assert not j["no_causal_or_future_accuracy_claim"] is False
+          PY
+          git diff --exit-code -- models/win_probability_model.joblib
+          git diff --exit-code -- src/42_build_decision_engine.py
+          git diff --exit-code -- app.py
+
+      - name: Archive conditional site-axis report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: read-only-q4-made-fg-site-axis
+          path: |
+            artifacts/79_kickoff_site_encoding_wp_attribution.json
+            site-axis-kickoff.log
+          if-no-files-found: warn
+          retention-days: 30
