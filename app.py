@@ -2251,6 +2251,60 @@ if run_model:
         )
 
     # =====================================================
+    # Automatic deterministic warning for a KNOWN WP input-
+    # encoding sensitivity after an eligible hypothetical FG.
+    #
+    # This NEVER changes the displayed official recommendation,
+    # probabilities, or MC simulations. It compares two feature
+    # representations using the SAME frozen WP model in a
+    # separate private engine and a made-FG/5-second assumption.
+    #
+    # Unlike the opt-in experimental panel, this guard appears
+    # automatically when its materiality condition is met.
+    # =====================================================
+
+    if (
+        qtr == 4
+        and 40 < float(state["game_seconds_remaining"]) <= 900
+    ):
+
+        fg_eligible_rows = result["results"].loc[
+            result["results"]["action"].eq("FIELD_GOAL")
+            & result["results"]["eligible"].eq(True)
+        ]
+
+        if len(fg_eligible_rows) == 1:
+
+            try:
+
+                from src.kickoff_q4_reliability_guard import (
+                    inspect_made_fg_kickoff_encoding,
+                    reliability_warning_markdown,
+                )
+
+                fg_encoding_probe = inspect_made_fg_kickoff_encoding(
+                    state,
+                )
+                fg_encoding_warning = reliability_warning_markdown(
+                    fg_encoding_probe,
+                )
+
+            except Exception:
+
+                st.caption(
+                    "Q4 made-field-goal kickoff reliability check "
+                    "is unavailable. Treat the frozen model's "
+                    "post-score continuation as unverified; the "
+                    "official calculation above is unchanged."
+                )
+
+            else:
+
+                if fg_encoding_warning is not None:
+
+                    st.warning(fg_encoding_warning)
+
+    # =====================================================
     # Optional 2025+ kickoff rule scenario, visually separate
     # from the unchanged production recommendation above.
     # =====================================================
