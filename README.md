@@ -17,6 +17,18 @@ The project supports regulation, 2025+ NFL regular-season overtime, and postseas
 
 ![NFL Fourth-Down Decision AI](assets/fourth-down-ai-demo.png)
 
+## At a glance
+
+Fourth Down AI asks a practical question: **given the score, clock, field position and timeouts right now, which available fourth-down action has the highest *modeled* chance of winning?** It estimates each eligible action's immediate outcome, simulates the resulting game states, and compares their downstream win probabilities (or overtime game values). The model is decision-support research, **not a causal proof** that a coach should follow a particular play.
+
+**Try a representative scenario:** Q4, 7:38 remaining, trailing 24–27, fourth-and-3 at the opponent's 30-yard line, with three timeouts for each team. In a verified live-app run, the frozen official model displayed **GO FOR IT: 41.44%** (run), **PASS: 40.86%**, **FIELD GOAL: 34.08%**, and **PUNT: 22.05%**. That is a **+7.36 percentage-point *model-estimated* edge** for GO versus FG; run versus pass was too close to distinguish confidently. These are an illustrative snapshot for those exact settings, not observed game outcomes or guaranteed stable values under different inputs.
+
+**What makes the project distinctive:** action-specific GO/FG/punt outcome models, realistic sampled next-state transitions, adaptive Monte Carlo comparison, rule-aware overtime handling, and a separately labeled research sandbox for 2025 kickoff assumptions. Open **Why this recommendation? Immediate action odds** in the app to see conversion and kick-outcome assumptions separately from overall game value.
+
+**Evidence at a glance:** The frozen v1.1.0 2025 benchmark includes WP AUC **0.81781**, GO conversion Brier **0.22817**, and FG Brier **0.10931** (see [full benchmark](#held-out-2025-snapshot)). [GitHub Actions CI](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38182568146) passed **339 tests** (293 regression + 46 Streamlit integration); test success is not a substitute for external calibration or causal policy evaluation. Later 2025 exploratory analyses are no longer untouched holdouts; a precommitted [2026 prospective check](reports/2026_native_kickoff_challenger_protocol.md) is still gated.
+
+**Explore:** [Live demo](https://fourth-down-ai.streamlit.app/) · [How it works](#how-it-works) · [Evaluation](#data-and-evaluation-design) · [Limitations](#limitations) · [Research-demo readiness](reports/88_research_demo_release_readiness.md)
+
 ## Features
 
 - Compares go-for-it, field-goal, and punt decisions
