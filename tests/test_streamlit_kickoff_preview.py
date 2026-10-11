@@ -157,3 +157,59 @@ def test_private_engine_loads_independent_globals_in_existing_repository():
     assert callable(module["recommend"])
     assert callable(module["evaluate_post_play_states"])
     assert module["recommend"].__globals__ is module
+
+
+
+def observed_2025_donors():
+    """Enough independent games to exercise the frozen artifact integrity gate."""
+    rows = []
+    for i in range(160):
+        rows.append({
+            "season": 2025, "game_id": f"G{i}", "week": (i % 18)+1,
+            "kick_play_id": float(100+i), "quarter": 4,
+            "transition_type": "touchback" if i % 4 == 0 else "return",
+            "own_yardline": 35. if i % 4 == 0 else 29.,
+            "elapsed_seconds": 0. if i % 4 == 0 else 6.,
+        })
+        rows.append({
+            "season": 2025, "game_id": f"G{i}", "week": (i % 18)+1,
+            "kick_play_id": float(300+i), "quarter": 4,
+            "transition_type": "return",
+            "own_yardline": 30., "elapsed_seconds": 7.,
+        })
+    return pd.DataFrame(rows)
+
+
+def test_observed_2025_preview_really_uses_2025_donors_not_old_assumptions(
+    monkeypatch, tmp_path,
+):
+    frozen = tmp_path / "frozen_2025.csv"
+    observed_2025_donors().to_csv(frozen, index=False)
+    private = fake_engine()
+    original = private["evaluate_post_play_states"]
+    production = fake_engine()
+    prod_original = production["evaluate_post_play_states"]
+    monkeypatch.setattr(preview, "isolated_engine_for_preview", lambda: private)
+    result = preview.preview_observed_2025_recommendation(
+        {"qtr": 4}, donor_path=frozen, simulations=200,
+    )
+    value = result["results"].loc[
+        result["results"]["action"].eq("FIELD_GOAL"),
+        "expected_win_probability",
+    ].iloc[0]
+    assert 0.30 < value < 0.34
+    assert original.__globals__["evaluate_post_play_states"] is original
+    assert prod_original.__globals__["evaluate_post_play_states"] is prod_original
+
+    summary = preview.observed_2025_pool_summary(frozen)
+    assert summary["kickoffs"] == 320
+    assert summary["games"] == 160
+    assert summary["touchback_rate"] == pytest.approx(.125)
+    with pytest.raises(ValueError, match="Q4"):
+        preview.preview_observed_2025_recommendation(
+            {"qtr": 3}, donor_path=frozen
+        )
+    with pytest.raises(FileNotFoundError):
+        preview.preview_observed_2025_recommendation(
+            {"qtr": 4}, donor_path=tmp_path / "missing.csv"
+        )
