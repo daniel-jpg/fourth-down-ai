@@ -1,0 +1,28 @@
+{
+  "training_seasons": "2014-2022",
+  "validation_seasons": "2023-2024",
+  "test_season": 2025,
+  "conversion_model": "models/fake_conversion_model.joblib",
+  "conversion_features": [
+    "ydstogo",
+    "goal_to_go",
+    "qtr",
+    "game_seconds_remaining",
+    "score_differential",
+    "posteam_timeouts_remaining",
+    "defteam_timeouts_remaining",
+    "short_yardage",
+    "inside_10",
+    "inside_20",
+    "final_two_minutes",
+    "is_pass",
+    "fake_punt",
+    "fake_fg"
+  ],
+  "fake_effect_policy": "pooled regularized logistic model; fake-punt and fake-FG indicators borrow strength from normal designed-run/dropback plays",
+  "run_pass_policy": "run and dropback share one model using is_pass",
+  "broken_execution_policy": "broken fake executions remain in conversion training outcomes but execution_status is never used as a pre-play predictor",
+  "ordinary_transition_pool": "data/go_shared_transition_pool.parquet",
+  "rare_fake_transition_pool": "data/fake_rare_transition_pool.parquet",
+  "transition_policy": "sample conversion first; then borrow run/dropback transition behavior conditional on play style and conversion outcome; use empirical fake rare pool for rare special-teams execution outcomes"
+}

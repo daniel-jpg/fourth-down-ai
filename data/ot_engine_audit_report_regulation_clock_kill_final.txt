@@ -1,0 +1,88 @@
+================================================================================
+LOADING ENGINES
+================================================================================
+Loading fourth-down decision engine...
+
+FAKE ACTION DEVELOPMENT SUPPORT
+FAKE_PUNT_RUN    n=136  yardline_100=54.0 to 79.5  ydstogo=1.0 to 8.5
+FAKE_PUNT_PASS   n=104  yardline_100=43.0 to 74.0  ydstogo=2.0 to 10.0
+FAKE_FG_RUN      n= 10  yardline_100=5.8 to 32.3  ydstogo=1.0 to 5.5
+FAKE_FG_PASS     n= 24  yardline_100=8.0 to 35.2  ydstogo=2.0 to 12.0
+All models and transition pools loaded.
+Loading fourth-down decision engine...
+
+FAKE ACTION DEVELOPMENT SUPPORT
+FAKE_PUNT_RUN    n=136  yardline_100=54.0 to 79.5  ydstogo=1.0 to 8.5
+FAKE_PUNT_PASS   n=104  yardline_100=43.0 to 74.0  ydstogo=2.0 to 10.0
+FAKE_FG_RUN      n= 10  yardline_100=5.8 to 32.3  ydstogo=1.0 to 5.5
+FAKE_FG_PASS     n= 24  yardline_100=8.0 to 35.2  ydstogo=2.0 to 12.0
+All models and transition pools loaded.
+
+================================================================================
+1. EXACT OT RULE-LAYER TESTS
+================================================================================
+Rule-layer checks executed: 12
+
+================================================================================
+2. RESPONSE-TIED VS SUDDEN-DEATH CONSISTENCY
+================================================================================
+        action  response   sudden
+    FIELD_GOAL  0.899171 0.899171
+NORMAL_GO_PASS  0.642054 0.642054
+ NORMAL_GO_RUN  0.639265 0.639265
+          PUNT  0.571049 0.571049
+
+Max response-tied vs sudden-death difference: 0.0
+
+================================================================================
+3. LARGE VALID-STATE OT SWEEP
+================================================================================
+OT states tested: 1330
+Exceptions: 0
+Out-of-range failures: 0
+GO NaN failures: 0
+No-action failures: 0
+High-simulation heuristic rechecks: 6
+
+================================================================================
+4. TIMEOUT COMBINATION TESTS
+================================================================================
+Timeout combinations tested: 27
+
+================================================================================
+5. REGULATION REGRESSION AGAINST PRE-OT ENGINE
+================================================================================
+Regulation states compared: 144
+Regulation mismatches: 0
+
+================================================================================
+6. REGULATION CLOCK-KILL RULE TESTS
+================================================================================
+Regulation clock-kill checks executed: 14
+
+================================================================================
+7. HELD-OUT 2025 REGULAR-SEASON TRAILING OT PLAYS
+================================================================================
+        game_id   play_id    clock  yardline_100  ydstogo  score_diff         actual    engine_best   PUNT     FG  GO_RUN  GO_PASS
+ 2025_04_GB_DAL 4869.0000 230.0000       76.0000   6.0000     -3.0000 NORMAL_GO_PASS NORMAL_GO_PASS 0.0026    NaN     NaN   0.0342
+ 2025_04_GB_DAL 5104.0000   1.0000       16.0000  14.0000     -3.0000     FIELD_GOAL     FIELD_GOAL    NaN 0.4578     NaN   0.0443
+  2025_05_SF_LA 4950.0000 221.0000       11.0000   1.0000     -3.0000  NORMAL_GO_RUN     FIELD_GOAL    NaN 0.6749  0.5141   0.4741
+2025_12_JAX_ARI 4999.0000 247.0000       42.0000   4.0000     -3.0000 NORMAL_GO_PASS     FIELD_GOAL 0.0066 0.3511     NaN   0.1958
+2025_12_NYG_DET 4736.0000 523.0000       70.0000  10.0000     -7.0000 NORMAL_GO_PASS NORMAL_GO_PASS 0.0051    NaN     NaN   0.1134
+2025_12_NYG_DET 4958.0000 266.0000       27.0000   5.0000     -7.0000 NORMAL_GO_PASS NORMAL_GO_PASS 0.0072 0.0000     NaN   0.1951
+2025_13_DEN_WAS 5062.0000 170.0000        3.0000   3.0000     -7.0000 NORMAL_GO_PASS  NORMAL_GO_RUN    NaN 0.0000  0.2520   0.2265
+
+================================================================================
+8. FINAL AUDIT SUMMARY
+================================================================================
+Hard checks executed: 81
+Large OT sweep states: 1330
+Timeout cases: 27
+Regulation regression states: 144
+Held-out trailing OT plays: 7
+
+HARD FAILURES: 0
+REVIEW FLAGS: 0
+
+RESULT: ALL HARD CHECKS PASSED
+No heuristic review flags found.
