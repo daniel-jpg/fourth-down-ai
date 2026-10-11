@@ -197,6 +197,31 @@ exploratory studies have **examined 2025**; those results must not be described
 as an untouched independent holdout for future model selection. 2026 Week 6+
 is reserved for a future prospective benchmark.
 
+## Q4 Kickoff Feature-Encoding Audit (Research)
+
+A [14-situation Q4 robustness audit](reports/2025_q4_kickoff_site_model_defect.md)
+identified a material issue in the **original** (still official) win-probability
+engine: changing only HOME versus AWAY or NEUTRAL can reverse GO versus
+FIELD GOAL near 4th-and-3 at opponent 30, down three with 7:38 remaining.
+The historical kickoff-pending state uses missing `yardline_100` and
+`ydstogo`, unlike the native standard-35 kickoff encoding.
+
+A **private, reversible candidate**, using `yardline_100=35`,
+`ydstogo=0`, `down=NaN` for unresolved normal Q4 scoring kickoffs,
+eliminated both reversals on the fixed 14-state grid while preserving
+the same frozen WP coefficients. The native-only candidate and the
+538-transition comparison both favor GO in 14/14 cases; the original
+engine favors GO in 12/14. This is a modeling defect investigation,
+**not** a validated causal decision rule. Historical 2024/25 made-FG
+calibration point estimates improved with a similar encoding, but
+their game-cluster uncertainty intervals include no improvement.
+
+The candidate remains **research-only**, without a production promotion
+or 2026 outcome access. See
+[`src/kickoff_q4_native_features_candidate.py`](src/kickoff_q4_native_features_candidate.py),
+[Step 80 evaluation](src/80_evaluate_q4_native_kickoff_candidate.py),
+and the [full report](reports/2025_q4_kickoff_site_model_defect.md).
+
 ## Installation
 
 Clone the repository:
