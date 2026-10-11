@@ -1782,6 +1782,7 @@ experimental_touchback_rate = 0.30
 experimental_onside_enabled = False
 experimental_onside_attempt_probability = 0.25
 experimental_onside_recovery_probability = 0.10
+experimental_ordinary_only = False
 
 if qtr == 4:
 
@@ -1800,8 +1801,8 @@ if qtr == 4:
             "Show the experimental kickoff-adjusted comparison",
             value=False,
             help=(
-                "Defaults to frozen observed 2025 regular-season ordinary "
-                "Q4 kickoff returns and touchbacks. The preview is isolated "
+                "Defaults to frozen 2025 ordinary kickoffs AND verified "
+                "penalty-affected first possessions. The preview is isolated "
                 "from the production model and is not an independently "
                 "validated 2026+ prediction."
             ),
@@ -1810,9 +1811,10 @@ if qtr == 4:
         if experimental_kickoff_enabled:
 
             st.caption(
-                "Default: observed 2025 regular-season Q4 kickoffs. "
-                "Touchbacks, returns, field positions, and elapsed times "
-                "are sampled together from real historical plays."
+                "Default: 2025 regular-season Q4 nonscoring kickoffs. "
+                "538 verified first possessions: 488 ordinary kickoffs "
+                "and 50 clean penalty-affected kickoffs. Field position "
+                "and elapsed time are sampled together from real plays."
             )
 
             experimental_use_2024_assumptions = st.checkbox(
@@ -1842,9 +1844,15 @@ if qtr == 4:
             else:
 
                 st.caption(
-                    "No touchback rate needs to be guessed. "
-                    "Ordinary kicks use the historical 2025 distribution; "
-                    "this is not a calibrated 2026+ forecast."
+                    "No touchback or penalty rate needs to be guessed. "
+                    "The selected 2025 historical outcome distribution "
+                    "is not a calibrated 2026+ forecast."
+                )
+
+                experimental_ordinary_only = st.checkbox(
+                    "Advanced: compare using only the previous 488 "
+                    "ordinary kickoffs (exclude penalty-affected snaps)",
+                    value=False,
                 )
 
                 if (
@@ -1899,10 +1907,10 @@ if qtr == 4:
                 if not experimental_onside_enabled:
 
                     st.caption(
-                        "Onside kicks, return touchdowns, special penalties, "
-                        "and unmatched first possessions are not represented. "
-                        "Enable the Advanced onside what-if to explore one "
-                        "of these unmodeled outcomes."
+                        "Onside kicks, return touchdowns, actual re-kicks, "
+                        "and unmatched first possessions remain excluded. "
+                        "Enable the Advanced onside what-if to explore "
+                        "one additional hypothetical branch."
                     )
 
 
@@ -2240,10 +2248,11 @@ if run_model:
         else:
 
             st.caption(
-                "2025 observed regular-season Q4 ordinary kickoffs: "
-                "empirical touchbacks and returns under 2025 rules. "
-                "No assumed touchback rate. This is descriptive history, "
-                "not a calibrated 2026+ forecast."
+                "Observed 2025 regular-season Q4 nonscoring "
+                "kickoff-to-first-snap transitions, including verified "
+                "penalty-enforced first possessions by default. "
+                "No assumed touchback or penalty rates. Historical "
+                "description, NOT a calibrated 2026+ forecast."
             )
 
         try:
@@ -2251,9 +2260,11 @@ if run_model:
             from src.streamlit_kickoff_preview import (
                 preview_recommendation,
                 preview_observed_2025_recommendation,
+                preview_observed_2025_resolved_recommendation,
                 preview_observed_2025_with_onside,
                 observed_2025_onside_summary,
                 observed_2025_pool_summary,
+                observed_2025_resolved_summary,
                 observed_2025_kickoff_coverage,
                 action_comparison,
                 preview_rank_with_uncertainty,
@@ -2284,17 +2295,32 @@ if run_model:
                                 experimental_onside_attempt_probability,
                             recovery_probability=
                                 experimental_onside_recovery_probability,
+                            include_verified_penalties=
+                                not experimental_ordinary_only,
                         )
                         frozen_onside_details = observed_2025_onside_summary()
 
                     else:
 
-                        scenario_result = preview_observed_2025_recommendation(
-                            state,
-                        )
+                        if experimental_ordinary_only:
+
+                            scenario_result = preview_observed_2025_recommendation(
+                                state,
+                            )
+
+                        else:
+
+                            scenario_result = preview_observed_2025_resolved_recommendation(
+                                state,
+                            )
+
                         frozen_onside_details = None
 
-                    frozen_2025_details = observed_2025_pool_summary()
+                    frozen_2025_details = (
+                        observed_2025_pool_summary()
+                        if experimental_ordinary_only
+                        else observed_2025_resolved_summary()
+                    )
                     frozen_2025_coverage = observed_2025_kickoff_coverage()
 
                 scenario_table = action_comparison(
@@ -2323,27 +2349,44 @@ if run_model:
 
             if frozen_2025_details is not None:
 
-                st.caption(
-                    f"Frozen 2025 sample: {frozen_2025_details['kickoffs']} "
-                    f"ordinary kickoffs from {frozen_2025_details['games']} "
-                    f"games; observed touchbacks "
-                    f"{frozen_2025_details['touchback_rate']:.1%}."
-                )
-
                 all_kicks = frozen_2025_coverage["all"]
                 q4_late_kicks = frozen_2025_coverage["late"]
                 exclusions = all_kicks["counts"]
+                recorded = frozen_2025_details["kickoffs"]
+
+                if experimental_ordinary_only:
+
+                    st.caption(
+                        f"**Previous ordinary-only comparison:** "
+                        f"{recorded} matched kickoffs, "
+                        f"{recorded/all_kicks['total_kickoffs']:.1%} of "
+                        "eligible 2025 Q4 standard-35 events. "
+                        "Penalty-affected plays are deliberately excluded."
+                    )
+
+                else:
+
+                    st.caption(
+                        f"**Expanded 2025 nonscoring sample:** "
+                        f"{recorded} verified first possessions "
+                        f"({frozen_2025_details['ordinary']} ordinary + "
+                        f"{frozen_2025_details['penalty_first_snaps']} "
+                        f"penalty-affected), from "
+                        f"{frozen_2025_details['games']} games. "
+                        f"Coverage: {recorded/all_kicks['total_kickoffs']:.1%} "
+                        f"of all {all_kicks['total_kickoffs']} eligible "
+                        "2025 Q4 standard-35 kickoffs."
+                    )
 
                 st.caption(
-                    f"**2025 historical kickoff coverage:** "
-                    f"{exclusions['modeled_ordinary']} of "
-                    f"{all_kicks['total_kickoffs']} ({all_kicks['ordinary_share']:.1%}) "
-                    "standard-35 kickoffs with over 40 seconds remaining "
-                    "were ordinary. The remainder included "
+                    "**Still unsupported as ordinary nonscoring "
+                    "first-possession outcomes:** "
                     f"{exclusions['onside_attempt']} onside attempts, "
-                    f"{exclusions['kickoff_return_td']} return touchdowns, "
-                    f"{exclusions['penalty_or_rekick']} penalties/re-kicks, "
-                    f"and {exclusions['other_unmatched']} unmatched plays."
+                    f"{exclusions['kickoff_return_td']} return touchdown, "
+                    "2 actual re-kicks, and "
+                    f"{exclusions['other_unmatched']} unmatched plays. "
+                    "One 2025 return touchdown at 7:18 remaining "
+                    "cannot establish a future game-specific TD rate."
                 )
 
                 if frozen_onside_details is not None:
@@ -2364,18 +2407,27 @@ if run_model:
                         "successful recoveries. "
                         "**These input probabilities are assumptions, "
                         "not calibrated estimates.** "
-                        "Return touchdowns, penalty outcomes and special "
-                        "kickoff spots are still excluded."
+                        "The default also includes verified penalty "
+                        "first possessions; return touchdowns, actual "
+                        "re-kicks and special kickoff spots remain excluded."
                     )
+
+                late_resolved = (
+                    q4_late_kicks["counts"]["modeled_ordinary"]
+                    + (
+                        0 if experimental_ordinary_only
+                        else frozen_2025_details["late_verified_penalties"]
+                    )
+                )
 
                 st.caption(
                     f"In the final five minutes (>40 seconds remaining), "
-                    f"only {q4_late_kicks['counts']['modeled_ordinary']} of "
+                    f"the selected historical donor pool covers "
+                    f"{late_resolved} of "
                     f"{q4_late_kicks['total_kickoffs']} "
-                    f"({q4_late_kicks['ordinary_share']:.1%}) kickoffs "
-                    "were represented by the ordinary donor pool. "
-                    "These are historical coverage rates, NOT forecasts "
-                    "of 2026+ coaching choices or special teams."
+                    f"({late_resolved/q4_late_kicks['total_kickoffs']:.1%}) "
+                    "kickoffs. These selected historical rates are NOT "
+                    "forecasts of future coaching or special-teams outcomes."
                 )
 
                 # For a successful 3-point FG, the OPPONENT receives.
@@ -2401,7 +2453,8 @@ if run_model:
                         f"Q4 kickoffs with a receiver ahead by 1–3 and "
                         f"40–300 seconds left, only "
                         f"{close_counts['modeled_ordinary']} of "
-                        f"{close_kicks['total_kickoffs']} were ordinary; "
+                        f"{close_kicks['total_kickoffs']} were ordinary "
+                        "or clean nonscoring possessions; "
                         f"{close_counts['onside_attempt']} were onside. "
                         "This small selected sample does NOT establish "
                         "a game-specific onside attempt or recovery rate."
