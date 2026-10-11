@@ -51,10 +51,15 @@ def inspect_made_fg_kickoff_encoding(
     seconds = float(state["game_seconds_remaining"])
     if not np.isfinite(seconds):
         raise ValueError("Invalid game clock for kickoff reliability check.")
-    if qtr != 4 or not (LAST_Q4_STANDARD_KICKOFF_SECONDS < seconds <= Q4_LENGTH_SECONDS):
+    # The historical reliability cohort requires >40 seconds *at the
+    # kickoff*. Subtract the fixed five-second FG before that scope check.
+    if qtr != 4 or not (
+        LAST_Q4_STANDARD_KICKOFF_SECONDS + FG_EXECUTION_SECONDS
+        < seconds <= Q4_LENGTH_SECONDS
+    ):
         return {
             "applicable": False,
-            "reason": "Only standard Q4 post-FG kickoffs with >40 seconds remain",
+            "reason": "Only Q4 made-FG kickoffs with >40 post-FG seconds",
         }
 
     if isolated_engine is None:
