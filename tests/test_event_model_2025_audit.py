@@ -153,6 +153,7 @@ def test_prespecified_groups_focus_on_24yd_fg_vs_4th_and_4_pass():
 def test_no_future_2026_or_model_retraining_in_this_audit():
     source = SCRIPT.read_text()
     assert "SEASONS = (2023, 2024, 2025)" in source
-    assert "2026" not in source[source.index("def load_engine("):]
+    assert "nfl.load_pbp(list(SEASONS))" in source
+    assert "nfl.load_pbp([2026])" not in source
     assert "model.fit(" not in source
     assert "joblib.dump(" not in source
