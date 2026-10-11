@@ -30,6 +30,11 @@ import pandas as pd
 from .kickoff_2025_empirical import (
     FROZEN_PATH, load_frozen_pool, resolve_post_score_q4_2025,
 )
+from .kickoff_2025_resolved import (
+    NEW_TYPE as PENALTY_TRANSITION,
+    validate_resolved_pool,
+    resolve_post_score_q4_resolved,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 ONSIDE_JSON = ROOT / "data/kickoff_2025_onside_outcomes.json"
@@ -112,9 +117,14 @@ def resolve_q4_fg_onside_what_if(
     for the OTHER states, giving the zero-attempt scenario exact parity.
     """
     validate_what_if(p_attempt, p_recovery)
-    output = resolve_post_score_q4_2025(
-        pending, ordinary, rng=rng_ordinary, rules_year=2026,
-    )
+    if PENALTY_TRANSITION in set(ordinary["transition_type"]):
+        output = resolve_post_score_q4_resolved(
+            pending, ordinary, rng=rng_ordinary, rules_year=2026,
+        )
+    else:
+        output = resolve_post_score_q4_2025(
+            pending, ordinary, rng=rng_ordinary, rules_year=2026,
+        )
     if not (
         int(base.get("qtr", 0)) == 4
         and float(base.get("score_differential", 0)) + 3.0 < 0
@@ -192,8 +202,13 @@ def use_q4_onside_what_if(
     """Isolated, reproducible, nonproduction experimental FG continuation."""
     validate_what_if(p_attempt, p_recovery)
     # Verify the donor data comes from the explicit approved frozen sources.
-    if not len(ordinary) >= 300 or not len(onside) == 37:
-        raise ValueError("Unverified kickoff data size.")
+    if len(onside) != 37:
+        raise ValueError("Unverified onside kickoff sample size.")
+    if PENALTY_TRANSITION in set(ordinary["transition_type"]):
+        validate_resolved_pool(ordinary)
+    else:
+        from .kickoff_2025_empirical import validate_frozen_pool
+        validate_frozen_pool(ordinary)
     if onside["official_kicker_recovered"].eq(1).sum() != 4:
         raise ValueError("Onside recovery donor count changed.")
     original = engine["evaluate_post_play_states"]
