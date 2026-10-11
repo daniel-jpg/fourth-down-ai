@@ -127,26 +127,36 @@ It displays:
 For Q4 situations, the Streamlit app offers a clearly labeled, optional
 **kickoff-adjusted scenario** alongside the unchanged production recommendation.
 
-- The default experimental scenario draws an entire ordinary kickoff
-  transition (touchback/return, receiving-team starting position, and elapsed
-  clock) from **488 observed 2025 regular-season Q4 standard-35 kickoffs**
-  across 251 games, excluding onside kicks and exceptional outcomes.
-- The historical touchback share in this strictly filtered sample is **31.97%**,
-  not an assumed probability for future NFL games.
-- **Coverage matters:** the frozen [2025 Q4 kickoff coverage census](data/kickoff_2025_q4_coverage.json)
-  contains **584** comparable standard-35 kickoffs with over 40 seconds
-  remaining. Only **488 (83.6%)** are modeled as ordinary. The other
-  **96** include 41 onside attempts, one kickoff-return TD, 52
-  penalties/re-kicks, and two unmatched plays. In the last five minutes
-  (with >40 seconds), only **171/218 (78.4%)** are represented.
+- The **current experimental default** samples whole kickoff-to-first-snap
+  outcomes from **538 observed 2025 regular-season Q4 standard-35 kickoffs**:
+  488 ordinary kicks plus 50 penalty-affected kicks with independently
+  verified, score-neutral receiving-team first snaps. The fields (touchback,
+  receiving position, clock consumed) are sampled together from actual plays.
+- The frozen [2025 Q4 kickoff coverage census](data/kickoff_2025_q4_coverage.json)
+  includes **584** eligible kickoffs, so the improved experimental resolver
+  represents **538/584 (92.1%)** of Q4 kickoffs, versus **488/584 (83.6%)**
+  in the original ordinary-only preview. In the final five minutes and with
+  more than 40 seconds remaining, coverage rises from **171/218 (78.4%)**
+  to **185/218 (84.9%)**. Neither fraction is a validated 2026 forecast.
+- The remaining **46 unsupported kickoff outcomes** are 41 declared onside
+  attempts, two actual re-kicks, one kickoff return TD and two unmatched
+  outcomes. The [penalty/re-kick and TD audit](data/kickoff_2025_penalty_return_coverage.json)
+  and [reconstructed historical first snaps](data/kickoff_2025_penalty_first_snaps.csv)
+  are frozen and checked. We never replace a re-kick or scoring return with
+  an ordinary return.
+- The original **488-only** empirical comparison is preserved under
+  Advanced for reproducibility. Its historical touchback share is **31.97%**;
+  this descriptive rate is not an assumed future 2026 touchback probability.
 - In the selected last-five-minute **receiver-leading-by-1-to-3** group
   relevant after a Rams-style made FG, **15 of 20** observed 2025 kicks
   were ordinary and five were onside attempts. **Twenty kicks is not
   enough to calibrate a future game-specific onside strategy.** The
   Streamlit experimental section explicitly shows these limitations.
-- The public data snapshot is committed as
-  `data/kickoff_2025_reg_q4_ordinary.csv`; visitors do **not** download NFL
-  play-by-play when running the Streamlit preview.
+- All underlying historical data are versioned: the
+  [488 frozen ordinary kicks](data/kickoff_2025_reg_q4_ordinary.csv),
+  the [penalty-affected kickoff observations](data/kickoff_2025_penalty_first_snaps.csv),
+  and the [2025 onside transition samples](data/kickoff_2025_onside_first_snaps.csv).
+  Visitors do **not** download live NFL play-by-play to use Streamlit.
 - An Advanced option preserves the earlier 2024-return sensitivity study with
   an explicitly assumed touchback rate.
 - A separate, **opt-in 2025 onside what-if** tests two *user-chosen*
@@ -174,10 +184,13 @@ For Q4 situations, the Streamlit app offers a clearly labeled, optional
   required for Streamlit visitors.
 - The scenario runs in an isolated engine instance and never overwrites the
   official recommendation, models, or shared Streamlit cache.
-- Historical ordinary-kickoff data cannot establish the right FG/GO
-  **counterfactual** or model onside recoveries, return touchdowns, and unusual
-  penalties. An experimental winner separated by less than Monte Carlo noise
-  is reported as **too close to call**.
+- The expanded preview still cannot establish a causal FG/GO
+  **counterfactual** or model return touchdowns, actual re-kicks and
+  ambiguous kickoffs. A single 2025 Q4 return touchdown at 7:18 remaining
+  cannot estimate a 2026 late-game risk; [Step 77](src/77_compare_penalty_resolved_wp.py)
+  reports explicit, hypothetical worst-case probability bounds rather than
+  inventing a scoring-return probability. An experimental winner separated
+  by less than Monte Carlo noise is reported as **too close to call**.
 
 The original 2025 evaluation was held out for the v1.1.0 release. Subsequent
 exploratory studies have **examined 2025**; those results must not be described
