@@ -190,6 +190,31 @@ def action_comparison(
     ).reset_index(drop=True)
 
 
+
+def recommendation_sensitivity(
+    production_result: Mapping, scenario_result: Mapping,
+) -> dict:
+    """Explain an action-order reversal or simulated near-tie, not causality."""
+    prod = production_result["results"]
+    eligible = prod.loc[
+        prod["eligible"] & prod["action"].isin(LABELS),
+        ["action", "expected_win_probability"],
+    ].sort_values("expected_win_probability", ascending=False)
+    if eligible.empty:
+        raise ValueError("No eligible production action to compare.")
+    official = LABELS[str(eligible.iloc[0]["action"])]
+    current = preview_rank_with_uncertainty(scenario_result)
+    flipped = official != current["leader"]
+    uncertain = bool(current["near_tie"])
+    return {
+        "production_leader": official,
+        "scenario_point_leader": current["leader"],
+        "reversed": flipped,
+        "scenario_near_tie": uncertain,
+        "model_sensitive": bool(flipped or uncertain),
+    }
+
+
 def preview_rank_with_uncertainty(scenario_result: Mapping) -> dict:
     """Describe scenario winner, explicitly preserving near ties."""
     rows = scenario_result["results"].loc[
