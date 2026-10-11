@@ -149,6 +149,29 @@ For Q4 situations, the Streamlit app offers a clearly labeled, optional
   play-by-play when running the Streamlit preview.
 - An Advanced option preserves the earlier 2024-return sensitivity study with
   an explicitly assumed touchback rate.
+- A separate, **opt-in 2025 onside what-if** tests two *user-chosen*
+  parameters: chance of choosing an onside kick after a made Q4 field goal
+  while still trailing, and chance of the kicking team recovering if attempted.
+  This does not estimate a real team's policy.
+- The 2025 REG Q4 coverage census has **41** eligible declared onside kicks
+  across 39 games. The official `own_kickoff_recovery` field identifies **four**
+  kicking-team recoveries (4/41, 9.8% observed); **37** onside kicks were
+  matched to a verified subsequent scrimmage snap, with **four** penalty
+  cases excluded from the transition donor pool.
+- Field position and elapsed clock in either what-if onside outcome are
+  sampled together from these 37 actual possessions. A recovered kick
+  correctly transfers possession **back to the kicking team**; a failed
+  attempt leaves the receiver in possession. **Only four verified
+  success donors** means substantial unmodeled uncertainty.
+- The 2026 NFL rules allow declaring an onside kick regardless of score,
+  but this particular prototype is intentionally scoped to a made Q4 FG
+  leaving the original kicking team trailing (the Rams-style case). It does
+  not attempt to simulate all legally permitted onside choices.
+  See [the official 2026 NFL rulebook](https://operations.nfl.com/rules-officiating/2026-nfl-rulebook).
+- The [Rams sensitivity script](src/75_rams_onside_sensitivity_audit.py)
+  and [2025 onside recovery audit](src/74_freeze_2025_onside_outcomes.py)
+  run automatically in GitHub Actions. No local data downloads are
+  required for Streamlit visitors.
 - The scenario runs in an isolated engine instance and never overwrites the
   official recommendation, models, or shared Streamlit cache.
 - Historical ordinary-kickoff data cannot establish the right FG/GO
