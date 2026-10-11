@@ -2244,15 +2244,31 @@ if run_model:
                     f"{frozen_2025_details['touchback_rate']:.1%}."
                 )
 
-            st.metric(
-                "Experimental scenario leader (not official)",
-                scenario_rank["leader"],
-            )
+            if scenario_rank["near_tie"]:
 
-            st.caption(
-                f"Scenario-estimated win probability for leader: "
-                f"{scenario_rank['leader_wp_pct']:.2f}%"
-            )
+                st.metric(
+                    "Experimental result (not official)",
+                    "NO CLEAR WINNER",
+                )
+
+                st.caption(
+                    f"Highest point estimate: {scenario_rank['leader']} "
+                    f"at {scenario_rank['leader_wp_pct']:.2f}%. "
+                    "The gap is smaller than the simulation "
+                    "uncertainty threshold."
+                )
+
+            else:
+
+                st.metric(
+                    "Experimental leader (not official)",
+                    scenario_rank["leader"],
+                )
+
+                st.caption(
+                    f"Scenario-estimated win probability for leader: "
+                    f"{scenario_rank['leader_wp_pct']:.2f}%"
+                )
 
             if scenario_rank["runner_up"] is not None:
 
@@ -2261,11 +2277,13 @@ if run_model:
                 if scenario_rank["near_tie"]:
 
                     st.warning(
-                        f"**Too close to call:** the experimental leader "
-                        f"is only {scenario_gap:.2f} percentage points "
-                        f"ahead of {scenario_rank['runner_up']}. "
-                        "The Monte Carlo simulation error alone is "
-                        "large enough that the leader is uncertain."
+                        f"**Too close to call:** {scenario_rank['leader']} "
+                        f"is ahead of {scenario_rank['runner_up']} "
+                        f"by only {scenario_gap:.2f} percentage points. "
+                        "The simulation's approximate uncertainty is "
+                        "too large to distinguish them. Even a smaller "
+                        "Monte Carlo error would not establish "
+                        "which fourth-down decision is genuinely better."
                     )
 
                 else:
