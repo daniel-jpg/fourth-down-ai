@@ -221,7 +221,7 @@ def test_official_recommendation_is_flagged_when_empirical_scenario_disagrees():
     empirical = recommendation(.3411, .3449, fg_se=.0008, go_se=.0042)
     status = preview.recommendation_sensitivity(baseline, empirical)
     assert status["production_leader"] == "FIELD GOAL"
-    assert status["scenario_point_leader"] == "PASS / DROPBACK"
+    assert status["scenario_point_leader"] == "GO FOR IT"
     assert status["reversed"]
     assert status["scenario_near_tie"]
     assert status["model_sensitive"]
@@ -244,3 +244,109 @@ def test_model_sensitivity_is_triggered_even_without_point_rank_flipping():
     assert not status["reversed"]
     assert status["scenario_near_tie"]
     assert status["model_sensitive"]
+
+
+
+def full_fourth_down(fg, run, pass_call, punt=.2205, *, mc_se=.004):
+    """Mock both the strategy and the RUN/PASS decision independently."""
+    return {
+        "results": pd.DataFrame([
+            {
+                "action": action,
+                "eligible": True,
+                "expected_win_probability": float(wp),
+                "mc_se": mc_se,
+            }
+            for action, wp in (
+                ("FIELD_GOAL", fg),
+                ("NORMAL_GO_RUN", run),
+                ("NORMAL_GO_PASS", pass_call),
+                ("PUNT", punt),
+            )
+        ])
+    }
+
+
+def test_user_example_go_strategy_clear_but_run_vs_pass_close():
+    """Q4 7:38 4th-and-3: GO is clear; RUN vs PASS is the near tie."""
+    production = full_fourth_down(.3408, .4144, .4086)
+    experiment = full_fourth_down(.3400, .4157, .4083)
+
+    decision = preview.preview_strategy_rank_with_uncertainty(experiment)
+    play_call = preview.preview_go_playcall_with_uncertainty(experiment)
+    sensitive = preview.recommendation_sensitivity(production, experiment)
+
+    assert decision["leader"] == "GO FOR IT"
+    assert decision["leader_action"] == "RUN"
+    assert decision["runner_up"] == "FIELD GOAL"
+    assert decision["gap_pp"] == pytest.approx(7.57)
+    assert not decision["near_tie"]
+
+    assert play_call["leader"] == "RUN"
+    assert play_call["runner_up"] == "PASS / DROPBACK"
+    assert play_call["gap_pp"] == pytest.approx(.74)
+    assert play_call["near_tie"]
+
+    assert sensitive == {
+        "production_leader": "GO FOR IT",
+        "scenario_point_leader": "GO FOR IT",
+        "reversed": False,
+        "scenario_near_tie": False,
+        "model_sensitive": False,
+    }
+
+
+def test_which_go_play_is_best_can_change_without_reversing_strategy():
+    old = full_fourth_down(.31, .43, .42)
+    new = full_fourth_down(.31, .42, .43)
+    assert preview.preview_rank_with_uncertainty(old)["leader"] == "RUN"
+    assert preview.preview_rank_with_uncertainty(new)["leader"] == "PASS / DROPBACK"
+    assert not preview.recommendation_sensitivity(old, new)["model_sensitive"]
+    assert preview.preview_strategy_rank_with_uncertainty(new)["leader"] == "GO FOR IT"
+
+
+def test_true_go_vs_field_goal_near_tie_still_triggers_sensitivity():
+    old = full_fourth_down(.40, .30, .29, punt=.20)
+    new = full_fourth_down(.350, .353, .349, punt=.20, mc_se=.003)
+    sensitive = preview.recommendation_sensitivity(old, new)
+    decision = preview.preview_strategy_rank_with_uncertainty(new)
+    assert decision["leader"] == "GO FOR IT"
+    assert decision["runner_up"] == "FIELD GOAL"
+    assert decision["near_tie"]
+    assert sensitive["reversed"] and sensitive["scenario_near_tie"]
+    assert sensitive["model_sensitive"]
+
+
+def test_sufficiently_clear_strategy_flip_warns_even_without_monte_carlo_tie():
+    old = full_fourth_down(.43, .36, .35)
+    new = full_fourth_down(.34, .42, .41, mc_se=.001)
+    sens = preview.recommendation_sensitivity(old, new)
+    assert sens["production_leader"] == "FIELD GOAL"
+    assert sens["scenario_point_leader"] == "GO FOR IT"
+    assert sens["reversed"]
+    assert not sens["scenario_near_tie"]
+    assert sens["model_sensitive"]
+
+
+def test_only_eligible_go_call_still_yields_go_strategy():
+    case = recommendation(.25, .42, fg_se=.003, go_se=.003)
+    assert preview.preview_go_playcall_with_uncertainty(case) is None
+    decision = preview.preview_strategy_rank_with_uncertainty(case)
+    assert decision["leader"] == "GO FOR IT"
+    assert decision["leader_action"] == "PASS / DROPBACK"
+    assert not decision["near_tie"]
+
+
+def test_strategy_ranking_fails_closed_on_invalid_eligible_values():
+    bad = full_fourth_down(.35, .40, .39)
+    bad["results"].loc[0, "mc_se"] = np.nan
+    with pytest.raises(ValueError, match="Invalid strategy"):
+        preview.preview_strategy_rank_with_uncertainty(bad)
+
+    duplicate = full_fourth_down(.35, .40, .39)
+    duplicate["results"] = pd.concat(
+        [duplicate["results"], duplicate["results"].iloc[[1]]],
+        ignore_index=True,
+    )
+    with pytest.raises(ValueError, match="distinct eligible"):
+        preview.preview_strategy_rank_with_uncertainty(duplicate)
