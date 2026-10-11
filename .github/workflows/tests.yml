@@ -33,6 +33,9 @@ jobs:
           python -m py_compile src/kickoff_2025_resolved.py
           python -m py_compile src/kickoff_2025_onside_sensitivity.py
 
+      - name: Verify frozen artifacts and release documentation
+        run: python scripts/release_preflight.py
+
       - name: Run regression tests
         run: |
           python -m pytest -v --ignore=tests/test_streamlit_app_integration.py
