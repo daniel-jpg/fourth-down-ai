@@ -19,6 +19,7 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import json
 from pathlib import Path
 from collections.abc import Mapping
 
@@ -36,6 +37,7 @@ from .kickoff_2025_empirical import (
 ROOT = Path(__file__).resolve().parents[1]
 DONOR_PATH = ROOT / "data/kickoff_2024_dev_transition_pool.parquet"
 ENGINE_PATH = ROOT / "src/42_build_decision_engine.py"
+OBSERVED_2025_COVERAGE_PATH = ROOT / "data/kickoff_2025_q4_coverage.json"
 EXPERIMENTAL_SIMULATIONS = 2400
 EXPERIMENTAL_ACTION_SEED = 42
 EXPERIMENTAL_KICKOFF_SEED = 2026
@@ -148,6 +150,92 @@ def observed_2025_pool_summary(
             pool.loc[~touchback, "elapsed_seconds"].mean()
         ),
     }
+
+
+
+def observed_2025_kickoff_coverage(
+    coverage_path: Path = OBSERVED_2025_COVERAGE_PATH,
+    *,
+    donor_path: Path = OBSERVED_2025_PATH,
+) -> dict:
+    """Validate a versioned, descriptive event-coverage census for the UI.
+
+    The 2025 preview conditions on ordinary kickoffs. Other event branches
+    are NOT modeled, and observed rates are not forecasts for 2026+ rules.
+    A missing/stale/malformed report is an error, not an invitation to invent
+    a denominator or quietly claim that 100% of kickoffs are supported.
+    """
+    if not coverage_path.is_file():
+        raise FileNotFoundError(
+            f"Frozen 2025 kickoff coverage evidence missing: {coverage_path}"
+        )
+    obj = json.loads(coverage_path.read_text())
+    if (
+        obj.get("data_year") != 2025
+        or obj.get("no_2026_outcomes") is not True
+        or obj.get("not_a_forecast") is not True
+        or obj.get("regulation_only") is not True
+        or obj.get("kickoff_spot_yardline_100") != 35
+        or obj.get("kickoff_seconds_floor_exclusive") != 40.0
+    ):
+        raise ValueError("Frozen kickoff coverage metadata is not eligible.")
+
+    required = {
+        "2025 Q4 STANDARD 35, >40 SEC": "all",
+        "2025 Q4 FINAL 5 MIN, >40 SEC": "late",
+        "Q4 FINAL 5, RECEIVER LEADS 1-3": "receiver_leads_1to3",
+        "Q4 FINAL 5, RECEIVER TRAILS 1-3": "receiver_trails_1to3",
+    }
+    category_labels = {
+        "modeled_ordinary", "onside_attempt", "kickoff_return_td",
+        "penalty_or_rekick", "other_unmatched",
+    }
+    entries = obj.get("groups")
+    if not isinstance(entries, list) or len(entries) != len(required):
+        raise ValueError("Missing or duplicate historical kickoff contexts.")
+    result: dict = {}
+    for entry in entries:
+        name = entry.get("name")
+        if name not in required or required[name] in result:
+            raise ValueError("Unknown or duplicate kickoff context.")
+        counts = entry.get("counts")
+        if not isinstance(counts, dict) or set(counts) != category_labels:
+            raise ValueError("Unmodeled kickoff categories cannot be inferred.")
+        if any(type(c) is not int or c < 0 for c in counts.values()):
+            raise ValueError("Invalid kickoff outcome counts.")
+        total = entry.get("total_kickoffs")
+        if type(total) is not int or total < 0 or sum(counts.values()) != total:
+            raise ValueError("Kickoff outcomes fail the exhaustive-count check.")
+        share = entry.get("ordinary_share")
+        expected = counts["modeled_ordinary"] / total if total else None
+        if share is None and expected is not None:
+            raise ValueError("Missing historical ordinary kickoff share.")
+        if share is not None and (
+            expected is None or abs(float(share) - expected) > 1e-10
+        ):
+            raise ValueError("Kickoff coverage fraction disagrees with counts.")
+        group = {
+            "total_kickoffs": total,
+            "games": int(entry["games"]),
+            "counts": counts.copy(),
+            "ordinary_share": expected,
+            "low_support": bool(entry["low_support"]),
+        }
+        if group["games"] < 0 or group["games"] > total:
+            raise ValueError("Invalid kickoff coverage game counts.")
+        result[required[name]] = group
+
+    full = result["all"]
+    if full["counts"]["modeled_ordinary"] != len(load_frozen_pool(donor_path)):
+        raise ValueError(
+            "Historical coverage and frozen ordinary kickoff pool mismatch."
+        )
+    if result["late"]["total_kickoffs"] > full["total_kickoffs"]:
+        raise ValueError("Historical late Q4 set exceeds Q4 universe.")
+    for key in ("receiver_leads_1to3", "receiver_trails_1to3"):
+        if result[key]["total_kickoffs"] > result["late"]["total_kickoffs"]:
+            raise ValueError("Historical score subset exceeds late Q4 universe.")
+    return result
 
 
 def action_comparison(
