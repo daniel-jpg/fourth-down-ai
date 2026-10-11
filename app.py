@@ -1779,6 +1779,9 @@ if qtr == 2:
 experimental_kickoff_enabled = False
 experimental_use_2024_assumptions = False
 experimental_touchback_rate = 0.30
+experimental_onside_enabled = False
+experimental_onside_attempt_probability = 0.25
+experimental_onside_recovery_probability = 0.10
 
 if qtr == 4:
 
@@ -1840,11 +1843,67 @@ if qtr == 4:
 
                 st.caption(
                     "No touchback rate needs to be guessed. "
-                    "This historical 2025 distribution is not guaranteed "
-                    "to match future rules or coaching decisions. "
-                    "Onside kickoffs, return touchdowns and unusual "
-                    "penalties are not represented."
+                    "Ordinary kicks use the historical 2025 distribution; "
+                    "this is not a calibrated 2026+ forecast."
                 )
+
+                if (
+                    float(score_differential) + 3.0 < 0
+                    and int(minutes)*60 + int(seconds) > 40
+                ):
+
+                    experimental_onside_enabled = st.checkbox(
+                        "Advanced: include hypothetical onside kicks "
+                        "after a made field goal",
+                        value=False,
+                        help=(
+                            "Only applies if the kicking team would remain "
+                            "behind after making the FG. Samples historical "
+                            "2025 onside first-snap outcomes, but both "
+                            "probabilities are explicit what-if assumptions."
+                        ),
+                    )
+
+                    if experimental_onside_enabled:
+
+                        st.caption(
+                            "Hypothetical branch only. A 2025 observational "
+                            "sample of 41 attempts included just four "
+                            "kicking-team recoveries. Neither the chance "
+                            "of attempting nor recovering is validated "
+                            "for this particular game."
+                        )
+
+                        assumed_attempt_pct = st.select_slider(
+                            "Assumed chance of choosing an onside kick "
+                            "after a made field goal",
+                            options=[0, 5, 10, 15, 20, 25, 30, 40, 50],
+                            value=25,
+                            format_func=lambda value: f"{value}%",
+                        )
+
+                        assumed_recovery_pct = st.select_slider(
+                            "Assumed conditional kicking-team recovery chance",
+                            options=[0, 5, 10, 15, 20, 30, 50],
+                            value=10,
+                            format_func=lambda value: f"{value}%",
+                        )
+
+                        experimental_onside_attempt_probability = (
+                            float(assumed_attempt_pct) / 100.0
+                        )
+                        experimental_onside_recovery_probability = (
+                            float(assumed_recovery_pct) / 100.0
+                        )
+
+                if not experimental_onside_enabled:
+
+                    st.caption(
+                        "Onside kicks, return touchdowns, special penalties, "
+                        "and unmatched first possessions are not represented. "
+                        "Enable the Advanced onside what-if to explore one "
+                        "of these unmodeled outcomes."
+                    )
 
 
 # =========================================================
@@ -2192,6 +2251,8 @@ if run_model:
             from src.streamlit_kickoff_preview import (
                 preview_recommendation,
                 preview_observed_2025_recommendation,
+                preview_observed_2025_with_onside,
+                observed_2025_onside_summary,
                 observed_2025_pool_summary,
                 observed_2025_kickoff_coverage,
                 action_comparison,
@@ -2211,12 +2272,28 @@ if run_model:
                     )
                     frozen_2025_details = None
                     frozen_2025_coverage = None
+                    frozen_onside_details = None
 
                 else:
 
-                    scenario_result = preview_observed_2025_recommendation(
-                        state,
-                    )
+                    if experimental_onside_enabled:
+
+                        scenario_result = preview_observed_2025_with_onside(
+                            state,
+                            attempt_probability=
+                                experimental_onside_attempt_probability,
+                            recovery_probability=
+                                experimental_onside_recovery_probability,
+                        )
+                        frozen_onside_details = observed_2025_onside_summary()
+
+                    else:
+
+                        scenario_result = preview_observed_2025_recommendation(
+                            state,
+                        )
+                        frozen_onside_details = None
+
                     frozen_2025_details = observed_2025_pool_summary()
                     frozen_2025_coverage = observed_2025_kickoff_coverage()
 
@@ -2258,16 +2335,38 @@ if run_model:
                 exclusions = all_kicks["counts"]
 
                 st.caption(
-                    f"**Coverage of actual 2025 Q4 kickoff outcomes:** "
+                    f"**2025 historical kickoff coverage:** "
                     f"{exclusions['modeled_ordinary']} of "
                     f"{all_kicks['total_kickoffs']} ({all_kicks['ordinary_share']:.1%}) "
-                    "standard-35 kickoffs with over 40 seconds remaining. "
-                    "Excluded from this experimental forecast: "
+                    "standard-35 kickoffs with over 40 seconds remaining "
+                    "were ordinary. The remainder included "
                     f"{exclusions['onside_attempt']} onside attempts, "
                     f"{exclusions['kickoff_return_td']} return touchdowns, "
                     f"{exclusions['penalty_or_rekick']} penalties/re-kicks, "
                     f"and {exclusions['other_unmatched']} unmatched plays."
                 )
+
+                if frozen_onside_details is not None:
+
+                    st.info(
+                        "**Hypothetical onside sensitivity active:** "
+                        f"you selected a "
+                        f"{experimental_onside_attempt_probability:.0%} chance "
+                        "of an onside attempt after a made FG while still "
+                        f"trailing, and a "
+                        f"{experimental_onside_recovery_probability:.0%} "
+                        "kicking-team recovery chance *conditional on "
+                        "attempting*. "
+                        "Historical field positions and clock changes "
+                        f"come from {frozen_onside_details['matched']} "
+                        "verified 2025 first-snap transitions, including "
+                        f"only {frozen_onside_details['recovered']} "
+                        "successful recoveries. "
+                        "**These input probabilities are assumptions, "
+                        "not calibrated estimates.** "
+                        "Return touchdowns, penalty outcomes and special "
+                        "kickoff spots are still excluded."
+                    )
 
                 st.caption(
                     f"In the final five minutes (>40 seconds remaining), "
@@ -2314,9 +2413,10 @@ if run_model:
                     f"**Default recommendation is model-sensitive.** "
                     f"The official model favors "
                     f"{scenario_sensitivity['production_leader']}, "
-                    "but replacing its kickoff continuation with "
-                    "historical 2025 ordinary kickoffs changes the "
-                    "ranking or makes the result too close to call. "
+                    "but using a separate historical 2025 kickoff "
+                    "continuation (with optional what-if assumptions) "
+                    "changes the ranking or makes the result too close "
+                    "to call. "
                     "Do not treat the official advantage as a "
                     "well-established football decision edge."
                 )
@@ -2383,8 +2483,9 @@ if run_model:
                 "Scenario runs 2,400 simulations per action in a "
                 "private engine instance. MC SE measures simulation "
                 "noise only; it does not include model or kickoff "
-                "assumption uncertainty. Ordinary kickoffs only, "
-                "not a validated 2026+ prediction or retrained WP model."
+                "assumption uncertainty. This is an experimental "
+                "ordinary-kickoff or explicitly assumed onside sensitivity "
+                "analysis, not a validated 2026+ policy or retrained WP model."
             )
 
     # =====================================================
