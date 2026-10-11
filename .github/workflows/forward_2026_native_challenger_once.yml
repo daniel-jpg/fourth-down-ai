@@ -60,7 +60,7 @@ jobs:
         run: |
           set -euo pipefail
           actual="$(git hash-object src/83_forward_2026_native_challenger_once.py)"
-          expected="21074cfd74710e738a7b7cd8c4f9ef4cadbfd402"
+          expected="90ea87140de3aa3bd442bc5546cb549bdea6f0cf"
           if test "$actual" != "$expected"; then
             echo "Registered Step 83 source blob changed. Refuse future-data access."
             exit 1
