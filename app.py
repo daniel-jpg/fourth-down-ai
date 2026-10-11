@@ -2195,6 +2195,7 @@ if run_model:
                 observed_2025_pool_summary,
                 action_comparison,
                 preview_rank_with_uncertainty,
+                recommendation_sensitivity,
             )
 
             with st.spinner(
@@ -2225,6 +2226,11 @@ if run_model:
                     scenario_result
                 )
 
+                scenario_sensitivity = recommendation_sensitivity(
+                    result,
+                    scenario_result,
+                )
+
         except Exception as exc:
 
             st.warning(
@@ -2242,6 +2248,19 @@ if run_model:
                     f"ordinary kickoffs from {frozen_2025_details['games']} "
                     f"games; observed touchbacks "
                     f"{frozen_2025_details['touchback_rate']:.1%}."
+                )
+
+            if scenario_sensitivity["model_sensitive"]:
+
+                st.warning(
+                    f"**Default recommendation is model-sensitive.** "
+                    f"The official model favors "
+                    f"{scenario_sensitivity['production_leader']}, "
+                    "but replacing its kickoff continuation with "
+                    "historical 2025 ordinary kickoffs changes the "
+                    "ranking or makes the result too close to call. "
+                    "Do not treat the official advantage as a "
+                    "well-established football decision edge."
                 )
 
             if scenario_rank["near_tie"]:
