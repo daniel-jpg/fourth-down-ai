@@ -1,0 +1,33 @@
+{
+  "year": 2025,
+  "scope": "REG Q4 standard-35 kickoffs with >40s remaining",
+  "special_total": 55,
+  "penalty_total": 52,
+  "return_td_total": 1,
+  "other_unmatched_total": 2,
+  "verified_penalty_first_snap": 50,
+  "verified_penalty_games": 43,
+  "verified_penalty_avg_own_yardline": 26.18,
+  "verified_penalty_avg_elapsed_seconds": 4.34,
+  "outcome_reason_counts": {
+    "verified_penalty_first_snap": 50,
+    "unknown_nonordinary_kickoff": 2,
+    "re_kick_before_first_snap": 2,
+    "return_touchdown_requires_post_score": 1
+  },
+  "historical_only": true,
+  "not_a_future_penalty_probability": true,
+  "not_a_2026_return_td_rate": true,
+  "no_2026_data": true,
+  "return_touchdown_examples": [
+    {
+      "game_id": "2025_02_NE_MIA",
+      "play_id": 3418.0,
+      "week": 2,
+      "game_seconds_remaining": 438.0,
+      "posteam": "NE",
+      "desc": "47-R.Patterson kicks 55 yards from MIA 35 to NE 10. 4-A.Gibson for 90 yards, TOUCHDOWN.",
+      "return_td_flag": true
+    }
+  ]
+}
