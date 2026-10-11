@@ -2193,6 +2193,7 @@ if run_model:
                 preview_recommendation,
                 preview_observed_2025_recommendation,
                 observed_2025_pool_summary,
+                observed_2025_kickoff_coverage,
                 action_comparison,
                 preview_rank_with_uncertainty,
                 recommendation_sensitivity,
@@ -2209,6 +2210,7 @@ if run_model:
                         touchback_rate=experimental_touchback_rate,
                     )
                     frozen_2025_details = None
+                    frozen_2025_coverage = None
 
                 else:
 
@@ -2216,6 +2218,7 @@ if run_model:
                         state,
                     )
                     frozen_2025_details = observed_2025_pool_summary()
+                    frozen_2025_coverage = observed_2025_kickoff_coverage()
 
                 scenario_table = action_comparison(
                     result,
@@ -2249,6 +2252,61 @@ if run_model:
                     f"games; observed touchbacks "
                     f"{frozen_2025_details['touchback_rate']:.1%}."
                 )
+
+                all_kicks = frozen_2025_coverage["all"]
+                q4_late_kicks = frozen_2025_coverage["late"]
+                exclusions = all_kicks["counts"]
+
+                st.caption(
+                    f"**Coverage of actual 2025 Q4 kickoff outcomes:** "
+                    f"{exclusions['modeled_ordinary']} of "
+                    f"{all_kicks['total_kickoffs']} ({all_kicks['ordinary_share']:.1%}) "
+                    "standard-35 kickoffs with over 40 seconds remaining. "
+                    "Excluded from this experimental forecast: "
+                    f"{exclusions['onside_attempt']} onside attempts, "
+                    f"{exclusions['kickoff_return_td']} return touchdowns, "
+                    f"{exclusions['penalty_or_rekick']} penalties/re-kicks, "
+                    f"and {exclusions['other_unmatched']} unmatched plays."
+                )
+
+                st.caption(
+                    f"In the final five minutes (>40 seconds remaining), "
+                    f"only {q4_late_kicks['counts']['modeled_ordinary']} of "
+                    f"{q4_late_kicks['total_kickoffs']} "
+                    f"({q4_late_kicks['ordinary_share']:.1%}) kickoffs "
+                    "were represented by the ordinary donor pool. "
+                    "These are historical coverage rates, NOT forecasts "
+                    "of 2026+ coaching choices or special teams."
+                )
+
+                # For a successful 3-point FG, the OPPONENT receives.
+                # Their post-score lead can be inferred without peeking
+                # at actual future events or claiming a causal sample.
+                receiving_margin_if_fg_made = -(
+                    float(state["score_differential"]) + 3.0
+                )
+                if (
+                    40 < float(state["game_seconds_remaining"]) <= 300
+                    and 1 <= receiving_margin_if_fg_made <= 3
+                ):
+
+                    close_kicks = frozen_2025_coverage[
+                        "receiver_leads_1to3"
+                    ]
+                    close_counts = close_kicks["counts"]
+
+                    st.caption(
+                        f"**Limited close-game support:** after a made field "
+                        f"goal in this situation, the receiver would lead "
+                        f"by {receiving_margin_if_fg_made:g}. Among 2025 "
+                        f"Q4 kickoffs with a receiver ahead by 1–3 and "
+                        f"40–300 seconds left, only "
+                        f"{close_counts['modeled_ordinary']} of "
+                        f"{close_kicks['total_kickoffs']} were ordinary; "
+                        f"{close_counts['onside_attempt']} were onside. "
+                        "This small selected sample does NOT establish "
+                        "a game-specific onside attempt or recovery rate."
+                    )
 
             if scenario_sensitivity["model_sensitive"]:
 
