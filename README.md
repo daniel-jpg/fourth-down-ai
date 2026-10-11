@@ -239,7 +239,8 @@ and never changes the official recommendation.
 engine retains a demonstrated post-score kickoff input mismatch, the main
 Streamlit decision screen now performs a **two-state deterministic**
 sensitivity check whenever a normal FG is eligible in Q4 with **more
-than 40 seconds remaining**. It holds a hypothetical **made FG** fixed
+than 45 seconds before the kick** (so a hypothetical 5-second made FG
+leaves more than 40 seconds at kickoff). It holds a hypothetical **made FG** fixed
 with an assumed **5-second execution clock** and predicts the original
 offense's WP with the legacy and native input encodings. If those
 *conditional-on-a-made-FG* WPs differ by **at least five percentage
