@@ -26,6 +26,11 @@ import numpy as np
 import pandas as pd
 
 from .kickoff_scenario import use_q4_kickoff_scenario
+from .kickoff_2025_empirical import (
+    FROZEN_PATH as OBSERVED_2025_PATH,
+    load_frozen_pool,
+    use_frozen_2025_kickoffs,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -94,6 +99,55 @@ def preview_recommendation(
             dict(state), n_simulations=simulations, seed=action_seed,
         )
     return result
+
+
+
+def preview_observed_2025_recommendation(
+    state: Mapping, *,
+    donor_path: Path = OBSERVED_2025_PATH,
+    simulations: int = EXPERIMENTAL_SIMULATIONS,
+    action_seed: int = EXPERIMENTAL_ACTION_SEED,
+) -> dict:
+    """Run a 2025-observed kickoff continuation in a PRIVATE engine namespace.
+
+    No guessed touchback rate. The empirical 2025 ordinary kickoff type,
+    position and clock are drawn JOINTLY from a frozen data file.
+    The 2025 season has been examined and is not a pristine holdout.
+    This is NOT a validated 2026+ forecast and never changes production.
+    """
+    if int(state.get("qtr", 0)) != 4:
+        raise ValueError("Observed 2025 kickoff preview is Q4 only.")
+    if simulations < 200:
+        raise ValueError("At least 200 simulations are required for the preview.")
+    pool = load_frozen_pool(donor_path)
+    isolated = isolated_engine_for_preview()
+    with use_frozen_2025_kickoffs(
+        isolated, pool,
+        seed=EXPERIMENTAL_KICKOFF_SEED,
+        rules_year=2026,
+    ):
+        return isolated["recommend"](
+            dict(state),
+            n_simulations=simulations,
+            seed=action_seed,
+        )
+
+
+def observed_2025_pool_summary(
+    donor_path: Path = OBSERVED_2025_PATH,
+) -> dict:
+    """Describe frozen observed kickoff assumptions, not forward calibration."""
+    pool = load_frozen_pool(donor_path)
+    touchback = pool["transition_type"].eq("touchback")
+    return {
+        "kickoffs": int(len(pool)),
+        "games": int(pool["game_id"].nunique()),
+        "touchback_rate": float(touchback.mean()),
+        "receiver_own_avg": float(pool["own_yardline"].mean()),
+        "mean_return_elapsed": float(
+            pool.loc[~touchback, "elapsed_seconds"].mean()
+        ),
+    }
 
 
 def action_comparison(
