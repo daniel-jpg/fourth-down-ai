@@ -92,7 +92,7 @@ def test_invalid_simulated_probability_or_missing_actions_fails_closed():
     bad=frame()
     bad["results"].loc[bad["results"]["action"].eq("FIELD_GOAL"),
                        "mc_se"]=np.nan
-    with pytest.raises(ValueError,match="Invalid strategy"):
+    with pytest.raises(ValueError,match="Invalid WP or MC uncertainty"):
         mod.snapshot(bad)
     dup=frame()
     dup["results"]=pd.concat([dup["results"],
