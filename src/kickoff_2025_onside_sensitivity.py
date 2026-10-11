@@ -132,10 +132,18 @@ def resolve_q4_fg_onside_what_if(
     ]
     if not eligible or p_attempt == 0:
         return output
-    for i, roll in zip(eligible, rng_special.random(len(eligible))):
-        if roll >= p_attempt:
+    # Draw all counterfactual uniforms independently of the sliders.
+    # Changing an assumed attempt/recovery percentage must not reshuffle
+    # all subsequent onside donor draws. Ordinary-kickoff RNG is separate.
+    attempt_draws = rng_special.random(len(eligible))
+    recovery_draws = rng_special.random(len(eligible))
+    donor_draws = rng_special.random(len(eligible))
+    for i, attempt_draw, recovery_draw, donor_draw in zip(
+        eligible, attempt_draws, recovery_draws, donor_draws
+    ):
+        if attempt_draw >= p_attempt:
             continue
-        recovered = bool(rng_special.random() < p_recovery)
+        recovered = bool(recovery_draw < p_recovery)
         subset = onside.loc[
             onside["official_kicker_recovered"].eq(float(recovered))
         ]
@@ -143,7 +151,8 @@ def resolve_q4_fg_onside_what_if(
             raise ValueError(
                 "No verified onside first-snap outcomes for an attempted branch."
             )
-        donor = subset.iloc[int(rng_special.integers(0, len(subset)))]
+        donor_index = min(int(donor_draw * len(subset)), len(subset)-1)
+        donor = subset.iloc[donor_index]
         elapsed = float(donor["kickoff_to_snap_elapsed"])
         original = pending[i]
         new_clock = max(0., float(original["game_seconds_remaining"]) - elapsed)
