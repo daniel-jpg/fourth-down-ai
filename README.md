@@ -545,6 +545,8 @@ or the hosted deployment. See the [Step 85 readiness review](reports/85_streamli
 
 The current `main` app is suitable for a **qualified research demonstration**, not validated real-world coaching advice or a newly tagged stable release. [Step 88 readiness and interpretation notes](reports/88_research_demo_release_readiness.md) summarize the passing 339-test CI run, the later verified live explanation/OT/clock checks, the known Q4 kickoff reliability limitation, and the remaining responsive-layout/deployed-revision signoff tracked in [Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5). Frozen Step 66/83 prospective evaluation remains gated and research-only.
 
+Release candidate reproducibility checks: [Step 90 checklist](reports/90_release_candidate_checklist.md). The automated preflight verifies required documents and frozen Git blobs, but does not replace visual, deployment, or independent model-validation review.
+
 ## Release
 
 **Current stable release: v1.1.0**
