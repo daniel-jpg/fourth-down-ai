@@ -5,11 +5,12 @@ scenario evaluation loads a distinct Python module namespace for EACH
 request. This avoids concurrent Streamlit sessions leaking a temporary
 monkeypatch into other users' official recommendations.
 
-This is only an ordinary-Q4-kickoff sensitivity analysis. The 2024
-development donor return distribution is used with a user-assumed
-touchback rate and 2025+ touchback placement (own 35/20).
-Onside kickoffs, return touchdowns and penalties are omitted.
-No 2025/2026 parameter tuning or win-probability model retraining.
+The main opt-in comparison uses 488 observed ordinary and 50 verified
+penalty-adjusted 2025 Q4 kickoff-to-first-snap transitions. Advanced options
+preserve the 488-only pool, a 2024 what-if touchback distribution, and explicit
+onside attempt/recovery assumptions. Score-changing return touchdowns,
+re-kicks and unmatched transitions remain unsupported. No 2026 outcome
+data or win-probability model retraining is used.
 
 Do NOT treat preview rankings as validated production advice.
 """
@@ -56,6 +57,16 @@ EXPERIMENTAL_KICKOFF_SEED = 2026
 LABELS = {
     "NORMAL_GO_PASS": "PASS / DROPBACK",
     "NORMAL_GO_RUN": "RUN",
+    "FIELD_GOAL": "FIELD GOAL",
+    "PUNT": "PUNT",
+}
+
+# Strategy choice is distinct from the play call inside GO FOR IT.
+# Two plausible GO play calls must NOT create a false uncertainty warning
+# about whether to go for it versus choosing a field goal or punt.
+STRATEGY_FOR_ACTION = {
+    "NORMAL_GO_PASS": "GO FOR IT",
+    "NORMAL_GO_RUN": "GO FOR IT",
     "FIELD_GOAL": "FIELD GOAL",
     "PUNT": "PUNT",
 }
@@ -399,25 +410,93 @@ def action_comparison(
 
 
 
+def preview_strategy_rank_with_uncertainty(scenario_result: Mapping) -> dict:
+    """Compare GO FOR IT versus FIELD GOAL/PUNT, not RUN versus PASS.
+
+    Within GO, choose the higher point-estimate action, as the app's
+    fourth-down strategy summary does. MC SE is an approximate simulation
+    check for the chosen strategy representatives, NOT a confidence
+    interval accounting for model selection or football uncertainty.
+    """
+    raw = scenario_result["results"]
+    eligible = raw.loc[
+        raw["eligible"] & raw["action"].isin(STRATEGY_FOR_ACTION),
+        ["action", "expected_win_probability", "mc_se"],
+    ].copy()
+    if eligible.empty or eligible["action"].duplicated().any():
+        raise ValueError("Need distinct eligible fourth-down actions.")
+    if not np.isfinite(
+        eligible[["expected_win_probability", "mc_se"]].to_numpy(float)
+    ).all():
+        raise ValueError("Invalid strategy probability or simulation error.")
+    if (
+        not eligible["expected_win_probability"].between(0, 1).all()
+        or (eligible["mc_se"] < 0).any()
+    ):
+        raise ValueError("Invalid strategy probabilities or errors.")
+    eligible["strategy"] = eligible["action"].map(STRATEGY_FOR_ACTION)
+    best_of_each = (
+        eligible.sort_values("expected_win_probability", ascending=False)
+        .drop_duplicates("strategy", keep="first")
+        .reset_index(drop=True)
+    )
+    leader = best_of_each.iloc[0]
+    out = {
+        "leader": str(leader["strategy"]),
+        "leader_action": LABELS[str(leader["action"])],
+        "leader_wp_pct": 100 * float(leader["expected_win_probability"]),
+        "runner_up": None,
+        "runner_up_action": None,
+        "gap_pp": None,
+        "near_tie": False,
+    }
+    if len(best_of_each) == 1:
+        return out
+    runner = best_of_each.iloc[1]
+    gap = float(
+        leader["expected_win_probability"]
+        - runner["expected_win_probability"]
+    )
+    joint_mc_se = float(np.hypot(leader["mc_se"], runner["mc_se"]))
+    out.update({
+        "runner_up": str(runner["strategy"]),
+        "runner_up_action": LABELS[str(runner["action"])],
+        "gap_pp": 100 * gap,
+        "near_tie": bool(gap <= 1.96 * joint_mc_se),
+    })
+    return out
+
+
+def preview_go_playcall_with_uncertainty(
+    scenario_result: Mapping,
+) -> dict | None:
+    """Only compare run vs pass *within* GO, independently of FG/PUNT."""
+    raw = scenario_result["results"].copy()
+    raw["eligible"] = (
+        raw["eligible"]
+        & raw["action"].isin(["NORMAL_GO_PASS", "NORMAL_GO_RUN"])
+    )
+    if raw["eligible"].sum() < 2:
+        return None
+    return preview_rank_with_uncertainty({"results": raw})
+
+
 def recommendation_sensitivity(
     production_result: Mapping, scenario_result: Mapping,
 ) -> dict:
-    """Explain an action-order reversal or simulated near-tie, not causality."""
-    prod = production_result["results"]
-    eligible = prod.loc[
-        prod["eligible"] & prod["action"].isin(LABELS),
-        ["action", "expected_win_probability"],
-    ].sort_values("expected_win_probability", ascending=False)
-    if eligible.empty:
-        raise ValueError("No eligible production action to compare.")
-    official = LABELS[str(eligible.iloc[0]["action"])]
-    current = preview_rank_with_uncertainty(scenario_result)
-    flipped = official != current["leader"]
+    """Only flag a changed or uncertain *fourth-down strategy*.
+
+    RUN versus PASS uncertainty is reported separately and must not
+    undermine a clear shared GO FOR IT decision.
+    """
+    official = preview_strategy_rank_with_uncertainty(production_result)
+    current = preview_strategy_rank_with_uncertainty(scenario_result)
+    flipped = official["leader"] != current["leader"]
     uncertain = bool(current["near_tie"])
     return {
-        "production_leader": official,
+        "production_leader": official["leader"],
         "scenario_point_leader": current["leader"],
-        "reversed": flipped,
+        "reversed": bool(flipped),
         "scenario_near_tie": uncertain,
         "model_sensitive": bool(flipped or uncertain),
     }
