@@ -121,6 +121,11 @@ def test_rams_exact_decomposition_conserves_probability_mixture():
         engine.__dict__,pool,mod.RAMS_EXAMPLE)
     assert result["ordinary_donors"]==488
     assert result["year_of_donors"]==2025
+    assert 0<result["native_like_pending_wp"]<1
+    assert (
+        result["synthetic_to_native_encoding_difference"]
+        + result["native_encoding_to_post_snap_difference"]
+    )==pytest.approx(result["difference_integrated_minus_pending"])
     assert result["post_fg_margin_for_kicker"]==-1.
     assert 0<result["touchback_rate"]<1
     assert 0<result["kickoff_pending_wp"]<1
