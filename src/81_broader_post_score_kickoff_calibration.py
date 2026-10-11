@@ -147,7 +147,6 @@ def historical_post_score_kickoffs(raw: pd.DataFrame) -> pd.DataFrame:
         & df["posteam"].notna()
         & last_team.notna()
         & df["posteam"].ne(last_team)
-        & df["posteam"].isin(df["home_team"]) == False
     )
     # Require the receiving team to be one of the current game's teams.
     receivers = (
