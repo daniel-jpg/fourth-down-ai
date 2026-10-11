@@ -2,6 +2,28 @@
 
 Notable changes to Fourth Down AI are documented here.
 
+## Unreleased — Research-demo candidate (post-v1.1.0)
+
+**Status: documentation and test-backed candidate on `main`; not a tagged, published, or production-calibrated v1.2.0 release.** The existing v1.1.0 tag and frozen model remain unchanged.
+
+### Interface and interpretation
+
+- Added optional 2025 Q4 kickoff-transition comparison, explicitly isolated from official action rankings. The current 538 matched nonscoring historical kickoff first possessions are a selected retrospective sample, not a 2026 forecast.
+- Added immediate fourth-down outcome explanations (GO conversion, FG make/miss/block, punt regular/block/broken) alongside estimated whole-game win probability or overtime game value. These represent different events and must not be equated.
+- Made Q4 post-score kickoff-input reliability sensitivity visible while retaining original official calculations; native encoding remains a research-only challenger.
+- Clarified overtime tie-weighted game value and rejected regulation quarter clocks exceeding 15:00.
+
+### Testing and research safeguards
+
+- GitHub Actions run [38182568146](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38182568146) passed **293 regression + 46 Streamlit integration = 339 tests** for the Step 85 implementation. Later documentation-only changes do not constitute a fresh run.
+- Live screenshots subsequently confirmed the immediate-odds table, overtime value language, Q4 15:01 rejection and 15:00 acceptance. Exact deployed revision and mobile/narrow layout were not signed off.
+- The 2023–2025 kickoff audits were retrospective and previously examined; do not describe them as independent untouched prospective validation.
+- Precommitted Step 66 and Step 83 prospective 2026 Weeks 6–18 checks remain automatically gated, research-only, and do not authorize model promotion.
+
+### Release readiness
+
+See [research-demo readiness](reports/88_research_demo_release_readiness.md), [reproducibility and release checklist](reports/90_release_candidate_checklist.md), and [open live layout/deployment signoff](https://github.com/daniel-jpg/fourth-down-ai/issues/5). Do not publish a new stable release tag until the final gates are explicitly resolved or accepted.
+
 ## v1.1.0 — 2026-10-06
 
 v1.1.0 is the hardened release of the fourth-down decision engine. It contains 25 commits beyond v1.0.2 and focuses on overtime rules, simulation stability, field-goal and punt behavior, validation, and automated regression coverage.
