@@ -37,6 +37,12 @@ from .kickoff_2025_onside_sensitivity import (
     use_q4_onside_what_if,
     validate_what_if,
 )
+from .kickoff_2025_resolved import (
+    NEW_TYPE as VERIFIED_PENALTY_TYPE,
+    PENALTY_CSV as VERIFIED_PENALTY_CSV,
+    load_resolved_2025_pool,
+    use_resolved_2025_kickoffs,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -141,10 +147,63 @@ def preview_observed_2025_recommendation(
 
 
 
+
+def preview_observed_2025_resolved_recommendation(
+    state: Mapping, *,
+    simulations: int = EXPERIMENTAL_SIMULATIONS,
+    action_seed: int = EXPERIMENTAL_ACTION_SEED,
+) -> dict:
+    """Empirical 2025 Q4 nonscoring transitions: 488 ordinary + 50 penalties.
+
+    No future rates are assumed. Excludes 2 re-kicks, 41 onside kicks,
+    1 return touchdown and 2 other unmatched events. A historical
+    description of matched first-snaps, not calibrated 2026 WP advice.
+    """
+    if int(state.get("qtr", 0)) != 4:
+        raise ValueError("The resolved 2025 kickoff preview is Q4 only.")
+    if simulations < 200:
+        raise ValueError("At least 200 simulations are required.")
+    pool = load_resolved_2025_pool()
+    engine = isolated_engine_for_preview()
+    with use_resolved_2025_kickoffs(
+        engine, pool, seed=EXPERIMENTAL_KICKOFF_SEED,
+    ):
+        return engine["recommend"](
+            dict(state), n_simulations=simulations, seed=action_seed,
+        )
+
+
+def observed_2025_resolved_summary() -> dict:
+    """Disclose the true denominator and selected penalty coverage."""
+    pool = load_resolved_2025_pool()
+    penalty_rows = pd.read_csv(VERIFIED_PENALTY_CSV)
+    clean = penalty_rows.loc[
+        penalty_rows["verified_penalty_first_snap"].eq(True)
+    ]
+    late_penalties = clean["game_seconds_remaining"].between(
+        40, 300, inclusive="both"
+    )
+    penalty = pool["transition_type"].eq(VERIFIED_PENALTY_TYPE)
+    touchback = pool["transition_type"].eq("touchback")
+    return {
+        "kickoffs": int(len(pool)),
+        "games": int(pool["game_id"].nunique()),
+        "ordinary": int((~penalty).sum()),
+        "penalty_first_snaps": int(penalty.sum()),
+        "touchback_rate": float(touchback.mean()),
+        "late_verified_penalties": int(late_penalties.sum()),
+        "excluded_rekicks": 2,
+        "excluded_return_touchdowns": 1,
+        "excluded_onside_attempts": 41,
+        "excluded_unmatched": 2,
+    }
+
+
 def preview_observed_2025_with_onside(
     state: Mapping, *,
     attempt_probability: float,
     recovery_probability: float,
+    include_verified_penalties: bool = False,
     simulations: int = EXPERIMENTAL_SIMULATIONS,
     action_seed: int = EXPERIMENTAL_ACTION_SEED,
 ) -> dict:
@@ -163,7 +222,10 @@ def preview_observed_2025_with_onside(
     if simulations < 200:
         raise ValueError("At least 200 simulations are required.")
     validate_what_if(attempt_probability, recovery_probability)
-    ordinary = load_frozen_pool()
+    ordinary = (
+        load_resolved_2025_pool() if include_verified_penalties
+        else load_frozen_pool()
+    )
     onside, _ = load_onside_verified()
     private = isolated_engine_for_preview()
     with use_q4_onside_what_if(
