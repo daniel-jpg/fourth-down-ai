@@ -243,7 +243,8 @@ def compare_year(
         subset("LAST FIVE HOME POSSESSION", (quarter == 4) & (secs <= 300) & home_offense),
         subset("LAST FIVE AWAY POSSESSION", (quarter == 4) & (secs <= 300) & ~home_offense),
         subset("LAST FIVE HOME TRAILING 1-3",
-               (quarter == 4) & (secs <= 300) & home_margin >= -3 & (home_margin <= -1)),
+               (quarter == 4) & (secs <= 300)
+               & (home_margin >= -3) & (home_margin <= -1)),
     ]
     return results
 
