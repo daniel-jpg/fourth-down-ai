@@ -253,6 +253,20 @@ model, uses 2026 outcomes, or replaces an official recommendation.
 See [the isolated guard](src/kickoff_q4_reliability_guard.py) and its
 [regression tests](tests/test_kickoff_q4_reliability_guard.py).
 
+**One-time 2026 native-candidate validation is now precommitted.**
+The original [Step 66 automatic 2026 Week 6–18 gate](.github/workflows/forward_2026_validation_once.yml)
+remains completely unchanged: it evaluates only after at least 100 eligible
+completed games and records its frozen research result once. A new
+[post-gate companion](.github/workflows/forward_2026_native_challenger_once.yml)
+will then **automatically** score the native input encoding directly against
+the frozen baseline, including *home-kicker versus away-kicker* paired Brier
+differences and game-cluster uncertainty. It will **not fetch 2026 outcomes
+until the original report exists**, and it never promotes a model. The entire
+scope, source hashes, site-specific support conditions and no-peeking rules
+were committed ahead of time in the
+[Step 83 validation protocol](reports/2026_native_kickoff_challenger_protocol.md).
+No manual script runs are necessary.
+
 See also
 [`src/kickoff_q4_native_features_candidate.py`](src/kickoff_q4_native_features_candidate.py),
 [Step 80 evaluation](src/80_evaluate_q4_native_kickoff_candidate.py),
