@@ -1768,6 +1768,62 @@ if qtr == 2:
 
 
 # =========================================================
+# Optional modern-kickoff sensitivity analysis.
+#
+# This NEVER replaces the original production recommendation.
+# All experimental evaluation happens inside a fresh, private
+# engine module so concurrent Streamlit users cannot affect
+# each other's production calculations.
+# =========================================================
+
+experimental_kickoff_enabled = False
+experimental_touchback_rate = 0.30
+
+if qtr == 4:
+
+    with st.expander(
+        "2025+ kickoff rule comparison (experimental)",
+        expanded=False,
+    ):
+
+        st.caption(
+            "Compare your fourth-down decision under newer kickoff "
+            "touchback placement rules. This is an unvalidated what-if "
+            "simulation; it does not replace the official model."
+        )
+
+        experimental_kickoff_enabled = st.checkbox(
+            "Show the experimental kickoff-adjusted comparison",
+            value=False,
+            help=(
+                "This separately simulates the ordinary post-score kickoff "
+                "for 2025+ touchback placement, using a 2024 historical "
+                "return distribution and your assumed touchback rate. "
+                "It is not a validated production improvement."
+            ),
+        )
+
+        if experimental_kickoff_enabled:
+
+            assumed_touchback_pct = st.select_slider(
+                "Assumed ordinary kickoff touchback rate",
+                options=[20, 25, 30, 35, 40],
+                value=30,
+                format_func=lambda value: f"{value}%",
+            )
+
+            experimental_touchback_rate = (
+                float(assumed_touchback_pct) / 100.0
+            )
+
+            st.caption(
+                "This is an assumed 20-40% sensitivity range, NOT a "
+                "live estimate. Unmodeled outcomes include onside kicks, "
+                "return touchdowns, and unusual penalties."
+            )
+
+
+# =========================================================
 # Run model
 # =========================================================
 
@@ -2078,6 +2134,106 @@ if run_model:
             f"{100 * result['pre_decision_wp']:.2f}%"
         )
 
+    # =====================================================
+    # Optional 2025+ kickoff rule scenario, visually separate
+    # from the unchanged production recommendation above.
+    # =====================================================
+
+    if qtr == 4 and experimental_kickoff_enabled:
+
+        st.divider()
+        st.subheader(
+            "2025+ kickoff-adjusted comparison (experimental)"
+        )
+
+        st.caption(
+            "For sensitivity analysis only. The official production "
+            "recommendation above remains unchanged. Uses 2024 "
+            "return samples, 2025+ ordinary touchback placement, "
+            f"and an assumed {experimental_touchback_rate:.0%} "
+            "touchback rate; it is NOT a calibrated forecast."
+        )
+
+        try:
+
+            from src.streamlit_kickoff_preview import (
+                preview_recommendation,
+                action_comparison,
+                preview_rank_with_uncertainty,
+            )
+
+            with st.spinner(
+                "Running a separate experimental kickoff scenario..."
+            ):
+
+                scenario_result = preview_recommendation(
+                    state,
+                    touchback_rate=experimental_touchback_rate,
+                )
+
+                scenario_table = action_comparison(
+                    result,
+                    scenario_result,
+                )
+
+                scenario_rank = preview_rank_with_uncertainty(
+                    scenario_result
+                )
+
+        except Exception as exc:
+
+            st.warning(
+                "The optional kickoff scenario was unavailable: "
+                f"{exc}. The production recommendation above "
+                "is unaffected."
+            )
+
+        else:
+
+            st.metric(
+                "Experimental scenario leader (not official)",
+                scenario_rank["leader"],
+                f"{scenario_rank['leader_wp_pct']:.2f}% scenario WP",
+                delta_color="off",
+            )
+
+            if scenario_rank["runner_up"] is not None:
+
+                scenario_gap = scenario_rank["gap_pp"]
+
+                if scenario_rank["near_tie"]:
+
+                    st.warning(
+                        f"**Too close to call:** the experimental leader "
+                        f"is only {scenario_gap:.2f} percentage points "
+                        f"ahead of {scenario_rank['runner_up']}. "
+                        "The Monte Carlo simulation error alone is "
+                        "large enough that the leader is uncertain."
+                    )
+
+                else:
+
+                    st.info(
+                        f"In this one hypothetical kickoff scenario, "
+                        f"{scenario_rank['leader']} leads "
+                        f"{scenario_rank['runner_up']} by "
+                        f"{scenario_gap:.2f} percentage points. "
+                        "This is not independently validated."
+                    )
+
+            st.dataframe(
+                scenario_table.round(2),
+                hide_index=True,
+                width="stretch",
+            )
+
+            st.caption(
+                "Scenario runs 2,400 simulations per action in a "
+                "private engine instance. MC SE measures simulation "
+                "noise only; it does not include model or kickoff "
+                "assumption uncertainty. Ordinary kickoffs only, "
+                "not an updated training model."
+            )
 
     # =====================================================
     # GO play call
