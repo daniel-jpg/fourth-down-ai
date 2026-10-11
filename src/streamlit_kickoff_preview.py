@@ -44,6 +44,9 @@ from .kickoff_2025_resolved import (
     load_resolved_2025_pool,
     use_resolved_2025_kickoffs,
 )
+from .kickoff_q4_native_features_candidate import (
+    use_q4_native_kickoff_candidate,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -156,6 +159,35 @@ def preview_observed_2025_recommendation(
             seed=action_seed,
         )
 
+
+
+
+
+def preview_native_kickoff_feature_candidate(
+    state: Mapping, *,
+    simulations: int = EXPERIMENTAL_SIMULATIONS,
+    action_seed: int = EXPERIMENTAL_ACTION_SEED,
+) -> dict:
+    """Private, opt-in, native kickoff WP inputs with frozen production weights.
+
+    The candidate changes only two input fields (ydstogo=0,
+    yardline_100=35) for unresolved NORMAL Q4 score-produced kickoffs,
+    preserving possession, timeouts, clocks, scoring and all model weights.
+    It does NOT use 2025 donor first snaps or a retrained model.
+
+    Retrospective 2023–25 post-score kickoff Brier improves in aggregate,
+    but 2025 was inspected and the away-kicker subgroup worsens slightly.
+    Never substitute this for the official default without validation.
+    """
+    if int(state.get("qtr", 0)) != 4:
+        raise ValueError("The native kickoff candidate is Q4 regulation only.")
+    if simulations < 200:
+        raise ValueError("At least 200 simulations are required.")
+    private = isolated_engine_for_preview()
+    with use_q4_native_kickoff_candidate(private):
+        return private["recommend"](
+            dict(state), n_simulations=simulations, seed=action_seed,
+        )
 
 
 
