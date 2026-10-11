@@ -476,6 +476,32 @@ The v1.1.0 release tests cover:
 
 GitHub Actions runs the suite automatically on pushes and pull requests to `main`.
 
+### Streamlit integration coverage (Step 85)
+
+The deployed `app.py` is exercised through `streamlit.testing.v1.AppTest`:
+
+- Regulation inputs, halftime receiver selection, clock validation and action metrics
+- Immediate outcome explanations and agreement with the engine's returned probabilities
+- Unavailable actions, experimental fake exclusion and malformed explanation fallback
+- Adaptive simulation budgets and Q4 reliability warnings, including unavailable checks
+- Regular-season/playoff overtime controls, possession validation and game-value labels
+- Opt-in kickoff/onside/native-input comparisons, disagreements and failure isolation
+- Three smoke cases using the real frozen engine: regulation, Q4 and overtime
+
+The UI cases block network connections and use frozen local artifacts. Most
+tests replace only the engine response and optional simulation boundaries with
+fixed fixtures; the three smoke cases use the actual production engine. They
+do not assert exact Monte Carlo winners or access future validation outcomes.
+
+```bash
+python -m pytest -v tests/test_streamlit_app_integration.py
+```
+
+CI runs this as a separately named step and retains its JUnit report for
+14 days. AppTest verifies Python-side field initialization but does not execute
+the custom field's browser JavaScript or validate drag gestures, visual layout
+or the hosted deployment. See the [Step 85 readiness review](reports/85_streamlit_ui_release_readiness.md).
+
 ## Tech Stack
 
 - Python 3.12

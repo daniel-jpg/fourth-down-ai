@@ -9,6 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Check out repository
@@ -34,4 +35,18 @@ jobs:
 
       - name: Run regression tests
         run: |
-          python -m pytest -v
+          python -m pytest -v --ignore=tests/test_streamlit_app_integration.py
+
+      - name: Exercise deployed Streamlit UI with AppTest
+        run: |
+          python -m pytest -v tests/test_streamlit_app_integration.py \
+            --junitxml=streamlit-ui-results.xml
+
+      - name: Preserve Streamlit integration test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: streamlit-ui-results
+          path: streamlit-ui-results.xml
+          if-no-files-found: ignore
+          retention-days: 14

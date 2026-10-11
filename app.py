@@ -1561,6 +1561,14 @@ if clock_valid:
         parsed_clock
     )
 
+    if qtr != 5 and minutes * 60 + seconds > 900:
+
+        clock_valid = False
+
+        st.error(
+            "Regulation quarter clock cannot exceed 15:00."
+        )
+
     if qtr == 5:
 
         ot_clock_limit = (
@@ -2949,7 +2957,12 @@ if run_model:
             "The percentages below come directly from the frozen "
             "model's simulation output. A fourth-down conversion or "
             "made field goal is an immediate event, NOT the same as "
-            "the probability of ultimately winning the game."
+            + (
+                "overtime game value (1.0 for a win, 0.5 for a tie, "
+                "0.0 for a loss)."
+                if qtr == 5
+                else "the probability of ultimately winning the game."
+            )
         )
 
         try:
@@ -2972,6 +2985,12 @@ if run_model:
 
             if not immediate_odds.empty:
 
+                if qtr == 5:
+
+                    immediate_odds = immediate_odds.rename(
+                        columns={"Estimated game WP": "Estimated game value"}
+                    )
+
                 st.dataframe(
                     immediate_odds,
                     hide_index=True,
@@ -2985,7 +3004,7 @@ if run_model:
                 )
 
         st.caption(
-            "The estimated game-winning probability also reflects "
+            f"The {value_phrase} also reflects "
             "field position, possession, remaining time and the "
             "frozen continuation model. Monte Carlo SE is simulation "
             "noise only. These are not independently calibrated "
