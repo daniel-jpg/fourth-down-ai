@@ -185,3 +185,26 @@ def test_source_does_not_read_2026_or_overwrite_production_artifacts():
     assert "range(TRAIN_START, TEST_YEAR + 1)" in source
     assert "joblib.dump(candidate, ARTIFACT_DIR /" in source
     assert "joblib.dump(candidate, BASE_MODEL)" not in source
+
+
+def test_full_year_report_includes_last_five_score_subgroup():
+    rows = []
+    for i in range(32):
+        state = simple_state(
+            site=float(i % 2),
+            qtr=4.,
+            yard=float(35 + i),
+            margin=float((i % 7) - 3),
+        )
+        row = dict(zip(FEATURES, state))
+        row.update({
+            "game_id": f"g{i//4}",
+            "season": 2024,
+            "final_home_margin": 7 if i % 2 == 0 else -7,
+        })
+        rows.append(row)
+    data = pd.DataFrame(rows)
+    output = train.compare_year(2024, data, FakeBinary(), FakeFrozen(), FEATURES)
+    assert len(output) == 8
+    assert output[-1]["name"] == "2024 LAST FIVE HOME TRAILING 1-3"
+    assert output[-1]["n"] > 0
