@@ -32,10 +32,15 @@ of model accuracy or counterfactual fourth-down decisions.
 | Experimental separation | Default off; explicit selection required; a disagreeing experimental FG leader cannot replace the official GO result | Covered |
 | Runtime artifacts | Actual frozen-engine UI smoke cases run without network connections | Covered |
 | Existing regressions | 293 pre-existing tests pass locally with pinned project dependencies | Passed |
-| Streamlit integration | 46 UI cases pass locally; all check for unexpected Streamlit exceptions | Passed |
-| Combined suite | 339 tests pass locally | Passed |
+| Streamlit integration | 46 UI cases pass locally and in GitHub Actions; all check for unexpected Streamlit exceptions | Passed |
+| Combined suite | 339 tests pass locally and in GitHub Actions (293 regression + 46 UI) | Passed |
 | Custom field | Python-side initial field state reaches the engine | Covered only in Python |
-| Drag gestures, browser layout, hosting | AppTest does not run the component's JavaScript or connect to the hosted app | Separate browser check required |
+| Live drag gesture | Browser drag from opponent 30 to opponent 20 updates both controls, the estimated FG distance to 38 yd and the decision's field position | Passed browser smoke |
+| Hosted release | Freshly reloaded hosted app still omits the immediate-odds panel present in tested `main` | Deployment verification blocked |
+
+The implementation commit is `b81de6de284731a25700caa8100b7e8e8a291170`.
+Its [GitHub Actions run](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38182568146)
+completed successfully, including the named UI step and uploaded JUnit report.
 
 ## Frozen-model and prospective-validation safeguards
 
@@ -63,7 +68,24 @@ requires its displayed reliability warning; research comparisons remain
 opt-in. The frozen 2026 prospective gate remains the next independent model
 evaluation, with no automatic production promotion.
 
-A browser test of the custom field drag gesture and the hosted deployment is
-still needed before describing this as complete browser end-to-end coverage.
-AppTest's collapsed expander contents are inspected as rendered Python output;
-it does not verify the browser animation for opening the expander.
+The [live app](https://fourth-down-ai.streamlit.app/) passed a browser drag and
+analysis smoke check. However, after a fresh reload and Analyze, its action
+section still went directly to **Show detailed model output** without the
+**Why this recommendation? Immediate action odds** panel in current `main`.
+It also accepted `15:01` without the new regulation-clock error. The exact
+hosted source revision was not exposed, so this is evidence of a deployment
+mismatch rather than a claim about its precise running commit.
+
+See the [browser evidence](../assets/browser-screenshot-1791759852220.jpg).
+At the observed 1363-by-936 browser viewport, the RUN and FIELD GOAL
+percentages also crowd each other. Recheck this layout on the newest hosted
+source before visual signoff; the running deployment revision is unknown.
+Update/verify the Streamlit deployment's repository, branch and entrypoint
+against `daniel-jpg/fourth-down-ai`, `main`, `app.py`, then repeat the hosted
+feature checks. GitHub repository write access does not provide Streamlit
+Cloud deployment administration. No owner deployment controls were available
+in this browser session.
+
+AppTest does not execute browser JavaScript or validate layout/expander
+animation. The live smoke check is a separate observed interaction, not
+automated browser CI coverage or a certification of every hosted input.
