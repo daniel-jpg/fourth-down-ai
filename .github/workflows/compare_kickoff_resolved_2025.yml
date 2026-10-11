@@ -1,0 +1,71 @@
+name: Benchmark expanded 2025 kickoff comparison
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/kickoff_2025_resolved.py"
+      - "src/77_compare_penalty_resolved_wp.py"
+      - "tests/test_kickoff_2025_resolved.py"
+      - "tests/test_kickoff_2025_resolved_decision.py"
+      - ".github/workflows/compare_kickoff_resolved_2025.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  comparison:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout frozen 2025 scenarios
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install pinned dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Verify 538-event data and game-state/return-TD bound guards
+        run: |
+          python -m pytest -q tests/test_kickoff_2025_resolved.py tests/test_kickoff_2025_resolved_decision.py
+
+      - name: Compare Rams ordinary and penalty-expanded kickoff scenarios
+        run: |
+          set -o pipefail
+          python src/77_compare_penalty_resolved_wp.py 2>&1 | tee rams-penalty-resolved-2025.log
+
+      - name: Check result scope without promoting production
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          obj=json.loads(Path("artifacts/77_rams_penalty_resolved_sensitivity.json").read_text())
+          assert obj["2026_outcomes_used"] is False
+          assert obj["models_frozen"] and obj["experimental_only"]
+          assert not obj["validated_causal_fourth_down_policy"]
+          assert obj["2025_nonscoring_kickoff_summary"]["kickoffs"]==538
+          assert len(obj["comparisons"])==4
+          assert obj["return_td_sample"]==1
+          assert not obj["return_td_probability_estimated"]
+          PY
+          git diff --exit-code -- models/win_probability_model.joblib
+          git diff --exit-code -- src/42_build_decision_engine.py
+          git diff --exit-code -- app.py
+
+      - name: Archive read-only research and sensitivity report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verified-2025-penalty-inclusive-rams-sensitivity
+          path: |
+            artifacts/77_rams_penalty_resolved_sensitivity.json
+            rams-penalty-resolved-2025.log
+          retention-days: 30
+          if-no-files-found: warn
