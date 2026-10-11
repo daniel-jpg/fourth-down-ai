@@ -80,6 +80,7 @@ def test_rams_style_q4_four_minutes_fifty_nine_seconds_detects_issue():
     {"qtr":3},
     {"qtr":5},
     {"game_seconds_remaining": 40.},
+    {"game_seconds_remaining": 45.},
     {"game_seconds_remaining": 0.},
     {"game_seconds_remaining": 901.},
 ])
