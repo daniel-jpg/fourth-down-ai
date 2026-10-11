@@ -2265,7 +2265,7 @@ if run_model:
 
     if (
         qtr == 4
-        and 40 < float(state["game_seconds_remaining"]) <= 900
+        and 45 < float(state["game_seconds_remaining"]) <= 900
     ):
 
         fg_eligible_rows = result["results"].loc[
