@@ -262,17 +262,26 @@ def grouped_observed_scoring_calibration(
         return result
     target = rows["actual_home_win"].to_numpy(float)
     pred = rows["p_kickoff_synthetic"].to_numpy(float)
+    native = rows["p_kickoff_native"].to_numpy(float)
     hindsight = rows["p_first_snap"].to_numpy(float)
-    if not np.isfinite(np.concatenate([target, pred, hindsight])).all():
+    if not np.isfinite(np.concatenate([target, pred, native, hindsight])).all():
         raise ValueError("Invalid observed WP scores.")
     residual = target - pred
     ci = cluster_ci(residual, rows["game_id"].to_numpy())
+    # Paired scoring outcomes, same plays/games for native-like vs synthetic.
+    # This estimates predictive accuracy only, NOT fourth-down policy quality.
+    brier_gain = (target - pred) ** 2 - (target - native) ** 2
+    gain_ci = cluster_ci(brier_gain, rows["game_id"].to_numpy())
     result.update({
         "status": "LOW SUPPORT" if n < 30 else "DESCRIPTIVE",
         "observed_home_win": float(target.mean()),
         "production_pending_wp": float(pred.mean()),
+        "native_pending_wp": float(native.mean()),
         "hindsight_first_snap_wp": float(hindsight.mean()),
         "pending_brier": float(np.mean((target - pred)**2)),
+        "native_pending_brier": float(np.mean((target - native)**2)),
+        "native_vs_synthetic_brier_improvement": float(brier_gain.mean()),
+        "native_brier_improvement_ci95": list(gain_ci),
         "hindsight_first_snap_brier": float(np.mean((target - hindsight)**2)),
         "calibration_gap_actual_minus_pending": float(residual.mean()),
         "calibration_gap_game_cluster_ci95": list(ci),
@@ -358,8 +367,12 @@ def main() -> None:
                 f"games={item['games']} "
                 f"observed_home={item['observed_home_win']:.1%} "
                 f"pending_model={item['production_pending_wp']:.1%} "
+                f"native_model={item['native_pending_wp']:.1%} "
                 f"first_snap_hindsight={item['hindsight_first_snap_wp']:.1%} "
-                f"pending_Brier={item['pending_brier']:.5f} "
+                f"Brier pending={item['pending_brier']:.5f} "
+                f"native={item['native_pending_brier']:.5f} "
+                f"native_gain={item['native_vs_synthetic_brier_improvement']:+.5f} "
+                f"gain_CI={item['native_brier_improvement_ci95']} "
                 f"gap_CI={item['calibration_gap_game_cluster_ci95']} "
                 f"{item['status']}", flush=True,
             )
