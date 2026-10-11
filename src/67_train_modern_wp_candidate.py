@@ -82,13 +82,18 @@ def assert_frozen_inputs() -> None:
             )
 
 
-def usable_regulation_states(raw: pd.DataFrame, features: list[str]) -> pd.DataFrame:
+def usable_regulation_states(
+    raw: pd.DataFrame, features: list[str], *,
+    max_season: int = TEST_YEAR,
+) -> pd.DataFrame:
     """Build the EXACT existing engine feature contract from pre-play data."""
     missing = set(DATA_COLUMNS).difference(raw.columns)
     if missing:
         raise ValueError(f"Missing historical PBP fields: {sorted(missing)}")
-    if raw.empty or not raw["season"].between(TRAIN_START, TEST_YEAR).all():
-        raise ValueError("Only 2014-2025 historical PBP is eligible.")
+    if max_season not in (TEST_YEAR, 2026):
+        raise ValueError("Only 2025 and predeclared early-2026 development can be read.")
+    if raw.empty or not raw["season"].between(TRAIN_START, max_season).all():
+        raise ValueError("Input seasons exceed the allowed historical range.")
 
     quarter = pd.to_numeric(raw["qtr"], errors="coerce")
     clock = pd.to_numeric(raw["game_seconds_remaining"], errors="coerce")
