@@ -1,0 +1,70 @@
+name: Evaluate Q4 native kickoff feature candidate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/kickoff_q4_native_features_candidate.py"
+      - "src/80_evaluate_q4_native_kickoff_candidate.py"
+      - "tests/test_q4_native_kickoff_candidate.py"
+      - ".github/workflows/evaluate_q4_native_kickoff_candidate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout frozen event/WP models and kickoff donors
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install frozen project requirements
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Guard site feature parity, candidate scope and isolation
+        run: |
+          python -m pytest -q tests/test_q4_native_kickoff_candidate.py tests/test_post_fg_site_encoding.py
+
+      - name: Benchmark candidate without touching official recommendation
+        run: |
+          set -o pipefail
+          python src/80_evaluate_q4_native_kickoff_candidate.py 2>&1 | tee native-q4-kickoff-candidate.log
+
+      - name: Validate frozen study and production isolation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          j=json.loads(Path("artifacts/80_q4_native_kickoff_candidate_grid.json").read_text())
+          assert j["frozen_production_weights"] is True
+          assert j["2026_outcomes_read"] is False
+          assert j["no_causal_fourth_down_claim"] is True
+          assert j["promotion"]=="NOT AUTHORIZED"
+          assert len(j["scenarios"])==14
+          assert j["simulations_per_action"]==1200
+          assert j["native_fields"]["yardline_100"]==35
+          PY
+          git diff --exit-code -- models/win_probability_model.joblib
+          git diff --exit-code -- src/42_build_decision_engine.py
+          git diff --exit-code -- app.py
+
+      - name: Archive read-only candidate and complete logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: q4-native-kickoff-candidate-research-only
+          path: |
+            artifacts/80_q4_native_kickoff_candidate_grid.json
+            native-q4-kickoff-candidate.log
+          if-no-files-found: warn
+          retention-days: 30
