@@ -213,3 +213,34 @@ def test_observed_2025_preview_really_uses_2025_donors_not_old_assumptions(
         preview.preview_observed_2025_recommendation(
             {"qtr": 4}, donor_path=tmp_path / "missing.csv"
         )
+
+
+
+def test_official_recommendation_is_flagged_when_empirical_scenario_disagrees():
+    baseline = recommendation(.4157, .3545)
+    empirical = recommendation(.3411, .3449, fg_se=.0008, go_se=.0042)
+    status = preview.recommendation_sensitivity(baseline, empirical)
+    assert status["production_leader"] == "FIELD GOAL"
+    assert status["scenario_point_leader"] == "PASS / DROPBACK"
+    assert status["reversed"]
+    assert status["scenario_near_tie"]
+    assert status["model_sensitive"]
+
+
+def test_agreement_with_clear_margin_is_not_flagged_as_sensitive():
+    baseline = recommendation(.42, .35, fg_se=.001, go_se=.001)
+    scenario = recommendation(.40, .33, fg_se=.001, go_se=.001)
+    status = preview.recommendation_sensitivity(baseline, scenario)
+    assert status["production_leader"] == "FIELD GOAL"
+    assert not status["reversed"]
+    assert not status["scenario_near_tie"]
+    assert not status["model_sensitive"]
+
+
+def test_model_sensitivity_is_triggered_even_without_point_rank_flipping():
+    baseline = recommendation(.44, .38)
+    scenario = recommendation(.355, .352, fg_se=.003, go_se=.003)
+    status = preview.recommendation_sensitivity(baseline, scenario)
+    assert not status["reversed"]
+    assert status["scenario_near_tie"]
+    assert status["model_sensitive"]
