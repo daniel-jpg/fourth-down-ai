@@ -222,6 +222,20 @@ def test_research_screen_requires_overall_brier_gain_and_both_site_gains():
     assert s["research_screen"]["decision"].startswith("INCONCLUSIVE")
 
 
+def test_workflow_source_blob_lock_matches_this_registered_challenger():
+    workflow = (
+        ROOT / ".github/workflows/forward_2026_native_challenger_once.yml"
+    ).read_text()
+    actual = step66.git_blob_sha(STEP83)
+    assert len(actual) == 40
+    assert f'expected="{actual}"' in workflow
+    assert audit.PINNED_SOURCE_GIT_BLOBS[
+        "src/66_forward_2026_continuation_wp.py"
+    ] == step66.git_blob_sha(
+        ROOT / "src/66_forward_2026_continuation_wp.py"
+    )
+
+
 def test_one_time_workflow_is_not_an_early_or_manual_future_data_check():
     workflow=(ROOT/".github/workflows/forward_2026_native_challenger_once.yml").read_text()
     source=STEP83.read_text()
