@@ -53,7 +53,7 @@ RAMS_EXAMPLE = {
 
 # Actual scrimmage/try rows are barriers between a made FG and the next KO.
 SCORING_ACTIONS = {
-    "run", "pass", "no_play", "qb_kneel", "qb_spike", "punt", "field_goal",
+    "run", "pass", "qb_kneel", "qb_spike", "punt", "field_goal",
     "extra_point",
 }
 
