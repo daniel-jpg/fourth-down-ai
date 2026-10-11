@@ -1,0 +1,57 @@
+name: Audit historical fourth-down outcome models
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/69_audit_2025_event_models.py"
+      - "tests/test_event_model_2025_audit.py"
+      - ".github/workflows/audit_fourth_down_components.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  event-calibration:
+    name: Observed fourth-down outcome calibration
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out unchanged model artifacts
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install pinned dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Test leakage, labels and subgroup metrics
+        run: python -m pytest -q tests/test_event_model_2025_audit.py
+
+      - name: Audit selected historical actions without changing models
+        run: |
+          set -o pipefail
+          python src/69_audit_2025_event_models.py 2>&1 | tee historical-event-model-audit.log
+
+      - name: Archive full calibration report and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frozen-event-model-observational-audit
+          path: |
+            historical-event-model-audit.log
+            artifacts/2025_event_model_diagnostic.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Explain constraints
+        run: |
+          echo "Observed GO conversion and FG success calibration only."
+          echo "2025 already inspected; results are exploratory."
+          echo "No 2026 data, no counterfactual policy validation, no production change."
