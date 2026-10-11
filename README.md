@@ -122,6 +122,34 @@ It displays:
 - Long-field-goal support warnings
 - Detailed model output and comparison charts
 
+## Experimental 2025+ Kickoff Comparison
+
+For Q4 situations, the Streamlit app offers a clearly labeled, optional
+**kickoff-adjusted scenario** alongside the unchanged production recommendation.
+
+- The default experimental scenario draws an entire ordinary kickoff
+  transition (touchback/return, receiving-team starting position, and elapsed
+  clock) from **488 observed 2025 regular-season Q4 standard-35 kickoffs**
+  across 251 games, excluding onside kicks and exceptional outcomes.
+- The historical touchback share in this strictly filtered sample is **31.97%**,
+  not an assumed probability for future NFL games.
+- The public data snapshot is committed as
+  `data/kickoff_2025_reg_q4_ordinary.csv`; visitors do **not** download NFL
+  play-by-play when running the Streamlit preview.
+- An Advanced option preserves the earlier 2024-return sensitivity study with
+  an explicitly assumed touchback rate.
+- The scenario runs in an isolated engine instance and never overwrites the
+  official recommendation, models, or shared Streamlit cache.
+- Historical ordinary-kickoff data cannot establish the right FG/GO
+  **counterfactual** or model onside recoveries, return touchdowns, and unusual
+  penalties. An experimental winner separated by less than Monte Carlo noise
+  is reported as **too close to call**.
+
+The original 2025 evaluation was held out for the v1.1.0 release. Subsequent
+exploratory studies have **examined 2025**; those results must not be described
+as an untouched independent holdout for future model selection. 2026 Week 6+
+is reserved for a future prospective benchmark.
+
 ## Installation
 
 Clone the repository:
@@ -245,7 +273,7 @@ The project uses a chronological development and evaluation setup.
 
 - **2014-2022:** primary model-training period
 - **2023-2024:** development validation and calibration analysis
-- **2025:** held-out final benchmark and reporting only
+- **2025:** held-out benchmark for frozen v1.1.0; later examined in labeled exploratory experiments
 
 The production engine combines:
 
@@ -291,7 +319,11 @@ The touchback-preservation update also restores a distinct receiving-team own-20
 
 ## Testing
 
-The v1.1.0 release has **26 automated tests** covering:
+The frozen v1.1.0 release originally had **26 automated tests**. The current
+`main` branch has additional regression coverage for kickoff and model
+research, including empirical 2025 scenario isolation and future-data safeguards.
+
+The v1.1.0 release tests cover:
 
 - Engine regressions
 - Overtime and terminal-state behavior
