@@ -190,6 +190,16 @@ def exact_made_fg_decomposition(engine: dict, donors: pd.DataFrame,
     )
     states = all_frozen_donor_snapshots(pending, donors)
     baseline = float(engine["evaluate_post_play_states"](base, [pending])[0])
+    # 2024-derived/native 2025 kickoff feature encoding. This is a
+    # diagnostic intermediate state, NOT a validated alternative forecast.
+    aligned_kickoff = dict(pending)
+    aligned_kickoff.update({
+        "down": np.nan, "ydstogo": 0.0,
+        "yardline_100": 35.0, "goal_to_go": 0.0,
+    })
+    aligned_wp = float(
+        engine["evaluate_post_play_states"](base, [aligned_kickoff])[0]
+    )
     simulated = np.asarray(
         engine["evaluate_post_play_states"](base, states), dtype=float
     )
@@ -206,7 +216,11 @@ def exact_made_fg_decomposition(engine: dict, donors: pd.DataFrame,
             float(example["score_differential"]) + 3
         ),
         "kickoff_pending_wp": baseline,
+        "native_like_pending_wp": aligned_wp,
         "ordinary_kickoff_integrated_wp": float(simulated.mean()),
+        # Sequential, path-dependent sensitivity attribution. NOT causal.
+        "synthetic_to_native_encoding_difference": float(aligned_wp - baseline),
+        "native_encoding_to_post_snap_difference": float(simulated.mean() - aligned_wp),
         "difference_integrated_minus_pending": float(simulated.mean() - baseline),
         "ordinary_donors": len(donors),
         "touchback_rate": float(tb.mean()),
@@ -222,6 +236,12 @@ def exact_made_fg_decomposition(engine: dict, donors: pd.DataFrame,
     )
     if abs(reconstructed-results["ordinary_kickoff_integrated_wp"]) > 1e-10:
         raise AssertionError("Kickoff outcome mixture failed sum identity.")
+    if abs(
+        results["synthetic_to_native_encoding_difference"]
+        + results["native_encoding_to_post_snap_difference"]
+        - results["difference_integrated_minus_pending"]
+    ) > 1e-10:
+        raise AssertionError("Feature/continuation sensitivity failed sum identity.")
     return results
 
 
@@ -275,6 +295,13 @@ def main() -> None:
     print(f"  PENDING WP: {example['kickoff_pending_wp']:.2%}", flush=True)
     print(f"  EXACT ORDINARY POST-KICKOFF MEAN WP: "
           f"{example['ordinary_kickoff_integrated_wp']:.2%}", flush=True)
+    print(f"  NATIVE-LIKE PENDING KICKOFF WP: "
+          f"{example['native_like_pending_wp']:.2%}", flush=True)
+    print(f"  SEQUENTIAL EFFECT: feature representation "
+          f"{100*example['synthetic_to_native_encoding_difference']:+.2f} pp, "
+          f"kickoff-to-snap continuation "
+          f"{100*example['native_encoding_to_post_snap_difference']:+.2f} pp",
+          flush=True)
     print(f"  DELTA: {100*example['difference_integrated_minus_pending']:+.2f} pp",
           flush=True)
     print(f"  2025 donors n={example['ordinary_donors']}, "
