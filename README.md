@@ -133,6 +133,17 @@ For Q4 situations, the Streamlit app offers a clearly labeled, optional
   across 251 games, excluding onside kicks and exceptional outcomes.
 - The historical touchback share in this strictly filtered sample is **31.97%**,
   not an assumed probability for future NFL games.
+- **Coverage matters:** the frozen [2025 Q4 kickoff coverage census](data/kickoff_2025_q4_coverage.json)
+  contains **584** comparable standard-35 kickoffs with over 40 seconds
+  remaining. Only **488 (83.6%)** are modeled as ordinary. The other
+  **96** include 41 onside attempts, one kickoff-return TD, 52
+  penalties/re-kicks, and two unmatched plays. In the last five minutes
+  (with >40 seconds), only **171/218 (78.4%)** are represented.
+- In the selected last-five-minute **receiver-leading-by-1-to-3** group
+  relevant after a Rams-style made FG, **15 of 20** observed 2025 kicks
+  were ordinary and five were onside attempts. **Twenty kicks is not
+  enough to calibrate a future game-specific onside strategy.** The
+  Streamlit experimental section explicitly shows these limitations.
 - The public data snapshot is committed as
   `data/kickoff_2025_reg_q4_ordinary.csv`; visitors do **not** download NFL
   play-by-play when running the Streamlit preview.
