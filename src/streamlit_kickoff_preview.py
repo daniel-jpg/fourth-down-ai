@@ -32,6 +32,11 @@ from .kickoff_2025_empirical import (
     load_frozen_pool,
     use_frozen_2025_kickoffs,
 )
+from .kickoff_2025_onside_sensitivity import (
+    load_onside_verified,
+    use_q4_onside_what_if,
+    validate_what_if,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -133,6 +138,59 @@ def preview_observed_2025_recommendation(
             n_simulations=simulations,
             seed=action_seed,
         )
+
+
+
+def preview_observed_2025_with_onside(
+    state: Mapping, *,
+    attempt_probability: float,
+    recovery_probability: float,
+    simulations: int = EXPERIMENTAL_SIMULATIONS,
+    action_seed: int = EXPERIMENTAL_ACTION_SEED,
+) -> dict:
+    """Selected 2025 onside outcomes plus explicit, NOT calibrated assumptions.
+
+    Only after a Q4 FG while still trailing; all non-onside branches are
+    identical to the ordinary 2025 scenario, with preserved RNG stream.
+    Returns a separate engine result; production remains untouched.
+    """
+    if int(state.get("qtr", 0)) != 4:
+        raise ValueError("Onside sensitivity is Q4 regulation only.")
+    if float(state.get("score_differential", 0)) + 3 >= 0:
+        raise ValueError(
+            "This experiment only covers FGs that leave the kicking team trailing."
+        )
+    if simulations < 200:
+        raise ValueError("At least 200 simulations are required.")
+    validate_what_if(attempt_probability, recovery_probability)
+    ordinary = load_frozen_pool()
+    onside, _ = load_onside_verified()
+    private = isolated_engine_for_preview()
+    with use_q4_onside_what_if(
+        private, ordinary, onside,
+        p_attempt=attempt_probability,
+        p_recovery=recovery_probability,
+        ordinary_seed=EXPERIMENTAL_KICKOFF_SEED,
+    ):
+        return private["recommend"](
+            dict(state), n_simulations=simulations, seed=action_seed,
+        )
+
+
+def observed_2025_onside_summary() -> dict:
+    """Descriptive historical count, not attempt or recovery forecast."""
+    _, info = load_onside_verified()
+    return {
+        "attempts": int(info["all_on_side_eligible"]),
+        "recovered": int(info["official_kicker_recoveries"]),
+        "matched": int(info["matched_reliable"]),
+        "success_donor_count": int(
+            info["reliable_first_snap"]["kicker_recovers"]["n"]
+        ),
+        "failed_donor_count": int(
+            info["reliable_first_snap"]["receiver_recovers"]["n"]
+        ),
+    }
 
 
 def observed_2025_pool_summary(
