@@ -1,0 +1,30 @@
+{
+  "year": 2025,
+  "all_on_side_eligible": 41,
+  "games": 39,
+  "scope": "2025 REG Q4 standard-35 onside attempts, >40sec left",
+  "flag_known": 41,
+  "flag_missing": 0,
+  "official_kicker_recoveries": 4,
+  "official_recovery_share_of_known": 0.0975609756097561,
+  "matched_reliable": 37,
+  "exclusion_reason_counts": {
+    "verified": 37,
+    "penalty_on_onside_attempt": 4
+  },
+  "reliable_first_snap": {
+    "kicker_recovers": {
+      "n": 4,
+      "mean_elapsed": 2.25,
+      "mean_next_own_yardline": 46.0
+    },
+    "receiver_recovers": {
+      "n": 33,
+      "mean_elapsed": 1.4242424242424243,
+      "mean_next_own_yardline": 54.42424242424242
+    }
+  },
+  "historical_only": true,
+  "not_a_policy_probability": true,
+  "no_2026_data": true
+}
