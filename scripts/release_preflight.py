@@ -1,7 +1,6 @@
 """Read-only release preflight. Does not load models or fetch NFL data."""
 from __future__ import annotations
 
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -58,9 +57,9 @@ def check() -> list[str]:
         if phrase not in data:
             errors.append(f"{path} is missing release marker: {phrase}")
 
-    if not re.search(r"(?m)^\\*\\*Current stable release: v1\\.1\\.0\\*\\*$", readme):
+    if "**Current stable release: v1.1.0**" not in readme:
         errors.append("README must preserve v1.1.0 as current stable release")
-    if re.search(r"(?im)^## v1\\.2\\.0\\b", changelog):
+    if "## v1.2.0" in changelog:
         errors.append("Found a v1.2.0 release heading; review the release gate first")
     return errors
 
