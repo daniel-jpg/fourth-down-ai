@@ -233,7 +233,26 @@ now optionally enable **Advanced: also show native kickoff-input
 correction (research-only)**, which compares its strategy/action WPs
 against the untouched official model and the separate 538-kickoff
 scenario. The candidate is off by default, runs in a private engine,
-and never changes the official recommendation. See
+and never changes the official recommendation.
+
+**Automatic Q4 reliability warning:** Because the original official WP
+engine retains a demonstrated post-score kickoff input mismatch, the main
+Streamlit decision screen now performs a **two-state deterministic**
+sensitivity check whenever a normal FG is eligible in Q4 with **more
+than 40 seconds remaining**. It holds a hypothetical **made FG** fixed
+with an assumed **5-second execution clock** and predicts the original
+offense's WP with the legacy and native input encodings. If those
+*conditional-on-a-made-FG* WPs differ by **at least five percentage
+points**, Streamlit displays an automatic caution beneath the official
+recommendation. This five-point cutoff is a **display heuristic, not a
+confidence interval or a validated strategy-ranking criterion**. The
+conditional made-FG WPs are **not** the full FG action WP and cannot by
+themselves imply a GO-vs-FG decision flip. The guard never retrains a
+model, uses 2026 outcomes, or replaces an official recommendation.
+See [the isolated guard](src/kickoff_q4_reliability_guard.py) and its
+[regression tests](tests/test_kickoff_q4_reliability_guard.py).
+
+See also
 [`src/kickoff_q4_native_features_candidate.py`](src/kickoff_q4_native_features_candidate.py),
 [Step 80 evaluation](src/80_evaluate_q4_native_kickoff_candidate.py),
 [Step 81 analysis](src/81_broader_post_score_kickoff_calibration.py),
