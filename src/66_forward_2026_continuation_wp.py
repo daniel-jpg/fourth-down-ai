@@ -178,6 +178,28 @@ def prospective_2026_pairs(pbp: pd.DataFrame, fields: list[str]) -> pd.DataFrame
     result_pairs = pairs.loc[eligible].copy().reset_index(drop=True)
     if result_pairs.empty:
         return result_pairs
+    # A kickoff must not change the score; no intervening score or
+    # possession flip is allowed before the receiving team's first snap.
+    def home_margin(frame, suffix):
+        raw_margin = (
+            pd.to_numeric(frame[f"posteam_score_{suffix}"], errors="coerce")
+            - pd.to_numeric(frame[f"defteam_score_{suffix}"], errors="coerce")
+        )
+        home_has_ball = frame[f"posteam_{suffix}"].eq(frame[f"home_team_{suffix}"])
+        return np.where(home_has_ball, raw_margin, -raw_margin)
+
+    equal_score = np.isclose(
+        home_margin(result_pairs, "kick"),
+        home_margin(result_pairs, "snap"), rtol=0, atol=0.01,
+    )
+    same_final = np.isclose(
+        pd.to_numeric(result_pairs["result_kick"], errors="coerce"),
+        pd.to_numeric(result_pairs["result_snap"], errors="coerce"),
+        rtol=0, atol=0,
+    )
+    result_pairs = result_pairs.loc[equal_score & same_final].reset_index(drop=True)
+    if result_pairs.empty:
+        return result_pairs
     wk = pd.to_numeric(result_pairs["week"], errors="coerce")
     if not wk.between(FIRST_WEEK, LAST_WEEK).all():
         raise AssertionError("2026 W1-5 leakage into prospective validation.")
