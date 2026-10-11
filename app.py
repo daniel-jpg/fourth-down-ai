@@ -2267,7 +2267,8 @@ if run_model:
                 observed_2025_resolved_summary,
                 observed_2025_kickoff_coverage,
                 action_comparison,
-                preview_rank_with_uncertainty,
+                preview_strategy_rank_with_uncertainty,
+                preview_go_playcall_with_uncertainty,
                 recommendation_sensitivity,
             )
 
@@ -2328,7 +2329,11 @@ if run_model:
                     scenario_result,
                 )
 
-                scenario_rank = preview_rank_with_uncertainty(
+                scenario_strategy_rank = preview_strategy_rank_with_uncertainty(
+                    scenario_result
+                )
+
+                scenario_playcall_rank = preview_go_playcall_with_uncertainty(
                     scenario_result
                 )
 
@@ -2461,70 +2466,106 @@ if run_model:
                         "a game-specific onside attempt or recovery rate."
                     )
 
+            # A RUN-vs-PASS near tie is about the play call inside
+            # GO FOR IT. It is not a GO-vs-FG strategy near tie.
             if scenario_sensitivity["model_sensitive"]:
 
                 st.warning(
-                    f"**Default recommendation is model-sensitive.** "
+                    "**Fourth-down strategy is sensitive to the "
+                    "kickoff assumptions.** "
                     f"The official model favors "
-                    f"{scenario_sensitivity['production_leader']}, "
-                    "but using a separate historical 2025 kickoff "
-                    "continuation (with optional what-if assumptions) "
-                    "changes the ranking or makes the result too close "
-                    "to call. "
-                    "Do not treat the official advantage as a "
-                    "well-established football decision edge."
+                    f"{scenario_sensitivity['production_leader']}; "
+                    f"the experiment's top strategy is "
+                    f"{scenario_sensitivity['scenario_point_leader']}. "
+                    "The order changes or the strategy-level margin "
+                    "is within approximate Monte Carlo error. "
+                    "Neither result has independent 2026+ validation."
                 )
 
-            if scenario_rank["near_tie"]:
+            if scenario_strategy_rank["near_tie"]:
 
                 st.metric(
-                    "Experimental result (not official)",
-                    "NO CLEAR WINNER",
+                    "Experimental strategy (not official)",
+                    "NO CLEAR STRATEGY",
                 )
 
                 st.caption(
-                    f"Highest point estimate: {scenario_rank['leader']} "
-                    f"at {scenario_rank['leader_wp_pct']:.2f}%. "
-                    "The gap is smaller than the simulation "
-                    "uncertainty threshold."
+                    f"Highest strategy point estimate: "
+                    f"{scenario_strategy_rank['leader']} at "
+                    f"{scenario_strategy_rank['leader_wp_pct']:.2f}% "
+                    f"(best GO action: "
+                    f"{scenario_strategy_rank['leader_action']})."
                 )
 
             else:
 
                 st.metric(
-                    "Experimental leader (not official)",
-                    scenario_rank["leader"],
+                    "Experimental strategy (not official)",
+                    scenario_strategy_rank["leader"],
                 )
 
                 st.caption(
-                    f"Scenario-estimated win probability for leader: "
-                    f"{scenario_rank['leader_wp_pct']:.2f}%"
+                    f"Scenario-estimated win probability: "
+                    f"{scenario_strategy_rank['leader_wp_pct']:.2f}%. "
+                    f"Best supporting action: "
+                    f"{scenario_strategy_rank['leader_action']}."
                 )
 
-            if scenario_rank["runner_up"] is not None:
+            if scenario_strategy_rank["runner_up"] is not None:
 
-                scenario_gap = scenario_rank["gap_pp"]
+                strategy_gap = scenario_strategy_rank["gap_pp"]
 
-                if scenario_rank["near_tie"]:
+                if scenario_strategy_rank["near_tie"]:
 
                     st.warning(
-                        f"**Too close to call:** {scenario_rank['leader']} "
-                        f"is ahead of {scenario_rank['runner_up']} "
-                        f"by only {scenario_gap:.2f} percentage points. "
-                        "The simulation's approximate uncertainty is "
-                        "too large to distinguish them. Even a smaller "
-                        "Monte Carlo error would not establish "
-                        "which fourth-down decision is genuinely better."
+                        f"**Strategy too close to call:** "
+                        f"{scenario_strategy_rank['leader']} leads "
+                        f"{scenario_strategy_rank['runner_up']} "
+                        f"by only {strategy_gap:.2f} percentage points. "
+                        "Approximate simulation uncertainty alone "
+                        "prevents a clear strategy-level ranking. "
+                        "That does not quantify model uncertainty."
                     )
 
                 else:
 
                     st.info(
-                        f"In this one hypothetical kickoff scenario, "
-                        f"{scenario_rank['leader']} leads "
-                        f"{scenario_rank['runner_up']} by "
-                        f"{scenario_gap:.2f} percentage points. "
-                        "This is not independently validated."
+                        f"**Experimental strategy comparison:** "
+                        f"{scenario_strategy_rank['leader']} leads "
+                        f"{scenario_strategy_rank['runner_up']} "
+                        f"by {strategy_gap:.2f} percentage points. "
+                        "This is a scenario estimate, not an "
+                        "independently validated decision edge."
+                    )
+
+            if (
+                scenario_strategy_rank["leader"] == "GO FOR IT"
+                and scenario_playcall_rank is not None
+            ):
+
+                play_call_gap = scenario_playcall_rank["gap_pp"]
+
+                if scenario_playcall_rank["near_tie"]:
+
+                    st.info(
+                        f"**Separate play-call uncertainty:** "
+                        f"{scenario_playcall_rank['leader']} leads "
+                        f"{scenario_playcall_rank['runner_up']} "
+                        f"by only {play_call_gap:.2f} percentage points. "
+                        "The simulation cannot reliably distinguish "
+                        "RUN from PASS within GO FOR IT. "
+                        "This does **not** mean GO FOR IT and "
+                        "FIELD GOAL are tied."
+                    )
+
+                else:
+
+                    st.caption(
+                        f"Within GO FOR IT, the experimental "
+                        f"{scenario_playcall_rank['leader']} call "
+                        f"leads {scenario_playcall_rank['runner_up']} "
+                        f"by {play_call_gap:.2f} percentage points. "
+                        "Play-call precision is not independently validated."
                     )
 
             st.dataframe(
