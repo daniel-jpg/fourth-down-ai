@@ -529,6 +529,10 @@ or the hosted deployment. See the [Step 85 readiness review](reports/85_streamli
 - Fake punt and fake field-goal actions are experimental and are not eligible for production recommendations.
 - The 2025 season is held out for evaluation and should not be used to retroactively tune v1.1.0.
 
+## Research-demo readiness (Step 88)
+
+The current `main` app is suitable for a **qualified research demonstration**, not validated real-world coaching advice or a newly tagged stable release. [Step 88 readiness and interpretation notes](reports/88_research_demo_release_readiness.md) summarize the passing 339-test CI run, the later verified live explanation/OT/clock checks, the known Q4 kickoff reliability limitation, and the remaining responsive-layout/deployed-revision signoff tracked in [Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5). Frozen Step 66/83 prospective evaluation remains gated and research-only.
+
 ## Release
 
 **Current stable release: v1.1.0**
