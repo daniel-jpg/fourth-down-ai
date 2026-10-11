@@ -344,7 +344,7 @@ def run() -> None:
         "nonordinary_scoring_returns_included": False,
         "scored_once_after_original_gate": True,
         "retrained_wp_or_candidate_parameters": False,
-        "previously_inspected_2025_used_for_tuning": False,
+        "2025_historical_data_already_inspected": True,
         "whole_game_bootstrap_draws": BOOTSTRAP_DRAWS,
         "bootstrap_seed": BOOTSTRAP_SEED,
         "site_minimum_games": MIN_SITE_GAMES,
