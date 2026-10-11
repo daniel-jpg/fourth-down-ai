@@ -1,0 +1,89 @@
+name: Freeze 2025 onside recovery and first-snap evidence
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/74_freeze_2025_onside_outcomes.py"
+      - "tests/test_onside_2025_outcomes.py"
+      - ".github/workflows/freeze_2025_onside_outcomes.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: freeze-2025-verified-onside-outcomes
+  cancel-in-progress: false
+
+jobs:
+  onside-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout project with verified 2025 kickoff coverage
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install pinned dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Test official recovery labels and selected game transitions
+        run: python -m pytest -q tests/test_onside_2025_outcomes.py
+
+      - name: Audit actual 2025 onside recoveries
+        run: |
+          set -o pipefail
+          python src/74_freeze_2025_onside_outcomes.py 2>&1 | tee onside-2025-audit.log
+
+      - name: Validate frozen evidence and full test suite
+        run: |
+          python -m pytest -q
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path("data/kickoff_2025_onside_outcomes.json").read_text())
+          assert report["year"]==2025
+          assert report["all_on_side_eligible"]==41
+          assert report["flag_known"]+report["flag_missing"]==41
+          assert report["official_kicker_recoveries"]<=report["flag_known"]
+          assert sum(report["exclusion_reason_counts"].values())==41
+          assert report["matched_reliable"]<=41
+          assert report["no_2026_data"] and report["not_a_policy_probability"]
+          assert Path("data/kickoff_2025_onside_first_snaps.csv").is_file()
+          PY
+
+      - name: Preserve verified 2025 onside evidence
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f data/kickoff_2025_onside_outcomes.json data/kickoff_2025_onside_first_snaps.csv
+          if git diff --cached --quiet; then
+            echo "Frozen onside data unchanged."
+          else
+            git diff --cached --check
+            git commit -m "Freeze verified 2025 onside recovery and first-snap evidence"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+
+      - name: Upload complete audit logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 2025-onside-recovery-evidence
+          path: |
+            onside-2025-audit.log
+            data/kickoff_2025_onside_outcomes.json
+            data/kickoff_2025_onside_first_snaps.csv
+          if-no-files-found: warn
+          retention-days: 30
