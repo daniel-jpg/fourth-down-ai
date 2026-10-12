@@ -634,3 +634,68 @@ def test_real_frozen_engine_loads_and_renders_without_live_data(monkeypatch, qua
             )
     finally:
         st.cache_resource.clear()
+
+
+def test_weather_is_optional_separate_from_frozen_official_recommendation(ui, monkeypatch):
+    from src import weather_fg_sensitivity as weather
+
+    # No extra weather compute or network access until explicitly entered.
+    assert not values(ui.at, "metric").count("Weather what-if FG make")
+    mock_weather = Mock(return_value={
+        "applicable": True,
+        "original_made_probability": .72,
+        "weather_made_probability": .68,
+        "weather_fg_win_probability": .34,
+        "weather_modeled_top_action": "NORMAL_GO_PASS",
+    })
+    monkeypatch.setattr(weather, "compare_weather_scenario", mock_weather)
+    widget(
+        ui.at, "checkbox", "Enter observed temperature and wind"
+    ).set_value(True)
+    run(ui.at)
+    widget(ui.at, "number_input", "Temperature (°F)").set_value(32)
+    run(ui.at)
+    widget(ui.at, "number_input", "Wind speed (mph)").set_value(24)
+    run(ui.at)
+    widget(ui.at, "selectbox", "Weather conditions").set_value("Snow")
+    run(ui.at)
+    analyze(ui.at)
+
+    observed = metrics(ui.at)
+    assert observed["Recommendation"] == "GO FOR IT"
+    assert observed["Frozen-model FG make estimate"] == "72.0%"
+    assert observed["Weather what-if FG make"] == "68.0%"
+    assert observed["Weather what-if FG win probability"] == "34.0%"
+    mock_weather.assert_called_once()
+    scenario = mock_weather.call_args.kwargs["weather"]
+    assert scenario == {
+        "roof": "outdoors", "temperature_f": 32,
+        "wind_mph": 24, "conditions": "Snow",
+    }
+    assert all("temperature_f" not in state and "wind_mph" not in state
+               for state, _, _ in ui.engine.calls)
+    assert "not improve held-out Brier" in values(ui.at, "warning")
+    assert "no unvalidated rain/snow/fog" not in values(ui.at, "warning")
+
+    # Streamlit rerenders preserve the tested context and cannot recompute
+    # the more expensive isolated weather scenario from an ordinary rerun.
+    run(ui.at)
+    mock_weather.assert_called_once()
+    assert metrics(ui.at)["Weather what-if FG make"] == "68.0%"
+    # Changing a weather input invalidates the *displayed completed result*.
+    widget(ui.at, "number_input", "Wind speed (mph)").set_value(26)
+    run(ui.at)
+    assert "Weather what-if FG make" not in metrics(ui.at)
+
+
+def test_closed_roof_never_promises_outdoor_weather_adjustment(ui):
+    widget(ui.at, "selectbox", "Stadium / roof").set_value("closed")
+    run(ui.at)
+    assert not [
+        check for check in ui.at.checkbox
+        if check.label == "Enter observed temperature and wind"
+    ]
+    assert "do not enter" in values(ui.at, "caption").lower() or (
+        "do not enter the field-goal weather sensitivity" in
+        values(ui.at, "caption")
+    )
