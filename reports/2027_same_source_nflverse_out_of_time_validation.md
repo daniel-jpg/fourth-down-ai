@@ -53,6 +53,26 @@ The [isolated nflverse-shaped intake module](../src/nflverse_2027_reconstruction
 
 This is the foundation for the future NFLverse-only scoring pipeline, **not its completion**. Before any genuine 2027 holdout is consumed, a separate versioned admission gate must verify that the complete season and independent final-score reference are available, verify source schema/version and all game/play joins, enforce frozen model/nuisance provenance and write a sealed one-time scoring manifest. Importantly, this retrospective design is a distinct claim from the stricter independently witnessed pre-snap study.
 
+## Completed fabricated 272-game season-admission and one-time label-join rehearsal
+
+The new [postseason gate report](2027_postseason_existing_data_gate.md) covers the
+[272-game schedule and independent-score comparison contract](../src/postseason_2027_admission.py),
+[forecast-seal-first once-only evaluator](../src/postseason_2027_once_only.py),
+and [fabricated fixture CLI](../scripts/rehearse_2027_postseason_once.py).
+The [dedicated GitHub workflow](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38285893397)
+passed **23 regression tests**, confirmed **272 of 272 fabricated source-score
+matches**, rejected a second attempt at the same local output directory and
+replayed **3,151 actual 2014–2025 historical ESPN/PBP game-margin matches**.
+The new 272-game score reference is deliberately invented, **not actual ESPN
+2027 evidence**.
+
+The live 2027 holdout remains blocked unconditionally. After the season
+ends in 2028, authentic ESPN week-by-week final scores, complete nflverse
+source hashes, game-ID crosswalks, reviewer signoff, and a durable
+repository-level one-time lock must be implemented and approved before
+actual 2027 scores can be consumed. The existing evaluator's
+`prospective` mode cannot be reused to mislabel a retrospective study.
+
 ## Bottom line
 
 - **Existing source sufficient:** Historical data, post-game fourth-down analysis, out-of-time 2027 calibration/reliability research and limited observational policy diagnostics.
