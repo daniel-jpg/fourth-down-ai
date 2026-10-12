@@ -191,14 +191,20 @@ def await_metric_cleared(frame, page, label: str, timeout: int = 40) -> None:
     # Wait for stale metrics to disappear instead of racing the UI.
     deadline = time.monotonic() + timeout
     consecutive = 0
+    stale_cards = frame.locator('[data-testid="stMetric"]').filter(
+        has=frame.get_by_text(label, exact=True)
+    )
     while time.monotonic() < deadline:
-        consecutive = consecutive + 1 if metric(frame, label) is None else 0
+        # A Streamlit rerun can detach stMetricValue between count() and
+        # inner_text(); only the metric's presence matters here.
+        consecutive = consecutive + 1 if stale_cards.count() == 0 else 0
         if consecutive >= 2:
             return
         page.wait_for_timeout(700)
     raise AssertionError(
         f"Changed weather controls left stale {label} visible after "
-        f"{timeout} seconds: " + body_text(frame)[-700:]
+        f"{timeout} seconds. Visible metrics: "
+        + repr(frame.locator('[data-testid="stMetric"]').all_inner_texts())[:450]
     )
 
 
