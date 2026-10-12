@@ -113,8 +113,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          draft_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '.id')"
-          test -n "$draft_id"
+          # Draft tags are not necessarily resolvable via releases/tags.
+          # Use the verified existing draft ID; still verify its tag.
+          draft_id="410049269"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/$draft_id" --jq '.tag_name')" = "$TAG"
           old_target="$(gh api "repos/$GITHUB_REPOSITORY/releases/$draft_id" --jq '.target_commitish')"
           draft_status="$(gh api "repos/$GITHUB_REPOSITORY/releases/$draft_id" --jq '.draft')"
           test "$draft_status" = "true" || {
