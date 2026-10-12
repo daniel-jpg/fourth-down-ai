@@ -24,7 +24,7 @@ DRY_WORDS = re.compile(r"\b(clear|sunny|sunshine|fair|dry)\b", re.I)
 UNCERTAIN = re.compile(
     r"\b(chance of|possible|possibility of|forecast|expected|likely|"
     r"without|no)\s+(?:light\s+|heavy\s+|some\s+)?"
-    r"(?:rain|snow|sleet|showers?|precipitation)\b", re.I,
+    r"(?:rain|snow|sleet|showers?|precipitation)(?:\s+showers?)?\b", re.I,
 )
 MISSING = frozenset({
     "", "none", "null", "nan", "n/a", "na", "unknown",
@@ -41,6 +41,12 @@ def classify_weather_description(raw: Any) -> str:
         return "UNSPECIFIED"
     # Probabilistic forecasts and negations are not confirmed rain/snow.
     value = UNCERTAIN.sub(" ", value)
+    value = re.sub(
+        r"\b(?:rain|snow|showers?)\s+"
+        r"(?:unlikely|likely|possible|expected)\b", " ", value,
+    )
+    # A "snow shower" is snow, not simultaneous rain and snow.
+    value = re.sub(r"\bsnow\s+showers?\b", "snow", value)
     rain = bool(RAIN_WORDS.search(value))
     snow = bool(SNOW_WORDS.search(value))
     if rain and snow:
