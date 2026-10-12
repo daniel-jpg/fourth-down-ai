@@ -1,0 +1,76 @@
+name: Existing NFLverse ESPN source and remote-once-lock rehearsal (2025 only)
+
+# Only pinned 2014-2025 archival football data. Does not download any
+# 2026/2027 data, evaluate future policies, change production files or
+# write claims to actual GitHub refs. The once-lock tests use LOCAL bare Git.
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/nflverse_espn_historical_collection.py
+      - scripts/collect_nflverse_espn_2025.py
+      - src/repository_once_claim.py
+      - tests/test_nflverse_espn_historical_collection.py
+      - tests/test_repository_once_claim.py
+      - .github/workflows/2027_retro_existing_source_and_lock.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-verified-archive-and-local-lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install existing development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Audit original NFLverse + archived ESPN sources and local tag race
+        run: |
+          PYTHONPATH=. python -m pytest -q \
+            tests/test_nflverse_espn_historical_collection.py \
+            tests/test_repository_once_claim.py
+      - name: Produce one genuine historical 2025 source evidence packet
+        run: |
+          mkdir -p artifacts
+          PYTHONPATH=. python -m scripts.collect_nflverse_espn_2025 \
+            --historical-offline-only \
+            --output artifacts/nflverse_espn_verified_2025.json
+      - name: Refuse incomplete, unreviewed or future outcome claims
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("artifacts/nflverse_espn_verified_2025.json").read_text())
+          assert d["status"]=="HISTORICAL_2025_SOURCE_PROVENANCE_VERIFIED"
+          assert d["season"]==2025 and d["reg_game_count"]==272
+          assert len(d["weeks"])==18 and d["weeks"]["18"]==16
+          assert d["archived_independent_scores"]["reference_games_verified"]==3151
+          assert d["independent_historical_score_margin_verified"] is True
+          assert d["quarterback_and_action_labels_accessed"] is False
+          assert d["actual_2027_outcomes_accessed"] is False
+          assert d["real_2027_collection_authorized"] is False
+          assert d["timestamped_pre_snap_claim_authorized"] is False
+          assert len(d["preplay_schema_sha256"])==64
+          print("PASS: 2025 NFLverse input, 3151 archived independent ESPN games, future holdout OFF")
+          PY
+      - name: Production and the protected 2026 gates remain untouched
+        run: |
+          git diff --exit-code -- app.py data models \
+            src/66_forward_2026_continuation_wp.py \
+            src/83_forward_2026_native_challenger_once.py
+      - name: Keep only historical evidence packet for follow-up review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: existing-nflverse-espn-2025-offline-evidence
+          path: artifacts/nflverse_espn_verified_2025.json
+          if-no-files-found: ignore
+          retention-days: 21
