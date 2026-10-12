@@ -229,10 +229,8 @@ def analyze(frame, page, *, weather: bool) -> dict:
 
 
 def check_baseline_and_weather(frame, page) -> dict:
-    default = analyze(frame, page, weather=False)
-    assert metric(frame, "Weather what-if FG make") is None
-    print("WEATHER_BASELINE_OFFICIAL", default, flush=True)
-
+    # Inspect positions BEFORE the first full Q4 analysis: that analysis
+    # triggers a Streamlit rerender and can detach the embedded field frame.
     # The optional weather boxes should sit on the SAME INPUT ROW
     # as the field's LOS control; the entire field graphic stays wide.
     assert frame.get_by_text(
@@ -319,6 +317,10 @@ def check_baseline_and_weather(frame, page) -> dict:
     ):
         assert removed not in text_before, f"Non-predictive control remains: {removed}"
     print("WEATHER_BLANK_FIELDS_NO_EXTRA_CONTROLS_PASS", flush=True)
+
+    default = analyze(frame, page, weather=False)
+    assert metric(frame, "Weather what-if FG make") is None
+    print("WEATHER_BASELINE_OFFICIAL", default, flush=True)
 
     set_number(frame, page, "Temperature (°F)", 32)
     frame.get_by_text(
