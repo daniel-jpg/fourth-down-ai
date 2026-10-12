@@ -83,7 +83,9 @@ def run_browser() -> None:
                     "Exactly one accessible HOME radio expected; "
                     f"found {home.count()}"
                 )
-            home.click(timeout=15000)
+            # Streamlit styles a visible label over the actual radio input.
+            # Clicking the input directly gets intercepted by that label.
+            frame.get_by_text("Home", exact=True).first.click(timeout=15000)
             page.wait_for_timeout(3000)
             assert home.is_checked(), "HOME radio failed to persist after rerun"
             print("LOCAL_HOME_CONFIRMED", flush=True)
