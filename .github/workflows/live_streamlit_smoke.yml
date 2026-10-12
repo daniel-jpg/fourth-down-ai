@@ -35,41 +35,58 @@ jobs:
                   device_scale_factor=1,
               )
               try:
+                  app = None
                   for attempt in range(2):
                       try:
                           page.goto(url, wait_until="domcontentloaded", timeout=90000)
-                          page.get_by_text(
-                              "NFL Fourth-Down Decision AI", exact=False
-                          ).first.wait_for(timeout=45000)
-                          break
+                          # Streamlit Cloud can embed the actual app inside a
+                          # child frame; a page-only text locator misses it.
+                          for _ in range(75):
+                              for frame in page.frames:
+                                  try:
+                                      if frame.get_by_text(
+                                          "2025 kickoff comparison", exact=True
+                                      ).count() > 0:
+                                          app = frame
+                                          break
+                                  except Exception:
+                                      continue
+                              if app is not None:
+                                  break
+                              page.wait_for_timeout(1000)
+                          if app is not None:
+                              print(f"Found deployed Streamlit app: {app.url}", flush=True)
+                              break
+                          print("Observed frame URLs:", [f.url for f in page.frames], flush=True)
+                          raise RuntimeError("Streamlit app frame was not found")
                       except Exception as exc:
                           print(f"Live app wake attempt {attempt + 1}: {exc}", flush=True)
                           if attempt == 1:
                               raise
                           page.wait_for_timeout(5000)
 
-                  assert page.get_by_text("Build info", exact=True).count() == 0, (
+                  assert app.get_by_text("Build info", exact=True).count() == 0, (
                       "Old build-info sidebar is still displayed"
                   )
-                  page.get_by_text("2025 kickoff comparison", exact=True).click()
-                  option = page.get_by_role(
+                  app.get_by_text("2025 kickoff comparison", exact=True).click()
+                  option = app.get_by_role(
                       "checkbox",
                       name="Show the experimental kickoff-adjusted comparison",
                   )
                   assert not option.is_checked(), "Scenario should be opt-in"
                   option.check()
-                  page.get_by_role("button", name="Analyze Fourth Down").click()
-                  page.get_by_text("Decision", exact=True).first.wait_for(
+                  app.get_by_role("button", name="Analyze Fourth Down").click()
+                  app.get_by_text("Decision", exact=True).first.wait_for(
                       timeout=120000
                   )
-                  page.get_by_text(
+                  app.get_by_text(
                       "2025 kickoff scenario results", exact=True
                   ).first.wait_for(timeout=120000)
-                  assert page.get_by_text("Recommendation", exact=True).count() > 0
-                  assert page.get_by_text(
+                  assert app.get_by_text("Recommendation", exact=True).count() > 0
+                  assert app.get_by_text(
                       "Experimental strategy (not official)", exact=True
                   ).count() > 0
-                  assert page.get_by_text(
+                  assert app.get_by_text(
                       "optional kickoff scenario was unavailable", exact=False
                   ).count() == 0
                   print(
