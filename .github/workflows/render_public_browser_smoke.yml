@@ -89,10 +89,15 @@ jobs:
                                   found = marker.first.get_attribute(
                                       "data-source-sha256"
                                   )
-                                  weather_ui = frame.get_by_text(
-                                      "Weather observations (optional)",
-                                      exact=True,
-                                  ).count() == 1
+                                  weather_ui = (
+                                      frame.get_by_text(
+                                          "Weather (optional)", exact=True,
+                                      ).count() == 1
+                                      and frame.get_by_text(
+                                          "Weather observations (optional)",
+                                          exact=True,
+                                      ).count() == 0
+                                  )
                                   break
                           except Exception:
                               pass
