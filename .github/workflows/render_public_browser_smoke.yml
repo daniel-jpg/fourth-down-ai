@@ -1,25 +1,16 @@
 name: Verify public Render Q4 and weather in Chromium
 
-# Run against the owner's requested, Render-assigned Free hostname.
-# Manual dispatch remains available for later verification.
+# Render's free service deliberately uses manual deployments.
+# Do not test new GitHub commits against a still-running older deployment:
+# validate the live service only after an explicit Render deployment.
+# Offline regression and Docker browser suites still run on each push.
 on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/render_public_browser_smoke.yml
-      - app.py
-      - src/**
-      - scripts/qa_weather_streamlit_browser.py
-      - scripts/qa_local_streamlit_home_browser.py
-      - requirements.txt
-      - requirements-dev.txt
-  schedule:
-    - cron: "17 19 * * 1,4"
   workflow_dispatch:
     inputs:
       public_base_url:
         description: "Actual deployed HTTPS URL (https://<name>.onrender.com)"
-        required: true
+        required: false
+        default: "https://fourth-down-ai-nfl.onrender.com"
         type: string
 
 permissions:
