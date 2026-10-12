@@ -34,9 +34,9 @@ jobs:
           PYTHONPATH=. python -m pytest -q tests/test_nflverse_2027_frozen_policy_replay.py
       - name: Exercise real PINNED engine on invented Q4 play, full 1200 trials
         run: |
-          set -o pipefail
           PYTHONPATH=. python -m src.nflverse_2027_frozen_policy_replay \
-            --fabricated-demo-only | tee fabricated-frozen-policy-demo.json
+            --fabricated-demo-only \
+            --audit-json-out fabricated-frozen-policy-demo.json
       - name: Fail if any real-season score or unsupported model mode is claimed
         run: |
           python - <<'PY'
