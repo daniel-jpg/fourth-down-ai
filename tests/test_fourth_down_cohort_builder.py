@@ -56,12 +56,18 @@ def test_complete_join_and_separate_factual_label_is_offense_perspective():
     assert r["q_wp_policy"] == .37
     assert r["q_wp_observed"] == .37
     assert r["site"] == "HOME" and r["close_call"] is True
+    assert r["yardline_100"] == 6 and r["ydstogo"] == 4
     assert r["feature_asof"] == "pre_snap"
     assert len(result["synthetic_input_sha256"]) == 64
     # Evaluator in repository accepts builder output without peeking at labels.
     stats = evaluate(result["records"], result["manifest"], bootstrap_draws=20)
     assert stats["n_decisions"] == 1
     assert stats["factual_action_calibration"]["factual_supported_decisions"] == 1
+    subgroups = stats["prespecified_descriptive_subgroups"]
+    assert subgroups["q4_vs_q1_to_q3"]["Q4"]["decisions"] == 1
+    assert subgroups["offense_site"]["HOME"]["factual_supported_decisions"] == 1
+    assert subgroups["close_call"]["YES"]["decisions"] == 1
+    assert subgroups["deep_own_short_yardage"]["OTHER"]["decisions"] == 1
 
 
 def test_away_team_final_win_and_ineligible_factual_action_preserved():
