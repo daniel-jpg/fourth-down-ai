@@ -1,0 +1,74 @@
+name: NFLverse to pinned fourth-down engine - synthetic bridge
+
+# Explicitly synthetic 2027-shaped samples only; offline on GitHub runners.
+# No future NFL outcomes, real nflreadpy downloads, 2026 holdout workflow,
+# historical retraining, data/model modifications, scheduled scoring, or PRs.
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/nflverse_2027_frozen_policy_replay.py
+      - tests/test_nflverse_2027_frozen_policy_replay.py
+      - .github/workflows/2027_nflverse_frozen_engine_bridge.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frozen-policy-fabricated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install pinned development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Validate all synthetic input, model, and holdout guards
+        run: |
+          PYTHONPATH=. python -m pytest -q tests/test_nflverse_2027_frozen_policy_replay.py
+      - name: Exercise real PINNED engine on invented Q4 play, full 1200 trials
+        run: |
+          set -o pipefail
+          PYTHONPATH=. python -m src.nflverse_2027_frozen_policy_replay \
+            --fabricated-demo-only | tee fabricated-frozen-policy-demo.json
+      - name: Fail if any real-season score or unsupported model mode is claimed
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          obj=json.loads(Path("fabricated-frozen-policy-demo.json").read_text())
+          manifest,audit=obj["manifest"],obj["audit"]
+          assert manifest["mode"] == "synthetic"
+          assert manifest["source_type"] == "fabricated_only"
+          assert manifest["engine_used"] == "PINNED_REGISTERED_ENGINE"
+          assert manifest["full_precision_requested"] is True
+          assert manifest["real_2027_holdout_gate"] == "NOT_AUTHORIZED_OR_COMPLETED"
+          assert audit["source_fourth_down_candidates"] == 1
+          assert audit["forecasted_fabricated_opportunities"] == 1
+          assert audit["unscored_opportunities"] == 0
+          assert not audit["source_labels_accessed"]
+          assert not audit["observed_actions_accessed"]
+          assert not audit["final_game_results_accessed"]
+          assert not audit["2026_reserved_data_accessed"]
+          assert not audit["real_2027_outcomes_accessed"]
+          assert not audit["future_season_scoring_authorized"]
+          assert not audit["calibration_evaluated"]
+          print("PASS: original frozen engine, invented nflverse state, zero future data")
+          PY
+      - name: Prove 2026 Steps 66/83 and production model files unchanged
+        run: |
+          git diff --exit-code -- app.py data models src/66_forward_2026_continuation_wp.py src/83_forward_2026_native_challenger_once.py
+      - name: Preserve synthetic-only audit summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fabricated-nflverse-pinned-engine-bridge
+          path: fabricated-frozen-policy-demo.json
+          if-no-files-found: ignore
+          retention-days: 14
