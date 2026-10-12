@@ -1,0 +1,18 @@
+# Optional Render hosting. GitHub changes alone do not create a service.
+# An owner must authorize the Render connection and approve the paid plan.
+services:
+  - type: web
+    name: fourth-down-ai-verified
+    runtime: docker
+    repo: https://github.com/daniel-jpg/fourth-down-ai
+    branch: main
+    region: oregon
+    # Tested 1 GiB Docker limit; Render free 512 MB is not verified.
+    # Render lists 1 CPU / 2 GB at $25/month, billed only after setup.
+    plan: 1c-2g
+    numInstances: 1
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /_stcore/health
+    # A new model/research commit must never auto-publish.
+    autoDeployTrigger: off
