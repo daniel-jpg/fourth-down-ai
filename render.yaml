@@ -15,4 +15,4 @@ services:
     dockerContext: .
     healthCheckPath: /_stcore/health
     # A new model/research commit must never auto-publish.
-    autoDeployTrigger: off
+    autoDeployTrigger: "off"
