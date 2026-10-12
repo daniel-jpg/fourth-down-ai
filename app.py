@@ -1836,6 +1836,90 @@ with st.expander(
                     "no unvalidated rain/snow/fog probability penalty is applied."
                 )
 
+            inspect_metar = st.checkbox(
+                "Inspect timestamped airport METAR evidence",
+                value=False,
+                help=(
+                    "Paste a research receipt from the repository's "
+                    "capture_awc_decision_weather script. Nearby airport "
+                    "weather is not an independently verified stadium reading."
+                ),
+            )
+            if inspect_metar:
+                st.caption(
+                    "Optional evidence viewer: capture a recent NOAA METAR "
+                    "with scripts/capture_awc_decision_weather.py, "
+                    "then paste its saved JSON receipt below. The source "
+                    "station, timestamps, airport-to-stadium distance and "
+                    "offense attacking compass bearing must be provided "
+                    "for the research receipt. The receipt is unsigned and "
+                    "never feeds the official or experimental model."
+                )
+                raw_metar_receipt = st.text_area(
+                    "METAR research receipt JSON",
+                    value="",
+                    height=120,
+                    placeholder="Paste an existing weather evidence JSON receipt",
+                )
+                if raw_metar_receipt.strip():
+                    try:
+                        import json as _weather_json
+                        from src.metar_decision_weather import (
+                            validate_metar_receipt_for_display,
+                        )
+                        if len(raw_metar_receipt) > 16000:
+                            raise ValueError("METAR receipt exceeds size limit")
+                        evidence = validate_metar_receipt_for_display(
+                            _weather_json.loads(raw_metar_receipt)
+                        )
+                    except (ValueError, TypeError, KeyError):
+                        st.warning(
+                            "Invalid, inconsistent or unsupported METAR receipt. "
+                            "No weather evidence was accepted, and the frozen "
+                            "decision model remains unchanged."
+                        )
+                    else:
+                        st.caption(
+                            f"Airport {evidence['airport']} "
+                            f"({evidence['distance_km']:.1f} km from supplied "
+                            f"field location); observation "
+                            f"{evidence['observed_at_utc']} UTC format, "
+                            f"{evidence['age_minutes']:.0f} minutes "
+                            "before the stated decision."
+                        )
+                        if evidence["headwind_mph_signed"] is None:
+                            st.caption(
+                                "Airport wind direction was variable or "
+                                "not resolvable into headwind/crosswind."
+                            )
+                        else:
+                            st.caption(
+                                "METAR wind vector: "
+                                f"{evidence['headwind_mph_signed']:.1f} mph "
+                                "signed headwind (+ headwind, - tailwind); "
+                                f"{evidence['crosswind_from_right_mph_signed']:.1f} "
+                                "mph signed crosswind (+ from offense right). "
+                                "Direction is calculated from the supplied "
+                                "offense attack bearing, not NFL play-by-play."
+                            )
+                        st.caption(
+                            "Airport present-weather report: "
+                            f"{evidence['airport_precipitation'].replace('_', ' ').lower()}. "
+                            "No on-field rainfall/snowfall intensity is measured."
+                        )
+                        if evidence["captured_after_decision"]:
+                            st.info(
+                                "This receipt was downloaded after the "
+                                "claimed decision time: RETROSPECTIVE context "
+                                "only, not a before-snap forecast record."
+                            )
+                        st.caption(
+                            "Unsigned airport research evidence, not an on-field "
+                            "sensor or independent live-weather witness. "
+                            "Neither the official recommendation nor the "
+                            "field-goal what-if automatically uses this receipt."
+                        )
+
 
 second_half_receiver = None
 
