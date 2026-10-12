@@ -337,6 +337,20 @@ after receipt verification. It does **not** certify real NFL snap-time
 availability, an external trusted timestamp authority or 2027
 prospective performance. A real source-and-witness freeze remains open.
 
+The next [2027 live-feed feasibility and omission-risk review](reports/2027_realtime_nfl_provider_feasibility.md)
+identifies **Sportradar NFL Push Pulse** as a candidate subscription (not
+connected): its `players_lining_up` messages may carry decision-time
+state, but the documented `wall_clock` can refer to the PREVIOUS play.
+A strict [FABRICATED Pulse-v7 adapter](src/sportradar_pulse_synthetic_adapter.py)
+replays pre-play state to the registered decision engine and existing
+two-party forecast-sealing tests, rejecting late/partial/post-play data.
+A separate independent-opportunity ledger counts every missing or
+invalid fourth down instead of dropping difficult states. This
+**does not** imply that the vendor reliably delivers messages before
+the actual snap. Paid feed entitlement, externally trusted time,
+per-game roof/receiver coverage and authorized real capture remain
+unresolved.
+
 Passing the original once-only 2026 native-kickoff test may eventually
 allow narrowing the phrase *"kickoff inputs not yet validated on future
 games"*; even a positive 2027 observational result would not by itself
