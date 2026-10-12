@@ -32,6 +32,8 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 import re
+import time
+from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 from src.metar_decision_weather import (
@@ -49,26 +51,47 @@ def awc_url(station: str) -> str:
 
 
 def fetch_recent_awc_metar(station: str) -> tuple[bytes, datetime]:
-    """One HTTPS GET. No event IDs, NFL game data or hourly auto-watches."""
+    """Explicit one-station read, at most two calls on a timeout.
+
+    No retry on a refused, rate-limited or invalid NOAA HTTP response.
+    No periodic watching, NFL outcomes, or silent fake weather fallback.
+    """
     url = awc_url(station)
     req = Request(url, headers={
         "Accept": "application/json",
-        "User-Agent": "fourth-down-ai-weather-research/1.0 (manual single request)",
+        "User-Agent": "fourth-down-ai-weather-research/1.1 (manual one-station request)",
     })
-    with urlopen(req, timeout=12) as response:
-        if response.geturl() != url:
-            raise ValueError("Redirected AWC response is not approved")
-        if response.status != 200:
-            raise ValueError("AWC returned no usable METAR observations")
-        content_type = response.headers.get("Content-Type", "").lower()
-        if "application/json" not in content_type:
-            raise ValueError("AWC did not return JSON")
-        raw = response.read(MAX_SOURCE_BYTES+1)
-    captured = datetime.now(timezone.utc)
-    if len(raw) > MAX_SOURCE_BYTES or not raw:
-        raise ValueError("AWC response exceeds allowed single-station size")
-    return raw, captured
-
+    for attempt in range(2):
+        try:
+            with urlopen(req, timeout=20) as response:
+                if response.geturl() != url:
+                    raise ValueError("Redirected AWC response is not approved")
+                if response.status == 204:
+                    raise ValueError("NOAA_AWC_NO_OBSERVATIONS_AVAILABLE")
+                if response.status != 200:
+                    raise ValueError("AWC returned no usable METAR observations")
+                content_type = response.headers.get("Content-Type", "").lower()
+                if "application/json" not in content_type:
+                    raise ValueError("AWC did not return JSON")
+                raw = response.read(MAX_SOURCE_BYTES+1)
+            captured = datetime.now(timezone.utc)
+            if len(raw) > MAX_SOURCE_BYTES or not raw:
+                raise ValueError("AWC response exceeds allowed single-station size")
+            return raw, captured
+        except (TimeoutError, URLError) as exc:
+            # HTTPError is a URLError but must NOT be retried (403/429
+            # require stopping, not sending more queries to NOAA).
+            reason = exc.reason if isinstance(exc, URLError) else exc
+            if not isinstance(reason, TimeoutError):
+                raise ConnectionError(
+                    "NOAA_AWC_NETWORK_UNAVAILABLE_NOT_WEATHER_VALIDATED"
+                ) from exc
+            if attempt == 1:
+                raise ConnectionError(
+                    "NOAA_AWC_READ_TIMEOUT_TWICE_LIVE_WEATHER_NOT_VERIFIED"
+                ) from exc
+            time.sleep(2)
+    raise RuntimeError("Unexpected AWC retry state")
 
 def capture_weather(
     *, source_bytes: bytes, station: str, decision_utc: str,
