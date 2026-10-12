@@ -11,12 +11,13 @@ rename an existing service or automatically trigger a deployment.
 
 ## Limits and verification status
 
-The Free tier has **512 MB RAM** and a small CPU allocation. The
-[complete public Chromium end-to-end smoke #38315221787](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38315221787)
-**PASSED** on this exact hostname: source fingerprint, weather UI,
-Q4 HOME calculation (21.71 s), 32°F/25 mph Snow/Rain/wind-direction
-comparisons, invalid METAR receipt rejection, international venue
-context and a closed-roof rerun. No frozen weights were modified.
+The Free tier has **512 MB RAM** and a small CPU allocation. A
+[historical Chromium browser smoke](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/runs/38315221787)
+passed on an earlier public UI version, including a real Q4 HOME
+recommendation. The current UI removes non-predictive controls and uses
+two directly editable, blank-by-default weather fields. After manually
+deploying that change, run a new public browser test before claiming
+the updated UI is verified live. No frozen weights were modified.
 The weather sensitivity remains **research-only**: historical held-out
 Brier did not improve, so weather does not change the official action
 recommendation. A passing browser smoke is **not** a claim of long-term
@@ -35,10 +36,10 @@ or add a card for this project.
    and wait for a cold start if necessary.
 2. Use [GitHub Actions — Verify public Render Q4 and weather in Chromium](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/render_public_browser_smoke.yml)
    with the `public_base_url` input `https://fourth-down-ai-nfl.onrender.com`.
-3. Confirm source fingerprint, HOME Q4 recommendation, corrected-kickoff
-   disclosure, weather-invariance checks, invalid METAR receipt rejection,
-   international venue and closed-roof scenarios all pass. Check the
-   GitHub Actions screenshots if they do not.
+3. Confirm the source fingerprint, HOME Q4 recommendation, corrected
+   kickoff, blank optional temperature/wind boxes, weather-only sensitivity,
+   absence of research-only UI, and closed-roof behavior. Check the
+   GitHub Actions screenshot if anything fails.
 4. Monitor [Render logs](https://dashboard.render.com/web/srv-db6lj3ij9qps73ctut8g/logs),
    memory/CPU metrics, and GitHub status; a 200 health check alone
    cannot prove that a fourth-down calculation works.
