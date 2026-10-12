@@ -1,6 +1,8 @@
 name: Live NOAA weather API format smoke (once, no NFL data)
 
-# An explicit, ONE-SHOT real NOAA GET to test source-schema assumptions.
+# An explicit, ONE-SHOT real NOAA check to test source-schema assumptions.
+# At most TWO GETs total if the first read times out, with no retries on
+# NOAA 403/429/204. The job fails as INCONCLUSIVE if NOAA stays unavailable.
 # Push trigger only fires when this workflow file is first added/modified.
 # No schedule and no app runtime NOAA calls; future manual dispatch available.
 # No model/policy/football data writes. This smoke uses the AIRPORT ITSELF
@@ -18,7 +20,7 @@ permissions:
 jobs:
   single-real-noaa-metar:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
