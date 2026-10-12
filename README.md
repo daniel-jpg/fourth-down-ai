@@ -314,6 +314,20 @@ The only executable forecast inputs are **fabricated 2027-shaped games**.
 Actual 2027 evaluation stays explicitly blocked until the **entire**
 regular season and separate source/completeness approval are available.
 
+The [separate full-season admission verifier](src/postseason_2027_admission.py)
+and [one-time post-seal evaluation rehearsal](src/postseason_2027_once_only.py)
+now test **all 272** game identities and final margins against a distinct,
+fabricated ESPN-shaped reference, enforce the 32-team/17-game schedule,
+seal label-free predictions before joining post-game outcomes, and refuse
+rerunning an existing output directory. The
+[focused CI run](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38285893397)
+passed **23 tests**, replayed the existing **3,151-game independent historical
+ESPN score archive**, and confirmed the second evaluation attempt fails.
+See the [postseason admission contract](reports/2027_postseason_existing_data_gate.md).
+**The synthetic score reference is not actual ESPN evidence; real 2027 data
+admission and the permanent one-time release lock are still intentionally
+disabled until a reviewed post-season implementation in 2028.**
+
 ## Independent 2027 Fourth-Down Action-Policy Study
 
 The separate [preregistered 2027 decision study](reports/2027_fourth_down_action_policy_protocol.md)
