@@ -246,8 +246,13 @@ def replay_fabricated_nflverse_through_frozen_policy(
 def main() -> None:
     """One deliberately invented nflreadpy-shaped play; NO network access."""
     import argparse
+    from pathlib import Path
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fabricated-demo-only", action="store_true")
+    parser.add_argument(
+        "--audit-json-out", type=Path,
+        help="Write a NEW synthetic-only JSON report separate from engine logs",
+    )
     args = parser.parse_args()
     if not args.fabricated_demo_only:
         parser.error("Only --fabricated-demo-only is permitted")
@@ -267,11 +272,17 @@ def main() -> None:
     result = replay_fabricated_nflverse_through_frozen_policy(
         pd.DataFrame([fake]), mode=MODE_SYNTHETIC,
     )
-    print(json.dumps({
+    summary = {
         "manifest": result["manifest"],
         "audit": result["audit"],
         "synthetic_action": result["synthetic_forecasts"][0]["policy_action"],
-    }, indent=2, sort_keys=True))
+    }
+    encoded = json.dumps(summary, indent=2, sort_keys=True) + "\n"
+    if args.audit_json_out is not None:
+        # Atomic exclusive creation; never replace an existing report or file.
+        with args.audit_json_out.open("x", encoding="utf-8") as output:
+            output.write(encoded)
+    print(encoded, end="")
 
 
 if __name__ == "__main__":
