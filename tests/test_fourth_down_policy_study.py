@@ -204,6 +204,75 @@ def test_large_synthetic_support_pass_is_not_a_causal_policy_claim():
     assert out["mode"] == "synthetic"
 
 
+
+def test_prespecified_quarter_site_closecall_and_deep_own_groups():
+    own5 = record("own5", "1", quarter=1,
+                  observed="NORMAL_GO_PASS", policy="FIELD_GOAL",
+                  y=1, q_observed=.6)
+    own5.update(site="AWAY", close_call=False,
+                yardline_100=95., ydstogo=3.)
+    q4 = record("q4", "1", quarter=4,
+                observed="FIELD_GOAL", y=0, q_observed=.4)
+    q4.update(site="HOME", close_call=True,
+              yardline_100=6., ydstogo=4.)
+    unsupported = record("unsupported", "1", quarter=4,
+                         observed="NORMAL_GO_RUN", y=1, q_observed=None)
+    unsupported.update(site="NEUTRAL", close_call=False,
+                       yardline_100=95., ydstogo=3.)
+    out = evaluate([own5, q4, unsupported], MANIFEST, bootstrap_draws=20)
+    s = out["prespecified_descriptive_subgroups"]
+    assert "NOT causal" in s["classification"] or "causal" in s["classification"]
+    assert s["q4_vs_q1_to_q3"]["Q1_TO_Q3"]["decisions"] == 1
+    assert s["q4_vs_q1_to_q3"]["Q4"]["decisions"] == 2
+    assert s["offense_site"]["HOME"]["factual_supported_decisions"] == 1
+    assert s["offense_site"]["AWAY"]["decisions"] == 1
+    assert s["offense_site"]["NEUTRAL"]["factual_unsupported_decisions"] == 1
+    assert s["close_call"]["YES"]["decisions"] == 1
+    assert s["close_call"]["NO"]["decisions"] == 2
+    own = s["deep_own_short_yardage"]["OWN_1_TO_10_4TH_2_OR_3"]
+    assert own["decisions"] == 2
+    assert own["factual_supported_decisions"] == 1
+    assert own["factual_unsupported_decisions"] == 1
+    assert own["factual_brier"] == pytest.approx(.16)
+    assert own["mean_factual_predicted_wp"] == pytest.approx(.6)
+    assert own["factual_observed_win_rate"] == pytest.approx(1.)
+    assert s["deep_own_short_yardage"]["OTHER"]["decisions"] == 1
+
+
+def test_missing_optional_synthetic_group_metadata_is_explicit_not_imputed():
+    out = evaluate([record()], MANIFEST, bootstrap_draws=20)
+    s = out["prespecified_descriptive_subgroups"]
+    assert s["offense_site"]["NOT_RECORDED"]["decisions"] == 1
+    assert s["close_call"]["NOT_RECORDED"]["decisions"] == 1
+    assert s["deep_own_short_yardage"]["NOT_RECORDED"]["decisions"] == 1
+
+
+@pytest.mark.parametrize("field,value,expected", [
+    ("site", "N", "site"),
+    ("close_call", "yes", "close_call"),
+    ("yardline_100", False, "yardline_100"),
+    ("yardline_100", 100, "yardline_100"),
+    ("ydstogo", float("inf"), "ydstogo"),
+    ("ydstogo", -1, "ydstogo"),
+])
+def test_prespecified_metadata_validation_fails_closed(field, value, expected):
+    obj = record()
+    obj.update(site="HOME", close_call=True, yardline_100=6, ydstogo=4)
+    obj[field] = value
+    with pytest.raises(ValueError, match=expected):
+        evaluate([obj], MANIFEST, bootstrap_draws=20)
+
+
+def test_prospective_requires_prespecified_metadata_without_peeking():
+    obj = {**MANIFEST, "mode": "prospective",
+           "final_2027_regular_season_complete": True,
+           "nuisance_provenance": "synthetic nuisance metadata"}
+    records = [record(f"future-game-{n}", "1") for n in range(100)]
+    with pytest.raises(ValueError, match="requires complete pre-snap"):
+        evaluate(records, obj, bootstrap_draws=20)
+
+
+
 def test_cli_synthetic_fixture_roundtrip(tmp_path):
     import subprocess
     import sys
