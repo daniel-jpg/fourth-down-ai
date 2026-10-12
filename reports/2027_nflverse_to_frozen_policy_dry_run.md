@@ -19,9 +19,9 @@ The engine's accepted feature_asof=pre_snap contract is used **only inside synth
 Run these from the repository root after installing requirements-dev.txt:
 
     PYTHONPATH=. python -m pytest -q tests/test_nflverse_2027_frozen_policy_replay.py
-    PYTHONPATH=. python -m src.nflverse_2027_frozen_policy_replay --fabricated-demo-only
+    PYTHONPATH=. python -m src.nflverse_2027_frozen_policy_replay --fabricated-demo-only --audit-json-out artifacts/fake_policy_preview.json
 
-The CLI invents one 2027-shaped Q4 fourth down, loads the frozen hashes/models and prints a selection and audit summary. It has no URL, real game-ID input or bypass of the synthetic gate. A fake engine can be injected only for fabricated testing and is labeled separately.
+The CLI invents one 2027-shaped Q4 fourth down and loads the verified frozen hashes/models. Console output can include simulator diagnostic lines; the optional --audit-json-out argument writes a new, clean JSON audit file using exclusive creation (it refuses to overwrite an existing file). It has no URL, real game-ID input or bypass of the synthetic gate. A fake engine can be injected only for fabricated testing and is labeled separately.
 
 ## Remaining work before a genuine nflverse-based 2027 evaluation
 
