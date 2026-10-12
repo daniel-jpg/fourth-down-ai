@@ -382,6 +382,56 @@ def test_known_good_fabricated_pulse_enters_registered_engine_and_signed_snap_ga
     assert post["receipt_validation"]["real_independent_provenance_certified"] is False
 
 
+
+def test_documentation_pulse_q4_uses_registered_native_kickoff_correction():
+    x=pulse_fixture()
+    game=x["message"]["payload"]["game"]
+    pulse=x["message"]["payload"]["pulse"]
+    game["quarter"]=4
+    pulse["period"]["number"]=4
+    game["clock"]="04:59"
+    pulse["clock"]="04:59"
+    pulse["start_situation"]["clock"]="04:59"
+    pulse["game_clock"]["time"]="04:59"
+    result=replay_fabricated_pulse(x,simulated_snap_at_utc=SNAP)
+    assert result["snapshot"]["game_seconds_remaining"]==299
+    engine=load_verified_engine()
+    forecast=build_synthetic_policy_forecast(
+        {"mode":"synthetic","source_type":"fabricated_only",
+         "policy_commit":POLICY_COMMIT},
+        result["snapshot"],engine=engine,
+        nuisance_snapshot=load_historical_parameters(),
+        n_simulations=200,  # Native patch smoke budget only; NOT 1,200 output
+    )
+    assert forecast["audit"]["kickoff_input_mode"]=="Q4_NATIVE_STANDARD_35"
+    assert forecast["audit"]["seed"]==43
+    assert forecast["audit"]["simulation_count"]==200
+    assert forecast["audit"]["full_precision"] is False
+    bundle=make_synthetic_bundle(
+        snapshot=result["snapshot"],
+        source_events=result["source_events"],forecast=forecast,
+        captured_at_utc=CAPTURE,
+        forecast_issued_at_utc="2027-09-09T20:00:02Z",
+    )
+    collector,witness=Ed25519PrivateKey.generate(),Ed25519PrivateKey.generate()
+    collected=sign_collector(
+        bundle,sealed_at_utc="2027-09-09T20:00:03Z",
+        collector_private_key=collector,
+    )
+    witnessed=witness_collector(
+        collected,witnessed_at_utc="2027-09-09T20:00:04Z",
+        collector_public_key=public_key_bytes(collector),
+        witness_private_key=witness,
+    )
+    report=verify_witnessed_before_snap(
+        witnessed,snap_at_utc=SNAP,
+        trusted_collector_public_key=public_key_bytes(collector),
+        trusted_witness_public_key=public_key_bytes(witness),
+    )
+    assert report["status"].startswith("TWO_SYNTHETIC_ED25519_RECEIPTS")
+    assert report["real_independent_provenance_certified"] is False
+
+
 def test_no_live_api_fetch_or_2026_outcomes_in_candidate_adapter():
     s=Path("src/sportradar_pulse_synthetic_adapter.py").read_text()
     for forbidden in (
