@@ -274,3 +274,54 @@ def test_manifest_cannot_smuggle_postplay_fields_into_witness(tmp_path):
     path.write_text(json.dumps([bad]))
     with pytest.raises(ValueError, match="Malformed"):
         cli.assemble_direction_record(**ARGS, witness_manifest=path)
+
+
+
+def test_buffalo_direction_receipt_display_validates_but_never_authenticates():
+    data = adjudicate()
+    shown = direction.validate_buffalo_direction_receipt_for_display(data)
+    assert shown["claimed_attack_end"] == "NORTH"
+    assert shown["source_count"] == 1
+    assert shown["retrospective_source_present"] is True
+    assert shown["numeric_attack_bearing_available"] is False
+    assert shown["independently_verified"] is False
+    assert shown["may_change_official_forecast"] is False
+    assert "NOT independently authenticated" in shown["caveat"]
+
+
+@pytest.mark.parametrize("field,value", [
+    ("status", "OFFICIAL_PROVEN_DIRECTION"),
+    ("season", 2027),
+    ("claimed_attack_end", "WEST"),
+    ("numeric_true_north_attack_azimuth_degrees", 0),
+    ("numeric_headwind_crosswind_permitted", True),
+    ("trusted_live_forecast_provenance", True),
+    ("may_change_frozen_go_fg_punt_probabilities", True),
+    ("source_count", 2),
+    ("retrospective_source_present", False),
+    ("all_sources_asserted_available_predecision", True),
+    ("no_post_snap_labels_ingested", False),
+])
+def test_buffalo_unsigned_display_receipt_cannot_escalate_authority(field, value):
+    record = deepcopy(adjudicate())
+    record[field] = value
+    with pytest.raises(ValueError):
+        direction.validate_buffalo_direction_receipt_for_display(record)
+
+
+def test_buffalo_direction_receipt_rejects_changed_witness_hash_or_end():
+    record = adjudicate()
+    forged = deepcopy(record)
+    forged["witnesses"][0]["original_local_artifact_sha256"] = "not_a_hash"
+    with pytest.raises(ValueError, match="metadata"):
+        direction.validate_buffalo_direction_receipt_for_display(forged)
+    forged = deepcopy(record)
+    forged["witnesses"][0]["claim_north_south_end"] = "SOUTH"
+    with pytest.raises(ValueError, match="disagree"):
+        direction.validate_buffalo_direction_receipt_for_display(forged)
+    forged = deepcopy(record)
+    forged["witnesses"][0]["artifact_available_at_utc"] = (
+        "2026-10-12T20:29:52Z"
+    )
+    with pytest.raises(ValueError, match="available-time|claims conflict"):
+        direction.validate_buffalo_direction_receipt_for_display(forged)
