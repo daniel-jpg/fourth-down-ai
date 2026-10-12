@@ -379,39 +379,16 @@ def test_preview_failure_is_visible_and_official_result_survives(ui):
     assert len(ui.engine.calls) == 1
 
 
-@pytest.mark.parametrize("label,called", [
-    ("Advanced: compare using only the previous 488 ordinary kickoffs (exclude penalty-affected snaps)",
-     "preview_observed_2025_recommendation"),
-    ("Advanced: use older 2024 return data with an assumed touchback rate instead",
-     "preview_recommendation"),
-    ("Advanced: also show native kickoff-input correction (research-only)",
-     "preview_native_kickoff_feature_candidate"),
-])
-def test_advanced_previews_require_explicit_selection(ui, label, called):
+def test_simplified_kickoff_panel_has_one_optional_control(ui):
+    assert widget(ui.at, "expander", "2025 kickoff comparison")
+    assert [w.label for w in ui.at.checkbox if "kickoff" in w.label.lower()] == [EXPERIMENT]
+    assert not any(w.label.startswith("Advanced:") for w in ui.at.checkbox)
+    assert not any("Assumed" in w.label for w in ui.at.select_slider)
     enable_experiment(ui.at)
-    widget(ui.at, "checkbox", label).set_value(True)
-    run(ui.at)
     analyze(ui.at)
-    ui.previews[called].assert_called_once()
+    ui.previews["preview_observed_2025_resolved_recommendation"].assert_called_once()
     assert metrics(ui.at)["Recommendation"] == "GO FOR IT"
     assert metrics(ui.at)["FIELD GOAL"] == "40.00%"
-
-
-def test_onside_what_if_uses_user_assumptions_and_keeps_official_result(ui):
-    widget(ui.at, "number_input", "Defense score").set_value(28)
-    run(ui.at)
-    enable_experiment(ui.at)
-    widget(ui.at, "checkbox", "Advanced: include hypothetical onside kicks after a made field goal").set_value(True)
-    run(ui.at)
-    widget(ui.at, "select_slider", "Assumed chance of choosing an onside kick after a made field goal").set_value(40)
-    widget(ui.at, "select_slider", "Assumed conditional kicking-team recovery chance").set_value(20)
-    run(ui.at)
-    analyze(ui.at)
-    call = ui.previews["preview_observed_2025_with_onside"].call_args
-    assert call.kwargs == {"attempt_probability": .4, "recovery_probability": .2,
-                           "include_verified_penalties": True}
-    assert "Hypothetical onside sensitivity active" in values(ui.at, "info")
-    assert metrics(ui.at)["Recommendation"] == "GO FOR IT"
 
 
 @pytest.mark.parametrize("ot_format,clock,timeouts", [
