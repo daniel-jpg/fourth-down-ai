@@ -8,6 +8,7 @@ on:
     paths:
       - .github/workflows/render_public_browser_smoke.yml
       - scripts/qa_weather_streamlit_browser.py
+      - scripts/qa_local_streamlit_home_browser.py
   workflow_dispatch:
     inputs:
       public_base_url:

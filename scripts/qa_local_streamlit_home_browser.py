@@ -77,7 +77,10 @@ def run_browser() -> None:
             print("LOCAL_FORM_READY", flush=True)
 
             weather = frame.get_by_text("Weather observations (optional)", exact=True)
-            assert weather.count() == 1, "Latest weather UI missing from local app"
+            # Streamlit renders the heading before the optional controls;
+            # on Render Free that render gap can be several seconds.
+            weather.wait_for(state="visible", timeout=35000)
+            assert weather.count() == 1, "Weather UI missing after full render"
 
             # The default Q4 state is 7:38, 4th-and-3 at opponent 30,
             # down 24-27. Change the site as real users do.
