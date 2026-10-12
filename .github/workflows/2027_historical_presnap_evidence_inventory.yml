@@ -1,0 +1,45 @@
+name: Historical pre-snap source-field completeness inventory (2014-2025)
+
+# Pinned historical raw parquet only; no NFL data download.
+# Completeness NEVER certifies contemporaneous decision-time availability.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/historical_prespnap_evidence_inventory.py"
+      - "tests/test_historical_prespnap_evidence_inventory.py"
+      - ".github/workflows/2027_historical_presnap_evidence_inventory.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  feature-availability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install pinned historical audit dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Reject future years and distinguish data presence from pre-snap evidence
+        run: |
+          PYTHONPATH=. python -m pytest -v tests/test_historical_prespnap_evidence_inventory.py
+      - name: Inspect pinned historical PBP only (no network or model prediction)
+        run: |
+          PYTHONPATH=. python -m src.historical_prespnap_evidence_inventory \
+            --out artifacts/2027_historical_presnap_field_inventory.json
+      - name: Preserve research-only gap evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 2014-2025-historical-presnap-field-gap-inventory
+          path: artifacts/2027_historical_presnap_field_inventory.json
+          retention-days: 30
+          if-no-files-found: ignore
