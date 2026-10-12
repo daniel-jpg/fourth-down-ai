@@ -1,23 +1,30 @@
 # Step 88 — Research-demo release readiness (2026-10-11)
 
-**Updated 2026-10-12:** The public Streamlit demo is now the
-single-decision interface, with the historical 2025 kickoff comparison
-and checkbox removed. The next Q4 research-demo revision displays
-action values recomputed using corrected native standard-35 kickoff
-inputs, rather than merely relabeling frozen legacy estimates. [Live browser smoke #9](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193289281)
-passed on app commit `053e4a5`, and the
-[full regression/AppTest run #233](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193413685)
-covers source revision `85f0874`. The mobile layout has been accepted
-and [Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5)
-is closed. Exact hosted revision identity is not independently attested.
-This is a **qualified research demo**, NOT a new stable model or validated
-coaching policy; `v1.1.0` remains the stable release.
+**Updated October 12, 2026:** The live Streamlit research demo uses
+one GO/FG/PUNT decision screen; the historical kickoff comparison and
+checkbox are removed. Regulation-Q4 action estimates now **actually
+recompute** with the native standard-35 kickoff-input correction while
+retaining the published frozen `v1.1.0` model weights. The short
+**Close call** note flags representation-sensitive model edges.
+
+[Full CI #249](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38197422315)
+and [live Chromium #15](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38197422175)
+passed on app commit `31176d50af25db9dd42dae07e9b17cb5c2b930b4`.
+Live result persistence, the absence of the historical toggle, and the
+Q4 recommendation/warning were checked. The user's mobile-layout
+signoff is in closed [Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5).
+Exact Streamlit Cloud SHA is not independently attested.
+
+The 2026 prospective evaluation remains *future and gated*; no 2026
+outcomes have been scored for the frozen challenger, and no stable
+release or causal coaching-policy claim has been made.
 
 ## Evidence and what it does not establish
 
+- **Most recent evidence:** [Tests #249](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38197422315) and [live browser #15](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38197422175) passed on `31176d5`. The 4:59, fourth-and-4 away-team same-seed numerical audit compared legacy FG **41.91%** versus corrected **37.00%**, and legacy PASS **34.42%** versus corrected **34.34%**. The on-screen result is the corrected-model FG lead of **2.66 pp**, not an observed coaching benefit.
 - [GitHub Actions run 38182568146](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38182568146) passed **339 automated tests**: 293 regression and 46 Streamlit AppTest integration cases. These verify program behavior, not statistical calibration or counterfactual decision value. See [Step 85 test review](85_streamlit_ui_release_readiness.md).
 - Subsequent **user-provided live-app output** verified the newly deployed immediate-action-odds section and proper overtime **game value** labeling, with win=1, tie=0.5, loss=0. A live screenshot verified Q4 **15:01 rejected**; a later live output verified Q4 **15:00 accepted**. The previous observable deployment mismatch was recorded and closed in [Issue #4](https://github.com/daniel-jpg/fourth-down-ai/issues/4). **The exact deployed commit hash was not independently observed.**
-- Custom field dragging was previously browser smoke-tested. The user accepted the narrow/mobile layout. [Playwright live-browser run #9](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193289281) passed against the public hosted app after the historical kickoff UI was removed. This does **not** constitute independent device-farm coverage or a cryptographic deployment-SHA attestation.
+- Custom field dragging was previously browser smoke-tested. The user accepted the narrow/mobile layout. [Playwright live-browser run #15](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38197422175) passed against the public hosted app with the corrected Q4 engine, persistent result and no historical kickoff controls. This does **not** constitute independent device-farm coverage or a cryptographic deployment-SHA attestation.
 
 ## How to interpret a recommendation
 
@@ -41,7 +48,7 @@ The precommitted 2026 Weeks 6–18 **Step 66** one-time gate requires at least 1
 
 ## Release gate and scope
 
-- **Ready now:** technical research demo of the tested `main` app with explicit uncertainty and limitations.
+- **Ready now:** technical research demo of the tested `main` app with explicit uncertainty and limitations. [Latest demonstrated CI/live evidence](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38197422315) is pinned to `31176d5`; subsequent documentation-only changes are not a new model evaluation.
 - **Not claimed:** production-grade coaching advice, independently calibrated 2026+ field-goal/onside policy, independently certified responsive behavior on all devices, or a new stable tagged version.
-- **Functional release QA:** completed in [closed Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5). User accepted responsive presentation; hosted end-to-end behavior passed. **Exact hosted revision identity:** not independently attested; keep it as a documented limitation rather than reintroducing a build-ID widget. New stable-version publication and claims require separate signoff.
+- **Functional release QA:** completed in [closed Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5). User accepted responsive presentation; hosted end-to-end behavior passed. **Exact hosted revision identity:** not independently attested; keep it as a documented limitation rather than reintroducing a build-ID widget. New stable-version publication and claims require separate signoff. [Issue #6](https://github.com/daniel-jpg/fourth-down-ai/issues/6) tracks post-gate validation review. [Issue #7](https://github.com/daniel-jpg/fourth-down-ai/issues/7) tracks an obsolete unpublished release draft that cannot be safely published as-is.
 - **Frozen components:** No model coefficients, eligible-action rules or Step 66/83 precommitted protocols are modified. The Q4 research-demo display now uses the independently evaluated native input encoding and recomputes strategy probabilities; it is not an official stable-model release.

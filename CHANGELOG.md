@@ -5,8 +5,9 @@ Notable changes to Fourth Down AI are documented here.
 ## Unreleased — Research-demo candidate (post-v1.1.0)
 
 **Status:** A qualified, tested research demo on `main`, NOT a new stable
-`v1.2.0` or production-calibrated coaching policy. Stable `v1.1.0`
-and the frozen official model remain unchanged.
+`v1.2.0` release or validated coaching policy. The published `v1.1.0`
+model weights remain frozen; the live Q4 research demo uses a separate
+native kickoff-input correction without model retraining.
 
 ### Interface and interpretation
 
@@ -14,9 +15,10 @@ and the frozen official model remain unchanged.
   PUNT recommendations. Removed the public 2025 kickoff comparison
   panel, toggle, and separate experimental-strategy results following
   user feedback.
-- Retained the 538-transition 2025 kickoff study and other optional
-  historical/native-input evaluations in the research code and reports,
-  not as interactive public app features.
+- Retained the 538-transition 2025 kickoff donor study and onside
+  sensitivity analyses in repository research files only. The native
+  kickoff-input correction runs automatically in Q4 on the demo;
+  no historical-scenario toggle or secondary results panel is shown.
 - Added immediate modeled conversion, field-goal and punt outcome
   explanations alongside win probability or overtime game value.
 - Updated the research-demo's regulation-Q4 **action probabilities and
@@ -32,28 +34,40 @@ and the frozen official model remain unchanged.
   public rankings and removed intrusive deployment revision UI.
 - Clarified overtime tie valuation, regulation clock validation and
   Monte Carlo uncertainty limitations.
+- Persisted completed fourth-down results across harmless Streamlit
+  component reruns; the result is invalidated when the game inputs change.
+  Isolated the Q4 feature correction without reloading a second copy
+  of the heavy model and transition data.
 
 ### Verification
 
-- [GitHub Actions Tests #233](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193413685)
-  ran against commit `85f08747ce737525e178cd0afa5d19ed87e32cf2`
-  after the public UI removal and test updates.
-- [Live browser smoke #9](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193289281)
-  **passed** against the public Streamlit site on app commit `053e4a5`,
-  confirming removal of the old panel and a working official decision.
-- User accepted responsive presentation. [Release-QA Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5)
+- **[Tests #249](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38197422315)
+  passed on `31176d50af25db9dd42dae07e9b17cb5c2b930b4`**, including
+  frozen-artifact preflight, regression tests, Streamlit AppTest and
+  same-seed Q4 legacy-vs-corrected action probability checks.
+- **[Live Chromium smoke #15](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38197422175)
+  passed on the same commit**: a corrected Q4 decision, normal
+  recommendation, Close call notice and result persistence were visible
+  without the removed experimental control.
+- User accepted responsive presentation; [Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5)
   is closed. Exact hosted Git SHA remains **not independently attested**.
-- Retrospective 2023–2025 research does not provide fresh untouched
-  prospective evidence. Once-only 2026 Step 66/83 checks are still
-  protected and never authorize automatic model promotion.
+- Historical 2023–2025 checks show better pooled post-score kickoff
+  Brier loss but slightly worse away-kicker performance. Those years
+  are not a fresh untouched benchmark. The once-only 2026 Step 66/83
+  gates and their model/source hashes remain protected.
 
 ### Release readiness
 
 See [research-demo readiness](reports/88_research_demo_release_readiness.md)
 and [release checklist](reports/90_release_candidate_checklist.md).
-A draft research-demo prerelease was prepared before the kickoff-panel
-removal and must be brought up to date before publication. Neither
-those draft materials nor any passing test makes this a stable release.
+The unpublished prerelease draft still describes the deleted kickoff
+panel; [Issue #7](https://github.com/daniel-jpg/fourth-down-ai/issues/7)
+tracks correction or deletion before publication. Release editing
+was denied by the GitHub connection (403); the working app is unaffected.
+[Issue #6](https://github.com/daniel-jpg/fourth-down-ai/issues/6)
+tracks review of the automatic 2026 post-gate research results.
+Neither existing historical evidence nor a passing smoke test makes
+this a prospectively validated coaching policy or a new stable release.
 
 ## v1.1.0 — 2026-10-06
 

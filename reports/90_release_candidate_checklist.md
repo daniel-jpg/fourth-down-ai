@@ -29,42 +29,45 @@ All runtime dependencies and pytest are pinned in `requirements.txt` and `requir
 
 For the specific Step 85 implementation, [GitHub Actions run 38182568146](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38182568146) passed 339 tests (293 regression + 46 UI AppTest). That result is evidence for the tested revision, **not** proof that every later commit has independently passed CI.
 
-## Verified release-QA baseline (2026-10-12)
+## Verified release-QA baseline (October 12, 2026)
 
-**Core public-app revision:** `053e4a5b7c16c88ef129fd39e6b780b8d965dda2`
-removes the comparison, toggle and experiment result branch without
-modifying the official engine, frozen data or future-data protocols.
-[Live browser smoke #9](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193289281)
-**passed** on that revision, confirming the hosted panel is gone and
-the ordinary Analyze Fourth Down recommendation renders.
+**Pinned app/tested commit:**
+`31176d50af25db9dd42dae07e9b17cb5c2b930b4`.
 
-**Regression revision:** `85f08747ce737525e178cd0afa5d19ed87e32cf2`
-updates two older guard/native-input source tests to reflect the
-intentional removal, while retaining the automatic Q4 reliability
-warning and the independently tested research module. See
-[Tests #233](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193413685)
-for regression, Streamlit AppTest and frozen-artifact preflight
-evidence. There are no application changes between those commits.
+- [GitHub Actions Tests #249](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38197422315) —
+  **passed**. Covers regression tests, Streamlit AppTest, frozen
+  artifacts and same-seed Q4 legacy-versus-corrected action WP.
+- [Hosted browser smoke #15](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38197422175) —
+  **passed**. Corrected Q4 decision, normal recommendation, Close call,
+  stable result after rerun and no second comparison/checkbox.
+- The exact 4:59 / fourth-and-4 / opponent-6 / down-four AWAY
+  fixed-seed audit changed FIELD GOAL from **41.91% to 37.00%**,
+  PASS from **34.42% to 34.34%**, and the model FG edge
+  from **7.49 pp to 2.66 pp**. This is input representation
+  sensitivity, not a measured increase in actual wins.
+- User accepted mobile presentation in closed
+  [Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5).
 
 ## Pre-release gates
 
-| Gate | Status (2026-10-12) | Evidence or qualification |
+| Gate | Status | Qualification |
 | --- | --- | --- |
-| Frozen production model and prospective protocols | Protected | Preflight locks files and source hashes; Step 66/83 not run early |
-| Regression and UI AppTest | See Tests #233 | [Full suite](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193413685) on `85f0874` after tests were updated |
-| Hosted official-only app (kickoff controls removed) | **Passed** | [Live smoke #9](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193289281): no panel and official recommendation rendered |
-| Immediate action odds and OT game value | Previously verified | User-supplied hosted evidence and Streamlit AppTest cases |
-| Regulation clock validation | Previously verified | 15:01 rejected in Q4 and 15:00 accepted |
-| Live mobile/narrow layout | User accepted | Not independent multi-device visual certification |
-| Exact Streamlit Cloud deployed SHA | **Not verified** | Hosted UI behavior verified; never reintroduce a large build-info panel |
-| Independent future 2026 validation | Pending once-only gate | Step 66/83 rules unchanged, no automatic model promotion |
-| New stable tag/GitHub release | **Not published** | Keep `v1.1.0` stable, refresh old draft notes before public release |
+| Frozen stable `v1.1.0` artifacts | **Passed** | Frozen hashes and unchanged stable model weights verified by CI #249 |
+| Regression, UI AppTest and fixed-state numeric audit | **Passed** | [Tests #249](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38197422315), pinned to `31176d5` |
+| Live hosted Q4 result and missing historical panel | **Passed** | [Browser #15](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38197422175), same SHA |
+| OT game-value wording and regulation clock | Previously verified | Streamlit AppTest and earlier hosted evidence |
+| Responsive/narrow layout | User accepted | Does not establish all-device visual coverage |
+| Exact Streamlit-hosted deployment commit SHA | **Not verified** | Browser verified behavior, not cryptographic deployment provenance; no intrusive on-page build-ID control |
+| Independent 2026 kickoff reliability | **Pending automatic once-only validation** | Step 66: at least 100 distinct eligible completed 2026 Weeks 6–18 games. Step 83 runs only afterward and checks overall Brier CI and home/away groups. See [Issue #6](https://github.com/daniel-jpg/fourth-down-ai/issues/6) |
+| New stable GitHub release | **Not created** | `v1.1.0` stays stable. The obsolete unpublished draft must be corrected or discarded before publication: [Issue #7](https://github.com/daniel-jpg/fourth-down-ai/issues/7) |
 
-**Scope:** The preceding live-browser #8 test verified the former
-public option; it is *not* evidence that the removed panel remains
-available. The new #9 test checks the final user-facing scope.
-Passing functionality does not establish causal coaching advantage,
-total model uncertainty or a byte-for-byte hosted revision attestation.
+**Scope:** The Q4 public demo uses provisional native kickoff-input
+features with *unchanged classifier weights*; the separately published
+stable version remains frozen. Retrospective reliability improvement
+does not establish optimal fourth-down policy or the effect of an
+unchosen FG/GO decision. The 2026 future-gate workflow must **not**
+be manually accelerated. Changing only these documents does not
+retest the deployment.
 
 ## Model limitations that must remain visible
 
@@ -72,8 +75,8 @@ The Q4 demo now recomputes action probabilities with native kickoff features in 
 
 ## Publishing instructions — intentionally NOT executed
 
-1. Close or explicitly document acceptance of remaining release signoff limitations from Issue #5.
+1. Note that Issue #5 is already closed; preserve its accepted mobile scope and documented deployed-SHA limitation.
 2. Verify the latest candidate HEAD passes all required GitHub Actions jobs and capture its exact SHA; keep evidence tied to that SHA.
-3. Recheck README/CHANGELOG links and a representative live regulation and OT walkthrough.
+3. Recheck README/CHANGELOG links, the current public UI and a representative live regulation and OT walkthrough. Resolve [Issue #7](https://github.com/daniel-jpg/fourth-down-ai/issues/7) first; the existing draft still advertises a deleted checkbox.
 4. Review the version number and release claims. Only after these gates, create an annotated version tag and GitHub Release with a clear research-only disclaimer.
-5. Do **not** move or rewrite the stable `v1.1.0` tag; do not retrain model weights or use future data to accelerate tagging.
+5. Do **not** move or rewrite the stable `v1.1.0` tag; do not retrain model weights, manually run the 2026 Step 66/83 evaluations or use future data to accelerate tagging. See [future validation review](https://github.com/daniel-jpg/fourth-down-ai/issues/6).
