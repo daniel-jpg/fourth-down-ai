@@ -1,6 +1,7 @@
 # Fourth Down AI
 
 [![Tests](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/tests.yml)
+[![Hosted Streamlit browser smoke](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/live_streamlit_smoke.yml/badge.svg?branch=main)](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/live_streamlit_smoke.yml)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://fourth-down-ai.streamlit.app/)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -24,6 +25,11 @@ demo's Q4 recommendation did render correctly, but **these newer
 weather/stadium UI controls must not be represented as publicly live**
 until a Streamlit Cloud app-owner reboot and a passing browser smoke.
 [Deployment issue, screenshots and owner steps](https://github.com/daniel-jpg/fourth-down-ai/issues/11).
+The separate **Hosted Streamlit browser smoke** badge above checks the actual public
+site, including a hidden SHA-256 source fingerprint against the tested GitHub
+revision. A green **Tests** badge alone does not certify hosted deployment;
+if the live badge is red or pending, do not assume newly merged controls
+are available to visitors.
 
 ## Demo
 
