@@ -169,6 +169,23 @@ def ui(monkeypatch):
     st.cache_resource.clear()
 
 
+def test_result_persists_across_same_state_rerun_and_invalidates_on_change(ui):
+    at = ui.at
+    analyze(at)
+    expected = metrics(at)
+    call_count = len(ui.engine.calls)
+    run(at)  # Streamlit component rerun must not erase a completed result.
+    assert metrics(at) == expected
+    assert len(ui.engine.calls) == call_count
+    widget(at, "number_input", "Yards to go").set_value(2)
+    run(at)
+    assert not at.metric
+    assert len(ui.engine.calls) == call_count
+    analyze(at)
+    assert metrics(at)
+    assert len(ui.engine.calls) == call_count + 1
+
+
 def test_initial_page_is_idle_and_has_no_kickoff_research_panel(ui):
     at = ui.at
     assert not any("kickoff comparison" in e.label.lower() for e in at.expander)

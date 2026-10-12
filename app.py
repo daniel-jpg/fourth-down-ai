@@ -1787,7 +1787,7 @@ run_model = st.button(
 )
 
 
-if run_model:
+if situation_valid:
 
     if qtr == 5:
 
@@ -1875,41 +1875,56 @@ if run_model:
         )
 
 
-    with st.spinner(
-        "Running fourth-down decision simulation..."
-    ):
+    # Completed results survive Streamlit's automatic component reruns,
+    # but are never reused after the game situation changes.
+    if run_model:
+        st.session_state.pop("fourth_down_completed_result", None)
+        with st.spinner(
+            "Running fourth-down decision simulation..."
+        ):
 
-        if qtr == 4:
-            # Native Q4 kickoff-feature correction runs in an isolated
-            # model namespace: weights and future-data gates unchanged.
-            # No empirical donor assumptions or visible opt-in switch.
-            from src.streamlit_kickoff_preview import (
-                isolated_engine_from_loaded_engine,
-                preview_native_kickoff_feature_candidate,
-            )
-            try:
-                # Copy function globals per request, NOT the loaded
-                # heavyweight estimators or transition parquet pools.
-                # Concurrent Streamlit users remain isolated.
-                q4_private_engine = isolated_engine_from_loaded_engine(engine)
-                result = preview_native_kickoff_feature_candidate(
-                    state,
-                    simulations=ADAPTIVE_HIGH_SIMULATIONS,
-                    action_seed=ADAPTIVE_HIGH_SEED,
-                    isolated_engine=q4_private_engine,
+            if qtr == 4:
+                # Native Q4 kickoff-feature correction runs in an isolated
+                # model namespace: weights and future-data gates unchanged.
+                # No empirical donor assumptions or visible opt-in switch.
+                from src.streamlit_kickoff_preview import (
+                    isolated_engine_from_loaded_engine,
+                    preview_native_kickoff_feature_candidate,
                 )
-            except Exception:
-                st.error(
-                    "The updated Q4 kickoff-input estimate is unavailable. "
-                    "Older percentages have NOT been silently substituted. "
-                    "Please try again later."
+                try:
+                    # Copy function globals per request, NOT the loaded
+                    # heavyweight estimators or transition parquet pools.
+                    # Concurrent Streamlit users remain isolated.
+                    q4_private_engine = isolated_engine_from_loaded_engine(engine)
+                    result = preview_native_kickoff_feature_candidate(
+                        state,
+                        simulations=ADAPTIVE_HIGH_SIMULATIONS,
+                        action_seed=ADAPTIVE_HIGH_SEED,
+                        isolated_engine=q4_private_engine,
+                    )
+                except Exception:
+                    st.error(
+                        "The updated Q4 kickoff-input estimate is unavailable. "
+                        "Older percentages have NOT been silently substituted. "
+                        "Please try again later."
+                    )
+                    st.stop()
+            else:
+                result = adaptive_recommend(
+                    state
                 )
-                st.stop()
-        else:
-            result = adaptive_recommend(
-                state
-            )
 
+
+
+        st.session_state["fourth_down_completed_result"] = {
+            "state": dict(state),
+            "result": result,
+        }
+    else:
+        prior = st.session_state.get("fourth_down_completed_result")
+        if prior is None or prior.get("state") != state:
+            st.stop()
+        result = prior["result"]
 
     (
         production,
