@@ -39,6 +39,9 @@ from src.metar_decision_weather import utc_time
 from src.nfl_stadium_weather_geometry import (
     ATTACK_ENDS, resolve_stadium_geometry,
 )
+from src.nfl_2026_international_venue_guard import (
+    guard_team_home_venue_for_game,
+)
 
 
 def capture_venue_weather(
@@ -46,8 +49,24 @@ def capture_venue_weather(
     decision_utc: str, roof: str, source_bytes: bytes,
     captured_utc: str | int | float,
     fetched_from_awc_https: bool,
+    game_date_et: str | None = None,
+    opponent_team: str | None = None,
 ) -> dict:
     """No network, filesystem writes, game outcomes or model feature use."""
+    if (game_date_et is None) != (opponent_team is None):
+        raise ValueError("Game date and opponent must be supplied together")
+    if fetched_from_awc_https and game_date_et is None:
+        raise ValueError(
+            "Live NOAA stadium research requires a dated matchup so "
+            "known 2026 international sites cannot use domestic geometry"
+        )
+    provenance = None
+    if game_date_et is not None:
+        provenance = guard_team_home_venue_for_game(
+            game_date_et=game_date_et,
+            venue_team=venue_team,
+            opponent_team=opponent_team,
+        )
     geometry = resolve_stadium_geometry(
         team=venue_team, season=season,
         offense_attack_end=attack_end,
@@ -64,6 +83,11 @@ def capture_venue_weather(
         roof=roof, fetched_from_awc_https=fetched_from_awc_https,
     )
     receipt["venue_geometry"] = geometry
+    receipt["scheduled_game_venue_preflight"] = provenance
+    receipt["scheduled_international_venue_mismatch_checked"] = (
+        provenance is not None
+    )
+    receipt["other_neutral_or_relocated_sites_not_excluded"] = True
     receipt["stadium_field_axis_community_estimate_only"] = True
     receipt["attack_end_requires_independent_play_confirmation"] = True
     receipt["actual_game_at_this_venue_verified"] = False
@@ -79,6 +103,8 @@ def main() -> None:
     method.add_argument("--source-json", type=Path)
     method.add_argument("--live-noaa-awc", action="store_true")
     p.add_argument("--venue-team", required=True)
+    p.add_argument("--game-date-et", help="2026 NFL schedule date in Eastern Time")
+    p.add_argument("--opponent-team", help="Other team, for rejecting known international venues")
     p.add_argument("--season", type=int, required=True)
     p.add_argument("--attack-end", choices=["A", "B"], required=True)
     p.add_argument("--station", required=True)
@@ -88,9 +114,19 @@ def main() -> None:
     p.add_argument("--out", type=Path, required=True)
     args = p.parse_args()
 
-    # IMPORTANT: validate season, team, field source and optional local
-    # destination BEFORE any NOAA call or fixture read.
+    # IMPORTANT: validate season, team, known game-to-venue exception
+    # and destination BEFORE any NOAA network I/O or source file reads.
+    if bool(args.game_date_et) != bool(args.opponent_team):
+        p.error("--game-date-et and --opponent-team must be provided together")
+    if args.live_noaa_awc and not args.game_date_et:
+        p.error("Live venue weather lookup REQUIRES --game-date-et and --opponent-team")
     try:
+        if args.game_date_et is not None:
+            guard_team_home_venue_for_game(
+                game_date_et=args.game_date_et,
+                venue_team=args.venue_team,
+                opponent_team=args.opponent_team,
+            )
         resolve_stadium_geometry(
             team=args.venue_team, season=args.season,
             offense_attack_end=ATTACK_ENDS[0 if args.attack_end == "A" else 1],
@@ -119,6 +155,7 @@ def main() -> None:
         station=args.station, decision_utc=args.decision_utc,
         roof=args.roof, source_bytes=source_bytes,
         captured_utc=captured, fetched_from_awc_https=args.live_noaa_awc,
+        game_date_et=args.game_date_et, opponent_team=args.opponent_team,
     )
     write_weather_receipt(args.out, receipt)
     print(json.dumps({
