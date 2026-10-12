@@ -90,8 +90,10 @@ def historical_2025_source_evidence(*, year: Any, mode: Any) -> dict[str, Any]:
     _checked_year(year, mode)
     raw = _read_pinned(HISTORICAL_SOURCE, HISTORICAL_GIT_BLOB, None)
     labeled = _read_pinned(PBP, SOURCE_PBP_SHA1, SOURCE_PBP_SHA256)
+    if not ARCHIVE.is_file() or ARCHIVE.is_symlink():
+        raise ValueError("Original independently archived ESPN scores unavailable")
     archive = ARCHIVE.read_bytes()
-    if not archive or ARCHIVE.is_symlink():
+    if not archive:
         raise ValueError("Original independently archived ESPN scores unavailable")
 
     # replay_pinned_source re-checks the WHOLE canonical matchup vector and
@@ -147,7 +149,7 @@ def historical_2025_source_evidence(*, year: Any, mode: Any) -> dict[str, Any]:
             "original_margins_sha256": EXPECTED_MARGINS_SHA256,
         },
         "reg_game_count": len(season),
-        "weeks": dict(sorted(weekly.items())),
+        "weeks": {str(w): weekly[w] for w in sorted(weekly)},
         "season_2025_matchup_sha256": _hash_json(ordered_keys),
         "preplay_source_field_names": sorted(PREPLAY_SOURCE_FIELDS),
         "preplay_schema_sha256": _hash_json(sorted(PREPLAY_SOURCE_FIELDS)),
