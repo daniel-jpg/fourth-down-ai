@@ -43,7 +43,12 @@ def find_app(page, timeout: int = 90):
     while time.monotonic() < deadline:
         for frame in page.frames:
             try:
-                if frame.get_by_text("Game Situation", exact=True).count() == 1:
+                if (
+                    frame.get_by_text("Game Situation", exact=True).count() == 1
+                    and frame.get_by_role(
+                        "button", name="Analyze Fourth Down"
+                    ).count() == 1
+                ):
                     return frame
             except Exception:
                 pass
@@ -179,7 +184,14 @@ def select_choice(frame, page, label: str, value: str) -> None:
 
 def analyze(frame, page, *, weather: bool) -> dict:
     button = frame.get_by_role("button", name="Analyze Fourth Down")
-    assert button.count() == 1 and button.is_enabled()
+    button.wait_for(state="visible", timeout=30000)
+    deadline = time.monotonic() + 30
+    while not button.is_enabled() and time.monotonic() < deadline:
+        page.wait_for_timeout(500)
+    assert button.count() == 1 and button.is_enabled(), (
+        "Analyze is missing/disabled after full form render: "
+        + body_text(frame)[-600:]
+    )
     start = time.monotonic()
     button.click(timeout=15000)
     result = await_analysis(frame, page, weather=weather)
