@@ -33,6 +33,32 @@ site, including source fingerprint, weather UI and a Q4 recommendation.
 A green **Tests** badge verifies offline code only; it cannot establish
 hosted availability or calculation completion.
 
+## Optional Docker fallback (not publicly deployed)
+
+Streamlit Community Cloud has shown intermittent startup failures even
+though the [independent local Chromium test](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38306046798)
+completed a real Q4 HOME calculation in 6.05 seconds. To preserve a
+hosting-independent option, the repository now contains a production
+`Dockerfile` using the **same frozen model artifacts and simulation logic**.
+
+```sh
+docker build -t fourth-down-ai .
+docker run --rm -p 8501:8501 --memory=1g fourth-down-ai
+```
+
+Then open `http://localhost:8501`. Streamlit also serves a health probe at
+`/_stcore/health`. Container hosting can use its own `PORT` setting;
+the process runs without root privileges. The build excludes local secrets,
+raw/evaluation/prospective play data, and unreviewed candidate models.
+
+[Portable Docker browser QA](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/portable_docker_streamlit.yml)
+builds the image and tests a full Q4 HOME recommendation in Chromium.
+This is **not** a second live website, deployment migration, or proof that
+Streamlit Community Cloud is healthy. Publishing the image to another hosting
+provider would require the appropriate account and configuration. The
+[hosted reliability issue](https://github.com/daniel-jpg/fourth-down-ai/issues/11)
+stays open until the public-app end-to-end tests are stable.
+
 ## Demo
 
 ![NFL Fourth-Down Decision AI](assets/fourth-down-ai-demo.png)
