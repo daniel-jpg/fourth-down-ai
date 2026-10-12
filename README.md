@@ -281,6 +281,27 @@ See also
 [Step 81 analysis](src/81_broader_post_score_kickoff_calibration.py),
 and the [initial site-defect report](reports/2025_q4_kickoff_site_model_defect.md).
 
+## Future seasons using the existing nflverse pipeline (no paid live feed required)
+
+**Default next-season research path:** Reuse the existing
+[`nflreadpy.load_pbp(...)` data builder](src/01_build_fourth_down_dataset.py)
+to reconstruct completed 2027 fourth downs under a separately frozen,
+[future-season retrospective validation contract](reports/2027_same_source_nflverse_out_of_time_validation.md).
+The existing [weekly, once-only 2026 kickoff gate](.github/workflows/forward_2026_validation_once.yml)
+already uses `nflreadpy` without Sportradar or a separate live service;
+its reserved outcomes and scheduling protections remain unchanged.
+
+This **requires no vendor email, subscription or live timestamp authority**.
+When complete 2027 results are released, a locked post-game scorer can assess
+factual-action calibration, model/coach agreement and explicitly qualified
+observational comparisons using only reconstructable pre-play features.
+Because these forecasts will be computed **after the games** rather than
+externally witnessed before the snap, report them as an *out-of-time
+retrospective reconstruction on a prospectively reserved season*, not
+real-time independently attested pre-snap predictions. The separate
+Sportradar/TSA work is an **optional stronger real-time research experiment**,
+not a blocker for this existing-data path. No 2027 outcome data have been read.
+
 ## Independent 2027 Fourth-Down Action-Policy Study
 
 The separate [preregistered 2027 decision study](reports/2027_fourth_down_action_policy_protocol.md)
