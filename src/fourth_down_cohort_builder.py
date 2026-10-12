@@ -233,6 +233,15 @@ def build_synthetic_cohort(payload: Mapping[str, Any]) -> dict[str, Any]:
             "feature_asof": "pre_snap",
             "site": context["site"], "close_call": row["close_call"],
         })
+    # An observed fourth-down play with no reconstructed pre-snap decision
+    # must NOT vanish from the cohort denominator. This is a different
+    # extraction failure from having a pre-snap candidate with no logged play.
+    for key in sorted(set(observed).difference(pre)):
+        excluded.append({
+            "game_id": key[0], "play_id": key[1],
+            "reason": "unmatched_pre_snap",
+        })
+    excluded.sort(key=lambda r: (r["game_id"], r["play_id"], r["reason"]))
     exclusions = dict(sorted(Counter(x["reason"] for x in excluded).items()))
     canonical_input = json.dumps(payload, sort_keys=True, allow_nan=False,
                                  separators=(",", ":")).encode("utf-8")
@@ -242,6 +251,8 @@ def build_synthetic_cohort(payload: Mapping[str, Any]) -> dict[str, Any]:
         "exclusion_counts": exclusions,
         "excluded_decisions": excluded,
         "total_pre_snap_candidates": len(pre),
+        "total_observed_plays": len(observed),
+        "matched_decision_keys": len(set(pre).intersection(observed)),
         "included_decisions": len(records),
         "factual_unsupported_decisions": sum(
             r["q_wp_observed"] is None for r in records
