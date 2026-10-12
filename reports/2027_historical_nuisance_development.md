@@ -53,12 +53,20 @@ Propensity model: StandardScaler + 4-class logistic regression, fixed C=0.35, ma
 
 The job writes the historical parquet hash, raw/source SHA-256, extractor/trainer source SHA-256, each final artifact SHA-256 and row counts into artifacts/historical_nuisance_development_audit.json. These are independently inspectable **assertions**, not cryptographic signatures or independent source verification. The actual archived joblib files live under the GitHub Actions development-only artifact; they are not the production frozen weights and are not loaded by the current Streamlit app.
 
+## Durable research-model parameter archive
+
+The GitHub Actions binary joblib archive has 21-day retention, so relying solely on that ZIP would risk losing the exact fitted nuisances. To avoid this, the tiny logistic model arrays (classes, standardization means/scales, coefficients and intercepts) have now also been preserved as **version-controlled plain JSON** at [data/historical_nuisance_2014_2025_development_parameters.json](../data/historical_nuisance_2014_2025_development_parameters.json).
+
+[Pickle-free scorer](../src/historical_nuisance_portable.py) recreates the four-action propensity and conditional reward outputs from JSON without unpickling, fitting or looking at coach-observed plays. [Regression tests](../tests/test_historical_nuisance_portable.py) include four full reference predictions calculated directly from the original sklearn 1.9.1 archived models, source-file SHA-256 guards and post-snap input rejection. The model parameters can survive expiration of the temporary Action ZIP and can be independently inspected in ordinary Git diffs.
+
+The archive is explicitly marked **RESEARCH_ONLY_UNAPPROVED**, not a signed production deployment or a 2027 coaching recommendation. Original binary artifact SHA-256s remain in the JSON metadata. The immutable source/trainer/provenance checks require a deliberate new model-review cycle if code changes. A separate signed source-of-truth and verified upstream game-result source are still required for prospective approval.
+
 ## Remaining independent evidence and freeze blockers
 
 1. Verify historically labeled final game margins and game status against an **independent** authoritative source (and spot-check ambiguous fake/FG/PUNT classifications), especially neutral venue and no-play edge cases. The current training labels use the same historical PBP source's final result field; feature whitelists protect X from labels but do not prove the source's external correctness.
 2. Reconstruct exact policy action estimates for **2027 decision-time states** from immutable commit 31176d50af25db9dd42dae07e9b17cb5c2b930b4, with Q4 native standard-35 kickoff inputs, pre-snap eligibility, action-specific WP and seed lock, and separate, independently sealed forecasts before 2027 outcome availability.
 3. Independently review overlap, calibration and the effects of observed-coach selection by site, quarter, action and deep-field region. Substantive rare-action omissions may prevent the preregistered ESS/coverage/disagreement thresholds.
-4. Sign/approve the model, source and extractor provenance manifest and secure immutable artifact retention prior to first 2027 REG game. GitHub Actions artifact retention is 21 days, NOT a durable long-term model archive. Do not claim pipeline freeze until reviewed provenance and archival conditions are satisfied.
+4. Sign/approve the model, source and extractor provenance manifest and secure immutable artifact retention prior to first 2027 REG game. GitHub Actions raw joblib retention is 21 days; plain-text numeric parameters are now version-controlled, but signed custody and external outcome verification remain outstanding. Do not claim pipeline freeze until reviewed provenance and archival conditions are satisfied.
 5. 2027 independent action-level results and any credible causal assessment remain FUTURE work. The reserved 2026 Step 66/83 kickoff evaluation is separate and protected.
 
 **Decision:** useful development engineering completed; historical nuisance model artifacts are **not promoted/approved** for prospective 2027 policy inference or production coaching. No causal FG-vs-GO superiority claim is supported by this report.
