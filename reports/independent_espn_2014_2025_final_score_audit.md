@@ -49,6 +49,10 @@ The [offline archive verifier](../src/independent_espn_margin_archive.py) rebuil
 
 The full 209 raw weekly responses and rich ESPN event sidecar are held separately in the temporary audit ZIP rather than embedded in the compact permanent archive; only the final-score vector, key hashes and provenance digests are preserved in permanent version control. The permanent archive protects labels from silent drift but is not a third-party signed attestation.
 
+## Independent ESPN versus nflverse game-site check
+
+The separate [3,151-game venue comparison](historical_relocated_neutral_site_provider_disagreements.md) found **49 ESPN neutral-site flags versus 53 nflverse physical-neutral flags**. Exactly four are different: three San Francisco 49ers designated-home games actually played at **State Farm Stadium in Arizona** during 2020, and the 2021 Saints designated-home opener actually played at **TIAA Bank Field in Jacksonville** due to Hurricane Ida. Official 49ers, Saints and NFL stadium sources independently document the relocations. The frozen source is not automatically relabeled; the raw provider mismatch remains **4** in the audit, with **0 unexplained differences** based on the reviewed stadium evidence. A new/changed provider mismatch fails the future archive audit. Physical relocation does not establish a zero home-advantage coefficient or certify game-snap roof and kickoff-receiver inputs.
+
 ## What this does and does not close
 
 **Closed:** The earlier issue that the nflverse-derived 2014–2025 final winners were not checked against an independent outcome provider. Every completed REG game included in the project now has a matching independently sourced final home-score margin.
