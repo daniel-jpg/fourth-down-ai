@@ -233,11 +233,36 @@ def check_baseline_and_weather(frame, page) -> dict:
     assert metric(frame, "Weather what-if FG make") is None
     print("WEATHER_BASELINE_OFFICIAL", default, flush=True)
 
-    click_text(frame, "Weather observations (optional)")
+    # No expander/checkbox is needed: both weather inputs must already
+    # be visible beside the interactive Ball Position field on desktop.
+    weather_heading = frame.get_by_text("Weather (optional)", exact=True)
+    weather_heading.wait_for(state="visible", timeout=25000)
+    assert frame.get_by_text("Weather observations (optional)", exact=True).count() == 0
     temperature = frame.get_by_role("spinbutton", name="Temperature (°F)")
     wind = frame.get_by_role("spinbutton", name="Wind speed (mph)")
     temperature.wait_for(state="visible", timeout=25000)
     wind.wait_for(state="visible", timeout=25000)
+
+    ball_heading = frame.get_by_text("Ball Position", exact=True)
+    ball_box = ball_heading.bounding_box()
+    weather_box = weather_heading.bounding_box()
+    temperature_box = temperature.bounding_box()
+    wind_box = wind.bounding_box()
+    assert all(box is not None for box in (
+        ball_box, weather_box, temperature_box, wind_box,
+    )), "Ball-position or weather widget is not visible on desktop"
+    assert weather_box["x"] > ball_box["x"] + 250, (
+        "Weather controls are not in the right-hand Ball Position column"
+    )
+    assert abs(weather_box["y"] - ball_box["y"]) < 270, (
+        "Weather controls are not vertically near Ball Position"
+    )
+    assert wind_box["x"] > ball_box["x"] + 250
+    assert temperature_box["x"] > ball_box["x"] + 250
+    assert wind_box["y"] > temperature_box["y"] + 35, (
+        "Weather input fields should be stacked legibly"
+    )
+    print("WEATHER_BESIDE_BALL_POSITION_NO_EXPANDER_PASS", flush=True)
     assert temperature.input_value() == "", (
         "Temperature input must start blank, not assume 65 F"
     )
@@ -333,8 +358,11 @@ def main() -> None:
             page.goto(BASE_URL, wait_until="domcontentloaded", timeout=60000)
             frame = find_app(page)
             assert frame.get_by_text(
-                "Weather observations (optional)", exact=True
+                "Weather (optional)", exact=True
             ).count() == 1
+            assert frame.get_by_text(
+                "Weather observations (optional)", exact=True
+            ).count() == 0
             check_baseline_and_weather(frame, page)
             print("WEATHER_BROWSER_QA_COMPLETE", flush=True)
         finally:
