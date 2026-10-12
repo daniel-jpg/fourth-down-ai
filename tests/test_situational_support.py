@@ -3,6 +3,7 @@ import pytest
 
 from src.situational_support import (
     deep_own_short_go_notice, supported_recommendation_display,
+    late_q4_goal_line_site_notice,
 )
 
 
@@ -59,3 +60,37 @@ def test_supported_recommendation_only_abstains_in_extreme_sparse_go_region(
 ):
     state = {"qtr": quarter, "yardline_100": field, "ydstogo": togo}
     assert supported_recommendation_display(state, selected) == display
+
+
+@pytest.mark.parametrize("clock,opp_yard,offense_margin,strategies,expected", [
+    (299, 6, -4, {"GO FOR IT", "FIELD GOAL"}, True),
+    (60, 10, -8, {"GO FOR IT", "FIELD GOAL"}, True),
+    (301, 6, -4, {"GO FOR IT", "FIELD GOAL"}, False),
+    (299, 11, -4, {"GO FOR IT", "FIELD GOAL"}, False),
+    (299, 6, 4, {"GO FOR IT", "FIELD GOAL"}, False),
+    (299, 6, -9, {"GO FOR IT", "FIELD GOAL"}, False),
+    (299, 6, -4, {"GO FOR IT", "PUNT"}, False),
+])
+def test_late_q4_goal_line_site_notice_is_strictly_scoped(
+    clock, opp_yard, offense_margin, strategies, expected,
+):
+    state = {"qtr": 4, "game_seconds_remaining": clock,
+             "yardline_100": opp_yard, "score_differential": offense_margin}
+    actual = late_q4_goal_line_site_notice(state, strategies)
+    assert (actual is not None) == expected
+    if expected:
+        assert "13 games" in actual
+        assert "not all following GO failures" in actual
+
+
+def test_site_notice_never_triggers_for_overtime_or_invalid_states():
+    state = {"qtr": 5, "game_seconds_remaining": 90,
+             "yardline_100": 6, "score_differential": -4}
+    assert late_q4_goal_line_site_notice(
+        state, {"GO FOR IT", "FIELD GOAL"}
+    ) is None
+    state["qtr"] = 4
+    state["score_differential"] = float("nan")
+    assert late_q4_goal_line_site_notice(
+        state, {"GO FOR IT", "FIELD GOAL"}
+    ) is None
