@@ -99,7 +99,13 @@ def run_browser() -> None:
             analyze.click(timeout=15000)
             print("LOCAL_ANALYZE_CLICKED", flush=True)
 
-            deadline = time.monotonic() + 100
+            # A constrained free host can take much longer than local Docker.
+            # Override ONLY the browser wait, never the simulation budget.
+            analyze_limit = int(os.environ.get(
+                "FOURTH_DOWN_ANALYZE_TIMEOUT_SECONDS", "100"
+            ))
+            assert 30 <= analyze_limit <= 360, "Invalid browser time limit"
+            deadline = time.monotonic() + analyze_limit
             consecutive = 0
             last_body = ""
             while time.monotonic() < deadline:
@@ -127,7 +133,7 @@ def run_browser() -> None:
                     return
                 page.wait_for_timeout(1200)
             raise AssertionError(
-                "Local Q4 HOME analysis failed to render in 100 s. "
+                f"Q4 HOME analysis failed to render in {analyze_limit} s. "
                 "Body tail: " + repr(last_body[-850:])
             )
         finally:

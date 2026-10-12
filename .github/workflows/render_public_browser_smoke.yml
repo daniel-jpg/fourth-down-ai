@@ -1,7 +1,12 @@
 name: Verify public Render Q4 and weather in Chromium
 
-# Manual run only after owner-authorized Render deployment.
+# Initial smoke also triggers automatically when this workflow changes.
+# A manual dispatch remains available after a service URL rename.
 on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/render_public_browser_smoke.yml
   workflow_dispatch:
     inputs:
       public_base_url:
@@ -29,7 +34,7 @@ jobs:
       - name: Reject non-public or non-Render URLs
         id: target
         env:
-          PUBLIC_URL: ${{ inputs.public_base_url }}
+          PUBLIC_URL: ${{ inputs.public_base_url || 'https://fourth-down-ai-verified.onrender.com' }}
         run: |
           python - <<'PY'
           import os
@@ -119,11 +124,13 @@ jobs:
       - name: Confirm hosted HOME Q4 recommendation and corrected kickoff
         env:
           FOURTH_DOWN_SMOKE_BASE_URL: ${{ steps.target.outputs.url }}
+          FOURTH_DOWN_ANALYZE_TIMEOUT_SECONDS: '240'
         run: python scripts/qa_local_streamlit_home_browser.py
 
       - name: Confirm hosted weather isolation, METAR rejection and roof
         env:
           FOURTH_DOWN_SMOKE_BASE_URL: ${{ steps.target.outputs.url }}
+          FOURTH_DOWN_WEATHER_TIMEOUT_SECONDS: '180'
         run: python scripts/qa_weather_streamlit_browser.py
 
       - name: Retain browser evidence

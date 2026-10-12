@@ -16,7 +16,7 @@ If the free instance fails, stop the experiment and evaluate another genuinely f
 
 Render is connected to ChatGPT already. The assistant can create the new free web service through the Render connector when authorized. Alternatively, open [Deploy this GitHub repository to Render](https://render.com/deploy?repo=https://github.com/daniel-jpg/fourth-down-ai/tree/main) and import the root `render.yaml`.
 
-Verify **repo** `daniel-jpg/fourth-down-ai`, **branch** `main`, **service** `fourth-down-ai-verified`, **runtime** Docker, **plan** `free`, **region** Oregon, and health check `/_stcore/health`. **Do not accept any paid upsell or card charge**. Keep automatic deploys off, with no database or disk.
+An existing Free service has now deployed successfully under the original temporary name `fourth-down-ai-verified`. **Rename that existing service rather than creating another one:** in [Render service settings](https://dashboard.render.com/web/srv-db6l6f7f3r2c73cqiq10), find its name in **Settings / General**, select **Edit**, and change it to `fourth-down-ai` (or `fourth-down-ai-nfl` if that name is unavailable). Save the change and inspect the *actual* URL Render assigns. This repository's `render.yaml` now uses the preferred name for future infrastructure-as-code, but editing the YAML alone does not rename the running service. The Render connector currently has no rename action.
 
 The 512 MB trial may fail even though the 1 GiB Docker smoke passed. Only use the actual HTTPS URL provided by Render, not an assumed service name.
 

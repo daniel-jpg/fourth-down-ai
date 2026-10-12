@@ -34,6 +34,9 @@ jobs:
           assert len(obj["services"]) == 1
           svc = obj["services"][0]
           assert svc["type"] == "web" and svc["runtime"] == "docker"
+          assert svc["name"] == "fourth-down-ai", (
+              "The unused -verified suffix must not return to our Blueprint"
+          )
           assert svc["repo"] == "https://github.com/daniel-jpg/fourth-down-ai"
           assert svc["branch"] == "main"
           assert svc["plan"] == "free", (

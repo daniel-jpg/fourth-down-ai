@@ -89,7 +89,11 @@ def pct(value: str) -> float:
 
 
 def await_analysis(frame, page, *, weather: bool) -> dict:
-    deadline = time.monotonic() + 110
+    # Keep the local/Docker default; allow a longer browser wait on the
+    # 0.15-CPU Render Free host without reducing the frozen 1200-draw model.
+    timeout = int(os.environ.get("FOURTH_DOWN_WEATHER_TIMEOUT_SECONDS", "110"))
+    assert 30 <= timeout <= 360, "Invalid weather browser timeout"
+    deadline = time.monotonic() + timeout
     consecutive = 0
     last = ""
     while time.monotonic() < deadline:
