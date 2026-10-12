@@ -131,6 +131,13 @@ def parse_espn_week(payload: Mapping[str, Any], season: int, week: int) -> list[
         if not isinstance(status, dict) or not isinstance(status.get("type"), dict):
             raise ValueError("Missing final game-status provenance")
         if status["type"].get("completed") is not True:
+            # A rescheduled historical game can leave a separate
+            # STATUS_POSTPONED placeholder in ESPN's weekly feed.
+            # Skip that NONFINAL placeholder, NEVER treat its score as
+            # a terminal label. All expected final games and EVERY
+            # PBP game must still independently match at the end.
+            if status["type"].get("name") == "STATUS_POSTPONED":
+                continue
             # The 2022 W17 BUF @ CIN game was stopped and canceled
             # without a final score. Do not score its partial points
             # as final or silently erase an OTHER unfinished matchup.
