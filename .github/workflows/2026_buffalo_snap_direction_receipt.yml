@@ -1,0 +1,124 @@
+name: 2026 Buffalo snap direction research - no football outcomes
+
+# New Highmark orientation: documented NORTH/SOUTH qualitative only.
+# All play/video evidence in CI is FABRICATED. No NFL game or play fetched.
+# No weather API, no model execution, no protected 2026 season validation.
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/stadium_weather_2026_reference.json
+      - src/nfl_stadium_weather_geometry.py
+      - src/nfl_2026_snap_direction_evidence.py
+      - scripts/capture_buffalo_snap_direction_claim.py
+      - tests/test_nfl_2026_snap_direction_evidence.py
+      - tests/test_streamlit_app_integration.py
+      - app.py
+      - .github/workflows/2026_buffalo_snap_direction_receipt.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  buffalo-geographical-and-timestamp-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install existing development requirements
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Test Buffalo geography, fake source hashes, UTC and UI isolation
+        run: |
+          python -m py_compile \
+            src/nfl_2026_snap_direction_evidence.py \
+            scripts/capture_buffalo_snap_direction_claim.py \
+            app.py
+          PYTHONPATH=. python -m pytest -q \
+            tests/test_nfl_2026_snap_direction_evidence.py \
+            tests/test_streamlit_app_integration.py
+      - name: Generate deliberately fictitious witness artifacts
+        run: |
+          mkdir -p artifacts/fake_witnesses
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("artifacts/fake_witnesses")
+          (p/"fake_broadcast.txt").write_bytes(b"FICTITIOUS_NORTH_DIRECTION_FRAME_BUFFER_A")
+          (p/"fake_observer.txt").write_bytes(b"SEPARATE_FAKE_NORTH_END_ZONE_NOTE_B")
+          sources=[]
+          for ident,observer,asset,url in (
+              ("fakebroadcast","viewer001","fake_broadcast.txt",
+               "https://example.org/fictional-broadcast"),
+              ("fakeobserver","viewer002","fake_observer.txt",
+               "https://example.org/fictional-observer"),
+          ):
+              sources.append({
+                  "artifact_file":asset,
+                  "source_id":ident,
+                  "witness_id":observer,
+                  "source_type":"BROADCAST_FRAME",
+                  "artifact_observed_at_utc":"2026-10-12T20:29:40Z",
+                  "artifact_available_at_utc":"2026-10-12T20:35:00Z",
+                  "attack_end_claim":"NORTH",
+                  "location_landmark_observed":
+                      "fictional viewer notes north end zone orientation",
+                  "source_url":url,
+              })
+          (p/"witness_metadata.json").write_text(json.dumps(sources))
+          PY
+      - name: Save a synthetic one-shot receipt with no media contents
+        run: |
+          PYTHONPATH=. python -m scripts.capture_buffalo_snap_direction_claim \
+            --season 2026 --venue-team BUF \
+            --opponent-team NE --offense-team BUF \
+            --game-date-et 2026-10-12 --play-key fictionalplay459 \
+            --quarter 4 --game-clock 04:59 \
+            --decision-utc 2026-10-12T20:30:00Z \
+            --witness-manifest-json artifacts/fake_witnesses/witness_metadata.json \
+            --out artifacts/FICTIONAL_BUFFALO_DIRECTION_RECEIPT.json
+      - name: Confirm receipt is strictly retrospective and cannot add model inputs
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("artifacts/FICTIONAL_BUFFALO_DIRECTION_RECEIPT.json")
+          data=json.loads(p.read_text())
+          assert data["status"]=="USER_PROVIDED_BUFFALO_DIRECTION_EVIDENCE_RESEARCH_ONLY"
+          assert data["claimed_attack_end"]=="NORTH"
+          assert data["claim_consistency"]=="TWO_USER_ASSERTED_DISTINCT_WITNESSES"
+          assert data["retrospective_source_present"] is True
+          assert data["numeric_true_north_attack_azimuth_degrees"] is None
+          for k in ("numeric_headwind_crosswind_permitted",
+              "direction_of_attack_independently_certified",
+              "trusted_live_forecast_provenance",
+              "may_change_frozen_go_fg_punt_probabilities",
+              "protected_2026_fourth_down_outcomes_evaluated",
+              "real_2027_outcomes_accessed", "source_bytes_in_receipt"):
+              assert data[k] is False, k
+          assert len(data["witnesses"])==2
+          assert all(len(w["original_local_artifact_sha256"])==64
+                     for w in data["witnesses"])
+          assert b"FICTITIOUS_NORTH_DIRECTION_FRAME_BUFFER_A" not in p.read_bytes()
+          print("PASS: unsurveyed N/S, fictitious hashed sources, no engine changes")
+          PY
+      - name: Verify original model/data and one-time 2026 holdouts unchanged
+        run: |
+          git diff --exit-code -- models data \
+            src/42_build_decision_engine.py \
+            src/66_forward_2026_continuation_wp.py \
+            src/83_forward_2026_native_challenger_once.py
+      - name: Archive metadata only, never the fake media source files
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-buffalo-snap-direction-retrospective-receipt-only
+          path: artifacts/FICTIONAL_BUFFALO_DIRECTION_RECEIPT.json
+          retention-days: 14
+          if-no-files-found: error
