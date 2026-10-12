@@ -1,10 +1,14 @@
 name: Verify public Render Q4 and weather in Chromium
 
 # Render's free service deliberately uses manual deployments.
-# Do not test new GitHub commits against a still-running older deployment:
-# validate the live service only after an explicit Render deployment.
-# Offline regression and Docker browser suites still run on each push.
+# Do not test app pushes against older live deployments. Verify the live
+# service on manual dispatch or a deliberate edit to this QA workflow,
+# after the matching application code has been deployed to Render.
 on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/render_public_browser_smoke.yml
   workflow_dispatch:
     inputs:
       public_base_url:
