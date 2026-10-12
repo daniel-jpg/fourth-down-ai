@@ -18,7 +18,7 @@ from src.weather_pbp_signal import (
     ("SUNNY", "EXPLICIT_DRY_WORD"),
     ("Light rain, windy", "RAIN_MENTION"),
     ("Thunderstorms at the stadium", "RAIN_MENTION"),
-    ("Snow showers", "MIXED_MENTION"),
+    ("Snow showers", "SNOW_ICE_MENTION"),
     ("Snow flurries", "SNOW_ICE_MENTION"),
     ("Sleet, freezing", "SNOW_ICE_MENTION"),
     ("Heavy rain and snow", "MIXED_MENTION"),
@@ -55,7 +55,7 @@ def test_no_kick_relative_wind_direction_reconstructed():
         "wind_gust", "kick_direction", "non_weather",
     ])
     assert audit["source_columns_matching_wind_or_direction"] == [
-        "kick_direction", "non_weather", "wind", "wind_direction", "wind_gust",
+        "kick_direction", "wind", "wind_direction", "wind_gust",
     ]
     assert audit["trusted_snap_level_wind_direction_available"] is False
     assert audit["kick_relative_wind_direction_reconstructed"] is False
