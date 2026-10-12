@@ -110,9 +110,37 @@ jobs:
                   assert app.get_by_text(
                       "Win probability if chosen", exact=True
                   ).count() > 0
+
+                  # Exercise the independently reproduced Q4 HOME case:
+                  # the frozen model puts FG first, but the known Q4
+                  # kickoff-encoding reliability check is material.
+                  # The UI must not issue a confident FG recommendation.
+                  app.get_by_text("Home", exact=True).first.click()
+                  page.wait_for_timeout(2500)
+                  app.get_by_role(
+                      "button", name="Analyze Fourth Down"
+                  ).click()
+                  app.get_by_text("INCONCLUSIVE", exact=True).first.wait_for(
+                      timeout=150000
+                  )
+                  assert app.get_by_text(
+                      "Frozen-model FG WP", exact=True
+                  ).count() > 0
+                  assert app.get_by_text(
+                      "Model reliability warning", exact=False
+                  ).count() > 0
+                  assert app.get_by_text(
+                      "separate experimental panel", exact=False
+                  ).count() == 0
+                  assert app.get_by_text(
+                      "Show the experimental kickoff-adjusted comparison",
+                      exact=True
+                  ).count() == 0
+
                   print(
-                      "LIVE PASS: removed public kickoff research panel, "
-                      "official fourth-down recommendation renders.",
+                      "LIVE PASS: no public kickoff-research panel; "
+                      "official decision works, and materially sensitive "
+                      "Q4 FG lead is labeled INCONCLUSIVE.",
                       flush=True,
                   )
               finally:
