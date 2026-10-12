@@ -80,6 +80,27 @@ For each fourth-down situation, the engine:
 
 The displayed Monte Carlo standard error measures simulation noise only. It does not represent total model uncertainty.
 
+## Optional temperature, wind and weather context (research-only)
+
+The [Streamlit app](https://fourth-down-ai.streamlit.app/) now accepts manual
+**temperature (°F)**, **wind speed (mph)** and **conditions** (clear, cloudy,
+rain, snow, mixed precipitation or fog) under **Weather observations
+(optional)** for outdoor and open-roof games. No weather API subscription is
+needed. Indoor/closed-roof games are excluded.
+
+These inputs drive a separate **Weather-adjusted field goal comparison
+(experimental)**, NOT the official win-probability ranking. The
+[2014–2024 historical FG weather ablation](reports/weather_fg_experimental_manual_inputs.md)
+used 5,705 training kicks and 1,186 validation kicks; while wind had a
+negative fitted association with FG makes, **the weather-enhanced model
+slightly worsened held-out Brier score (0.102114 vs 0.102068)**. Therefore
+the weather candidate is not approved for production. The comparison
+runs in a [per-session isolated frozen-engine namespace](src/weather_fg_sensitivity.py)
+and only adjusts the clean FG make/miss sensitivity. It does not model
+wind direction, rain/snow effects, pass/run/punt weather response, or
+actual pre-snap weather provenance. The official frozen model, 2026
+one-time gates and 2027 future holdout remain unchanged.
+
 ## Overtime Support
 
 The engine supports both **regular-season** and **postseason** overtime.
