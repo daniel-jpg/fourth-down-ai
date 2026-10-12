@@ -77,8 +77,8 @@ jobs:
                       print("APP_STARTUP_FRAME_UNAVAILABLE", frame.url, flush=True)
               raise AssertionError("Hosted Streamlit game inputs never appeared")
 
-          def run_case(browser, quarter, wait_seconds):
-              name = f"Q{quarter}"
+          def run_case(browser, quarter, wait_seconds, site=None):
+              name = f"Q{quarter}" + (f"_{site.upper()}" if site else "")
               page = browser.new_page(viewport={"width": 1440, "height": 900})
               attach_diagnostics(page, name)
               phase = "not started"
@@ -95,6 +95,21 @@ jobs:
                           timeout=15000
                       )
                       page.wait_for_timeout(2500)
+
+                  # Reproduce the site's exact interaction sequence from
+                  # the main hosted smoke: select HOME, allow a rerun, click
+                  # Analyze. The default Q4 state already passed remotely.
+                  if site is not None:
+                      app.get_by_text(site, exact=True).first.click(
+                          timeout=15000
+                      )
+                      page.wait_for_timeout(3500)
+                      selected = app.get_by_role("radio", name=site)
+                      if selected.count():
+                          assert selected.first.is_checked(), (
+                              f"Site {site} did not remain selected after rerun"
+                          )
+                      print(name, "site selected and rerun settled", flush=True)
 
                   analyze = app.get_by_role("button", name="Analyze Fourth Down")
                   assert analyze.is_enabled(), "Analyze disabled for default valid state"
@@ -170,7 +185,20 @@ jobs:
                           "HOSTED_Q4_SPECIFIC_OR_SESSION_FAILURE: Q1 completed "
                           "but Q4 did not. Inspect private Q4 preview/runtime logs."
                       )
-                  print("DIAGNOSTIC_PASS: Q1 and Q4 completed on public Cloud", flush=True)
+                  home_passed = run_case(
+                      browser, quarter=4, site="Home", wait_seconds=150
+                  )
+                  if not home_passed:
+                      raise AssertionError(
+                          "HOSTED_HOME_SITE_INTERACTION_FAILURE: Q1 and "
+                          "default Q4 returned results, but Q4 HOME did not. "
+                          "Inspect home-site rerun and browser runtime logs."
+                      )
+                  print(
+                      "DIAGNOSTIC_PASS: Q1, Q4 default and Q4 HOME "
+                      "all completed on public Cloud",
+                      flush=True,
+                  )
               finally:
                   browser.close()
           PY
