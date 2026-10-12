@@ -72,10 +72,20 @@ def fetch_one(yr: int, week: int) -> tuple[list[dict], dict]:
                 raise RuntimeError("ESPN response exceeded maximum JSON size")
             payload = json.loads(data)
             games = parse_espn_week(payload, yr, week)
+            nonfinal = []
+            for event in payload.get("events", []):
+                status = event.get("status", {}).get("type", {})
+                if status.get("completed") is not True:
+                    nonfinal.append({
+                        "event_id":str(event.get("id", "")),
+                        "status":status.get("name"),
+                        "short_name":event.get("shortName"),
+                    })
             checksum = hashlib.sha256(data).hexdigest()
             return games, {
                 "season": yr, "week": week, "source_url": url,
                 "raw_response_sha256": checksum, "final_events": len(games),
+                "nonfinal_provider_placeholders": nonfinal,
             }
         except (HTTPError, URLError, TimeoutError, json.JSONDecodeError,
                 RuntimeError) as err:
@@ -139,6 +149,11 @@ def run(seasons: list[int], output: Path) -> dict:
         "source_response_provenance": week_provenance,
         "source_week_requests": len(tasks),
         "source_completed_games": len(games),
+        "provider_nonfinal_events_not_treated_as_scores": [
+            {**entry, "season": week_info["season"], "week": week_info["week"]}
+            for week_info in week_provenance
+            for entry in week_info["nonfinal_provider_placeholders"]
+        ],
         "archived_espn_scores_file": "separate sidecar output",
         "source_score_snapshot_sha256": hashlib.sha256(json.dumps(
             games, sort_keys=True, separators=(",", ":"), allow_nan=False
