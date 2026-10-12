@@ -1,4 +1,4 @@
-name: Historical ESPN independent final score audit (2025 pilot)
+name: Historical ESPN independent final score audit (2014-2025)
 
 # Historical scores ONLY. No 2026 reserved kickoff outcome retrieval,
 # no 2027 prospective evaluation, no model fits or automatic model promotion.
@@ -32,21 +32,21 @@ jobs:
       - name: Synthetic ESPN payload and PBP mismatch fail-closed tests
         run: |
           PYTHONPATH=. python -m pytest -v tests/test_historical_scoreboard_verification.py
-      - name: Verify all 2025 REG final game margins against independent ESPN historical API
+      - name: Cross-check ALL 2014-2025 REG final game margins against ESPN
         run: |
           set -o pipefail
           PYTHONPATH=. python scripts/audit_independent_espn_historical_scores.py \
-            --seasons 2025 \
-            --out artifacts/independent_espn_2025_scores.json \
-            2>&1 | tee independent-espn-2025-audit.log
+            --seasons 2014 2015 2016 2017 2018 2019 2020 2021 2022 2023 2024 2025 \
+            --out artifacts/independent_espn_2014_2025_scores.json \
+            2>&1 | tee independent-espn-2014-2025-audit.log
       - name: Save audit report, independent final score evidence, and retrieval log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: independent-ESPN-2025-final-score-audit
+          name: independent-ESPN-2014-2025-final-score-audit
           path: |
-            artifacts/independent_espn_2025_scores.json
-            artifacts/independent_espn_2025_scores_espn_scores.json
-            independent-espn-2025-audit.log
+            artifacts/independent_espn_2014_2025_scores.json
+            artifacts/independent_espn_2014_2025_scores_espn_scores.json
+            independent-espn-2014-2025-audit.log
           retention-days: 30
           if-no-files-found: ignore
