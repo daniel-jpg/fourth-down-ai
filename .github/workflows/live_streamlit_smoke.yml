@@ -86,6 +86,9 @@ jobs:
                       "Show the experimental kickoff-adjusted comparison",
                       exact=True,
                   ).click()
+                  # Streamlit reruns the whole page when this setting changes.
+                  # Wait for that rerun before clicking Analyze.
+                  page.wait_for_timeout(2500)
                   app.get_by_role(
                       "checkbox",
                       name="Show the experimental kickoff-adjusted comparison",
@@ -95,6 +98,7 @@ jobs:
                       name="Show the experimental kickoff-adjusted comparison",
                   ).is_checked(), "Visible checkbox label did not enable scenario"
                   app.get_by_role("button", name="Analyze Fourth Down").click()
+                  print("Clicked Analyze Fourth Down on hosted app", flush=True)
                   app.get_by_text("Decision", exact=True).first.wait_for(
                       timeout=120000
                   )
@@ -104,8 +108,25 @@ jobs:
                   assert app.get_by_text("Recommendation", exact=True).count() > 0
                   # The scenario title renders before Monte Carlo finishes.
                   # Wait for the result, or surface a real model error.
-                  deadline = time.monotonic() + 240
+                  deadline = time.monotonic() + 150
+                  last_report = 0
                   while time.monotonic() < deadline:
+                      now = time.monotonic()
+                      if now - last_report >= 15:
+                          last_report = now
+                          try:
+                              txt = app.locator("body").inner_text(timeout=5000)
+                              print(
+                                  "Live status:",
+                                  "decision=" + str("Decision" in txt),
+                                  "scenario=" + str("2025 kickoff scenario results" in txt),
+                                  "metric=" + str("Experimental strategy (not official)" in txt),
+                                  "warning=" + str("optional kickoff scenario was unavailable" in txt),
+                                  "tail=" + repr(txt[-450:]),
+                                  flush=True,
+                              )
+                          except Exception as exc:
+                              print("Diagnostic text error:", str(exc)[:250], flush=True)
                       error = app.get_by_text(
                           "optional kickoff scenario was unavailable", exact=False
                       )
@@ -122,7 +143,7 @@ jobs:
                       page.wait_for_timeout(1500)
                   else:
                       raise AssertionError(
-                          "Live scenario did not finish within four minutes"
+                          "Live scenario metric not visible within 150 seconds; inspect diagnostics"
                       )
                   print(
                       "LIVE PASS: official decision and optional observed-2025 "
