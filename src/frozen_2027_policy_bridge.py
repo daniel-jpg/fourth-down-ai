@@ -333,14 +333,27 @@ def build_synthetic_policy_forecast(
     best = ranked[0]
     if eligible[best] < max(eligible.values())-1e-12:
         raise RuntimeError("Engine leader is not max-WP among normal actions")
+    # Preserve the pinned app's distinction: GO RUN/PASS are TWO calls
+    # within the SAME GO FOR IT strategy, not separate coaching strategies.
+    # Q1-3 adaptive budget escalation is action-level; close_call metadata
+    # must compare GO (best of run/pass) against FG or PUNT, as in app.py.
+    go_calls = [a for a in ("NORMAL_GO_RUN", "NORMAL_GO_PASS") if a in eligible]
+    top_go = max(go_calls, key=lambda a: eligible[a]) if go_calls else None
+    strategic = ([top_go] if top_go is not None else []) + [
+        a for a in ("FIELD_GOAL", "PUNT") if a in eligible
+    ]
+    strategic.sort(key=lambda a: eligible[a], reverse=True)
+    if not strategic or strategic[0] != best:
+        raise RuntimeError("Frozen strategy leader and normal action leader differ")
     close_call = False
-    if len(ranked) >= 2:
-        next_action = ranked[1]
-        # Descriptive uncertainty heuristic; NOT a causal or UI parity claim.
-        denominator = math.hypot(errors[best], errors[next_action])
-        close_call = denominator > 0 and (
-            eligible[best]-eligible[next_action] < MC_HEURISTIC_Z*denominator
+    if len(strategic) >= 2:
+        top, second = strategic[:2]
+        gap = eligible[top] - eligible[second]
+        denom = math.hypot(errors[top], errors[second])
+        z = gap / denom if denom > 0 else (
+            math.inf if gap > 0 else 0.0
         )
+        close_call = math.isfinite(z) and z < MC_HEURISTIC_Z
     model = predict_portable_policy(nuisance_snapshot, pre, [best])
     if len(model) != 1 or model["policy_action"].iloc[0] != best:
         raise RuntimeError("Policy and historical nuisance actions differ")
@@ -383,7 +396,7 @@ def build_synthetic_policy_forecast(
             "site": raw["site"], "goal_to_go": raw["goal_to_go"],
             "roof": raw["roof"],
             "second_half_receiver": raw["second_half_receiver"],
-            "close_call_rule": "descriptive MC heuristic, 1.96 times combined SE",
+            "close_call_rule": "pinned app strategy-level z<1.96; GO_RUN/PASS grouped",
             "observed_action_access": False,
             "outcome_access": False, "prospectively_validated": False,
         },
