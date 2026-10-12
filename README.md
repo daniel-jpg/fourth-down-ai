@@ -143,11 +143,14 @@ The displayed Monte Carlo standard error measures simulation noise only. It does
 
 ## Optional temperature, wind and weather context (research-only)
 
-The [Streamlit app](https://fourth-down-ai.streamlit.app/) now accepts manual
-**temperature (°F)**, **wind speed (mph)** and **conditions** (clear, cloudy,
-rain, snow, mixed precipitation or fog) under **Weather observations
-(optional)** for outdoor and open-roof games. No weather API subscription is
-needed. Indoor/closed-roof games are excluded.
+The [public Streamlit app](https://fourth-down-ai-nfl.onrender.com/) has **two
+optional, initially empty fields** under **Weather observations (optional)**:
+temperature (°F) and wind speed (mph). Enter values directly, without
+enabling a checkbox. Leave either field blank to skip the experimental
+comparison; both are required to run it. The normal recommendation works
+with no weather values. These fields are hidden for closed-roof games.
+No paid weather API, precipitation selector or wind-direction selector
+is part of the public interface.
 
 These inputs drive a separate **Weather-adjusted field goal comparison
 (experimental)**, NOT the official win-probability ranking. The
@@ -171,8 +174,8 @@ to 6.3396 yards**, an inconclusive 0.031-yard improvement with a
 game-cluster interval crossing zero. Parsing rain/snow words from
 game-level historical weather text did not meaningfully improve these
 results. The original source exposes **wind speed but no verified
-play-relative direction**, so the new manual Headwind/Tailwind/Crosswind
-selector is strictly descriptive and does not change any probability.
+play-relative direction**, so there is no Headwind/Tailwind/Crosswind
+selector in the public app.
 These exploratory comparators are not the deployed models and cannot
 justify promoting weather into the official GO/PUNT strategy ranking.
 
@@ -191,19 +194,16 @@ or snow is an airport present-weather observation, not measured rainfall
 at the football field. A late download is labeled retrospective, never
 an independently witnessed live-game forecast.
 
-The app's **Open saved airport report (JSON required)** option, inside
-**Advanced reference: stadiums and saved airport data**, lets a user
-paste a research receipt to inspect its
-provenance and directional context. It **does not supply official model
-features or alter the experimental FG what-if**, and pasted JSON is
-unsigned and not independently authenticated. The [complete capture
-protocol and remaining field-sensor requirements](reports/weather_decision_time_noaa_metar_evidence.md)
-explain the limitations. The
-[dedicated offline synthetic CI](.github/workflows/metar_weather_evidence.yml)
-and headless Streamlit checks ensure the 2026 protected workflows, the
-frozen GO/FG/PUNT models and future-season release gate remain untouched.
-Real signed on-field wind vectors and precipitation intensity are still
-needed for any **validated weather-aware recommendation**.
+The NOAA/METAR tools remain **offline research utilities** in the
+repository, but their airport-report viewer was removed from the public
+fourth-down app because it has no effect on predictions. The saved source
+receipts are unsigned and not independently authenticated. The
+[complete capture protocol and remaining field-sensor requirements](reports/weather_decision_time_noaa_metar_evidence.md)
+describe the limitations. The dedicated
+[offline synthetic CI](.github/workflows/metar_weather_evidence.yml)
+continues to test source integrity and age/distance guards independently
+of the main UI. Real signed on-field wind vectors and precipitation
+intensity are still needed for a validated weather-aware recommendation.
 
 A [real NOAA API schema smoke test](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38292972017)
 **passed on October 12, 2026**, retrieving a genuine KSEA airport report
@@ -217,8 +217,8 @@ on-field weather. [See exact timing and evidence limits](reports/weather_decisio
 
 ### 2026 NFL stadium compass lookup (research only)
 
-The optional weather panel can now show **2026 stadium geometry by physical
-venue**, from a pinned community Google-Earth geographic reference:
+The repository's **offline research dataset** includes 2026 stadium
+geometry by physical venue, from a pinned community geographic reference:
 **32 approximate team-venue centers, 31 community-estimated field
 axes**. The replacement 2026 Buffalo stadium center is mapped from
 OpenStreetMap-derived evidence at approximately **42.77304, -78.79219**
@@ -231,19 +231,16 @@ community source still contains the retired stadium location. Tennessee's
 2026 stadium map does not carry forward to its planned 2027 replacement.
 [Full source provenance and venue-year caveats](reports/2026_nfl_stadium_weather_geometry.md).
 
-To use the lookup, open **Advanced reference: stadiums and saved airport
-data** and choose **Show stadium information (reference only)**. No
-weather inputs are needed for the lookup. Choose the actual
-game venue and independently check whether the offense is attacking
-toward approximate compass bearing **A** or **B** (180 degrees apart).
-Never infer orientation from the quarter, field position, left/right
-field graphic or home/away classification. The app provides a copyable
-[one-shot venue-to-NOAA collector command](scripts/capture_nfl_venue_awc_context.py);
-it makes **no automatic NOAA request** and no changes to official action
-probabilities. Venue estimates and actual roof/attack direction remain
-**unverified**, even for real NOAA airport weather.
+Stadium and attack-direction tools are no longer displayed in the public
+decision app; they could not verify on-field wind and do not affect odds.
+For separate research, use the
+[one-shot venue-to-NOAA command-line collector](scripts/capture_nfl_venue_awc_context.py).
+It needs an independently confirmed actual venue and offense attack
+direction, makes **no automatic NOAA request** from the public app, and
+never changes official action probabilities. Venue estimates and actual
+roof/attack direction remain **unverified**.
 
-The research controls also show the NFL's [nine officially
+The offline venue reference also includes the NFL's [nine officially
 scheduled 2026 international fixtures](src/2026_nfl_international_venue_schedule.json)
 across eight foreign stadiums. They **block automatically treating a
 team's normal U.S. home venue as the overseas game location**. The
