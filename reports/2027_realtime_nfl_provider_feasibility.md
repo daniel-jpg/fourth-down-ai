@@ -32,6 +32,19 @@ The adapter's mode check **always rejects real/prospective data**. Replacing it 
 
 **Limit:** That ledger is only locally chained and not externally append-only; a malicious sole operator could rewrite and rehash it. Independent signed receipt of the running ledger root, external opportunity census, secure read-only storage and reviewed public keys are needed before authenticating prospective no-coverage counts.
 
+## Measured registered-policy computation cost (synthetic, CI hardware only)
+
+The [full registered-budget benchmark](../src/frozen_2027_policy_latency_rehearsal.py), [tests](../tests/test_frozen_2027_policy_latency_rehearsal.py) and [passing CI run](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38273657698) used three repeats per scenario on a GitHub-hosted Linux runner on October 12, 2026 UTC. Model load + frozen asset checks took **125.85 ms** in that process. Actual machine timing varies.
+
+| FABRICATED state | Exact registered budget | Median compute only (3 runs) | Maximum of 3 runs |
+| --- | ---: | ---: | ---: |
+| Q1 fourth-and-4 at opponent 6 | Adaptive 300 | 126.960 ms | 157.073 ms |
+| Q2 known halftime receiver, midfield-ish territory | Adaptive escalated 1,200 | 888.261 ms | 925.121 ms |
+| Late Q4 fourth-and-4 at opponent 6 | Native kickoff correction 1,200 | 408.092 ms | 415.398 ms |
+| Late Q4 fourth-and-3 at own 5 | Native kickoff correction 1,200 | 416.011 ms | 419.517 ms |
+
+**Interpretation:** Compute time itself appears sub-second for these four sampled states on this particular runner. These tiny samples are **not** an empirical 95th/99th percentile. They exclude Sportradar operator delay and message transport, pre-forecast source reconciliation, live traffic queueing, distributed witness network/signature latency, independent snap timing and server load. A 40-second maximum source-age heuristic does not imply the play is still live or that a forecast can be sealed before the snap. Before even considering a live trial, benchmark a realistic multi-game concurrent feed replay with externally time-referenced snap events and account for ALL missed calls in the denominator. The timing code collects **no** live or historical holdout outcomes and changes no registered model.
+
 ## Blocking real-2027 requirement matrix
 
 | Requirement | Today | Required evidence before real prospective start |
