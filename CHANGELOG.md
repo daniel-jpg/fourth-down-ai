@@ -45,7 +45,10 @@ native kickoff-input correction without model retraining.
 - Persisted completed fourth-down results across harmless Streamlit
   component reruns; the result is invalidated when the game inputs change.
   Isolated the Q4 feature correction without reloading a second copy
-  of the heavy model and transition data.
+  of the heavy model and transition data. The associated Q4 kickoff
+  sensitivity diagnostic is now cached with that completed result:
+  reruns no longer drop the Close call notice by referencing an
+  expired per-click engine namespace.
 
 ### Verification
 

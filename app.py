@@ -2052,17 +2052,42 @@ if situation_valid:
         ]
 
         if len(fg_eligible_rows) == 1:
-            try:
-                from src.kickoff_q4_reliability_guard import (
-                    inspect_made_fg_kickoff_encoding,
-                )
+            # q4_private_engine is a per-click temporary namespace.
+            # On a Streamlit component rerun (run_model=False), that
+            # local object does not exist. Persist the completed
+            # diagnostic WITH the cached result instead of silently
+            # swallowing NameError as an "unavailable" sensitivity check.
+            if run_model:
+                try:
+                    from src.kickoff_q4_reliability_guard import (
+                        inspect_made_fg_kickoff_encoding,
+                    )
 
-                fg_encoding_probe = inspect_made_fg_kickoff_encoding(
-                    state,
-                    isolated_engine=q4_private_engine,
+                    fg_encoding_probe = inspect_made_fg_kickoff_encoding(
+                        state,
+                        isolated_engine=q4_private_engine,
+                    )
+                except Exception:
+                    fg_guard_unavailable = True
+                cached_result = st.session_state[
+                    "fourth_down_completed_result"
+                ]
+                st.session_state["fourth_down_completed_result"] = {
+                    **cached_result,
+                    "fg_encoding_probe": fg_encoding_probe,
+                    "fg_guard_unavailable": fg_guard_unavailable,
+                }
+            else:
+                cached_result = st.session_state[
+                    "fourth_down_completed_result"
+                ]
+                fg_encoding_probe = cached_result.get(
+                    "fg_encoding_probe"
                 )
-            except Exception:
-                fg_guard_unavailable = True
+                fg_guard_unavailable = bool(cached_result.get(
+                    "fg_guard_unavailable",
+                    "fg_encoding_probe" not in cached_result,
+                ))
 
     # This diagnostic compares conditional made-FG kickoff encoding,
     # NOT the action-level ranking's Monte Carlo standard error.

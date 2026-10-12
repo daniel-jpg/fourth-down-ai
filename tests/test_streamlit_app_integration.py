@@ -372,6 +372,41 @@ def test_second_quarter_requires_known_halftime_receiver(ui, receiver, expected)
     ui.probe.assert_not_called()
 
 
+def test_q4_sensitivity_probe_is_cached_through_unmodified_reruns(ui):
+    ui.probe.return_value = {
+        "applicable": True, "material": True,
+        "legacy_conditional_made_fg_wp": .76,
+        "native_conditional_made_fg_wp": .50,
+        "absolute_difference_pp": 26.,
+        "assumed_fg_execution_seconds": 5.,
+    }
+    analyze(ui.at)
+    assert "Close call" in values(ui.at, "info")
+    assert "Kickoff sensitivity check unavailable" not in values(ui.at, "caption")
+    ui.probe.assert_called_once()
+    first_metrics = metrics(ui.at)
+    run(ui.at)  # Streamlit rerun without another Analyze click.
+    assert metrics(ui.at) == first_metrics
+    assert "Close call" in values(ui.at, "info")
+    assert "Kickoff sensitivity check unavailable" not in values(ui.at, "caption")
+    ui.probe.assert_called_once()
+    widget(ui.at, "number_input", "Yards to go").set_value(2)
+    run(ui.at)
+    assert not ui.at.metric  # State invalidates cached WP AND diagnostic.
+    analyze(ui.at)
+    assert ui.probe.call_count == 2
+
+
+def test_q4_sensitivity_failure_caution_survives_rerun(ui):
+    ui.probe.side_effect = RuntimeError("mocked probe unavailable")
+    analyze(ui.at)
+    assert "Kickoff sensitivity check unavailable" in values(ui.at, "caption")
+    assert ui.probe.call_count == 1
+    run(ui.at)
+    assert "Kickoff sensitivity check unavailable" in values(ui.at, "caption")
+    assert ui.probe.call_count == 1
+
+
 def test_q4_material_sensitivity_shows_close_call_and_new_estimates(ui):
     ui.probe.return_value = {
         "applicable": True, "material": True,
@@ -584,5 +619,14 @@ def test_real_frozen_engine_loads_and_renders_without_live_data(monkeypatch, qua
             assert 0 <= float(row[value_column].rstrip("%")) <= 100
         if quarter == 4:
             assert "INCONCLUSIVE" not in str(metrics(at))
+            assert "Kickoff sensitivity check unavailable" not in values(
+                at, "caption"
+            )
+            original_metrics = metrics(at)
+            run(at)
+            assert metrics(at) == original_metrics
+            assert "Kickoff sensitivity check unavailable" not in values(
+                at, "caption"
+            )
     finally:
         st.cache_resource.clear()
