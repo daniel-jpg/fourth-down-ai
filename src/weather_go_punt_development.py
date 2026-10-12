@@ -402,8 +402,10 @@ def main() -> None:
     print(json.dumps({
         "status": result["status"],
         "go": result["go"]["gains_against_preplay_baseline"],
+        "go_model_validation": result["go"]["model_validation"],
         "go_coverage": result["go"]["coverage"],
         "punt": result["punt"]["gains_against_preplay_baseline"],
+        "punt_model_validation": result["punt"]["model_validation"],
         "punt_coverage": result["punt"]["coverage"],
         "wind_direction": result["wind_direction_provenance"],
         "production_promotion_authorized": False,
