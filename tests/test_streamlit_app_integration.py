@@ -784,3 +784,77 @@ def test_metar_receipt_is_off_field_context_only_not_model_state(ui):
         ui.at, "warning"
     )
     assert "METAR wind vector:" not in values(ui.at, "caption")
+
+
+
+def test_venue_geometry_lookup_requires_explicit_attack_direction(ui):
+    """Stadium coordinates/axis never appear in the frozen engine input."""
+    widget(
+        ui.at, "checkbox", "Enter observed temperature and wind"
+    ).set_value(True)
+    run(ui.at)
+    widget(
+        ui.at, "checkbox",
+        "Show 2026 stadium compass lookup (research only)",
+    ).set_value(True)
+    run(ui.at)
+    # No stadium is inferred from HOME/AWAY or the football field graphic.
+    assert "Offense's verified attacking end" not in [
+        x.label for x in ui.at.selectbox
+    ]
+    widget(ui.at, "selectbox", "2026 venue to inspect").set_value("SEA")
+    run(ui.at)
+    caption = values(ui.at, "caption")
+    assert "Lumen Field" in caption
+    assert "47.59515" in caption
+    assert "unverified" in caption.lower() or "NOT independently surveyed" in caption
+
+    widget(
+        ui.at, "selectbox",
+        "Offense's verified attacking end (research only)",
+    ).set_value("A")
+    run(ui.at)
+    assert "Approximate selected attack bearing" in values(ui.at, "caption")
+    assert "capture_nfl_venue_awc_context" in values(ui.at, "code")
+    assert "official" in values(ui.at, "caption").lower()
+
+    analyze(ui.at)
+    assert metrics(ui.at)["Recommendation"] == "GO FOR IT"
+    assert len(ui.engine.calls) > 0
+    for state, _, _ in ui.engine.calls:
+        for key in (
+            "venue_team", "field_lat", "field_lon", "stadium_id",
+            "attack_end", "heading", "offense_attack_heading_true_deg_approx",
+        ):
+            assert key not in state
+
+    widget(
+        ui.at, "selectbox",
+        "Offense's verified attacking end (research only)",
+    ).set_value("B")
+    run(ui.at)
+    assert "Approximate selected attack bearing" in values(ui.at, "caption")
+
+
+def test_stale_buf_venue_never_exposes_retired_stadium_coordinates(ui):
+    widget(
+        ui.at, "checkbox", "Enter observed temperature and wind"
+    ).set_value(True)
+    run(ui.at)
+    widget(
+        ui.at, "checkbox",
+        "Show 2026 stadium compass lookup (research only)",
+    ).set_value(True)
+    run(ui.at)
+    widget(ui.at, "selectbox", "2026 venue to inspect").set_value("BUF")
+    run(ui.at)
+    assert "Buffalo moved" in values(ui.at, "warning")
+    assert "retired stadium" in values(ui.at, "warning")
+    assert "Offense's verified attacking end (research only)" not in [
+        x.label for x in ui.at.selectbox
+    ]
+    analyze(ui.at)
+    assert metrics(ui.at)["Recommendation"] == "GO FOR IT"
+    for state, _, _ in ui.engine.calls:
+        assert "venue_team" not in state
+        assert "field_lat" not in state
