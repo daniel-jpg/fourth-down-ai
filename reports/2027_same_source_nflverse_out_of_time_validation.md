@@ -37,7 +37,19 @@ This is genuine **future-season, out-of-time testing of a frozen model**, but th
 4. Generate frozen action predictions **from only the allowed reconstructed pre-play columns**, without passing eventual action/result to the forecast call. Join observed action and actual winner *after* predictions are written.
 5. Use the fixed evaluator, preserving low-overlap DR suppression and preregistered descriptive site/Q4/close-call/own-territory subgroups; report any differences from the original strict prospective witness study explicitly.
 
-**Current engineering action:** Do **not** download 2027 records or change the registered 2026 workflows today. The existing nflreadpy source works for offline future-season evaluation. A separate retrospective-cohort extractor/scoring workflow must be finished and synthetically tested before admitting real 2027 results. The costly externally witnessed live-feed path is **optional**, not the prerequisite for this source-based study.
+**Current engineering action:** Do **not** download 2027 records or change the registered 2026 workflows today. A separate **source pre-play reconstruction and exclusion audit now exists**, but the later complete-season gate, independent final-game verification, label admission and frozen-policy scoring workflow are **not implemented/approved for real 2027 data**. Continue synthetic/historical-only tests first. The externally witnessed live-feed path remains **optional**.
+
+
+## Implemented source-intake preparation (October 12, 2026)
+
+The [isolated nflverse-shaped intake module](../src/nflverse_2027_reconstruction.py) consumes the same column convention as the original `nflreadpy` play-by-play source. It can accept an **already supplied** pandas frame or the Polars frame normally returned by `nflreadpy.load_pbp`; it never downloads NFL games itself. Its own command-line mode can read **only the original source-hash-verified 2014–2025 raw Parquet**, and checks the Git blob SHA **before any Parquet read**.
+
+- **Phase 1:** Select source-reported fourth-down candidates using the *pre-play down field alone*, project a fixed pre-play field whitelist, validate football state and IDs, count exclusions, and report roof/Q2 second-half receiver gaps. The output is explicitly named `POSTGAME_RECONSTRUCTED_NOT_WITNESSED`. No observed action, result, play text or other post-play column can reach this stage.
+- **Phase 2, separately invoked:** Classify subsequently *observed* actions (including the scramble-as-pass rule and conservative exclusions for fakes/aborted plays), and report **unverified source claims** about home final margins in a separate table. This step cannot certify that a game was final or establish an unplayed action's counterfactual win.
+- **Safety:** Only 2014–2025 development source rows, or 2027-shaped fictional game IDs beginning with `synthetic_`, are admitted today. Any 2026 rows, real 2027 game IDs, mixed-source seasons, duplicate keys, unknown field schema or changed historical archive cause failure. Missing Q2 receiving-direction evidence and absent roof context are flagged instead of backfilled.
+- **Verification:** [Synthetic regression tests](../tests/test_nflverse_2027_reconstruction.py) and a [dedicated historical-only GitHub Actions rehearsal](../.github/workflows/2027_nflverse_historical_reconstruction_rehearsal.yml) exercise this source path using the pinned 2014–2025 dataset. The workflow emits **aggregate source coverage only**, not 2026/2027 football outcomes or a policy score.
+
+This is the foundation for the future NFLverse-only scoring pipeline, **not its completion**. Before any genuine 2027 holdout is consumed, a separate versioned admission gate must verify that the complete season and independent final-score reference are available, verify source schema/version and all game/play joins, enforce frozen model/nuisance provenance and write a sealed one-time scoring manifest. Importantly, this retrospective design is a distinct claim from the stricter independently witnessed pre-snap study.
 
 ## Bottom line
 
