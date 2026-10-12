@@ -354,8 +354,11 @@ def _dr_policy_win(row: dict[str, Any]) -> float:
 
 def _policy_report(
     rows: Sequence[dict[str, Any]], *,
-    draws: int, seed: int,
+    draws: int, seed: int, mode: str,
 ) -> dict[str, Any]:
+    """Keep numerical estimator tests, but gate prospective comparisons."""
+    if mode not in ("synthetic", "prospective"):
+        raise ValueError("Unsupported policy-study reporting mode")
     supported = [
         r for r in rows
         if PROPENSITY_FLOOR <= r["propensity_policy"] <= PROPENSITY_CEILING
@@ -368,41 +371,74 @@ def _policy_report(
     weight_squared = sum(w * w for w in weights)
     ess = weight_total * weight_total / weight_squared if weight_squared else 0.0
     disagreements = sum(not r["agree"] for r in supported)
-    sufficient = bool(
-        len(supported) >= MIN_SUPPORTED_DECISIONS
-        and len({r["game_id"] for r in supported}) >= MIN_SUPPORTED_GAMES
-        and ess >= MIN_EFFECTIVE_SAMPLE_SIZE
-        and disagreements >= MIN_DISAGREEMENTS
-        and len(supported) / len(rows) >= MIN_SUPPORT_FRACTION
-    )
+    supported_games = len({r["game_id"] for r in supported})
+    coverage = len(supported) / len(rows)
+    failures = []
+    if len(supported) < MIN_SUPPORTED_DECISIONS:
+        failures.append("FEWER_THAN_200_SUPPORTED_DECISIONS")
+    if supported_games < MIN_SUPPORTED_GAMES:
+        failures.append("FEWER_THAN_100_SUPPORTED_GAMES")
+    if ess < MIN_EFFECTIVE_SAMPLE_SIZE:
+        failures.append("IMPORTANCE_WEIGHT_ESS_BELOW_100")
+    if disagreements < MIN_DISAGREEMENTS:
+        failures.append("FEWER_THAN_40_COACH_POLICY_DISAGREEMENTS")
+    if coverage < MIN_SUPPORT_FRACTION:
+        failures.append("COMMON_SUPPORT_COVERAGE_BELOW_60_PERCENT")
+    sufficient = not failures
+    # Keep synthetic numerical diagnostics to test the DR formula, but
+    # never publish an underpowered prospective DR point estimate or CI.
+    suppress = mode == "prospective" and not sufficient
+
     def difference(row: dict[str, Any]) -> float:
         return _dr_policy_win(row) - row["offense_win"]
 
-    return {
-        "supported_decisions": len(supported),
-        "distinct_supported_games": len({r["game_id"] for r in supported}),
-        "support_coverage": len(supported) / len(rows),
-        "disagreements_with_coaches": disagreements,
-        "matched_importance_weight_ess": ess,
-        "support_rule": f"{PROPENSITY_FLOOR:.2f} <= e(policy|pre-snap X) <= {PROPENSITY_CEILING:.2f}",
-        "sufficient_overlap_to_report_exploratory_comparison": sufficient,
-        "coaches_observed_win_rate_on_supported": _mean(
-            [r["offense_win"] for r in supported]
-        ),
-        "dr_one_step_policy_value": _mean(
-            [_dr_policy_win(r) for r in supported]
-        ),
-        "dr_minus_observed_coaches_value": _mean(
-            [difference(r) for r in supported]
-        ),
-        "dr_difference_95pct_game_cluster_ci": _ci_game_cluster(
-            supported, difference, draws=draws, seed=seed + 1,
-        ),
-        "interpretation": (
+    if suppress:
+        interpretation = (
+            "INSUFFICIENT OVERLAP: preregistered common-support requirements "
+            "failed. Prospective DR policy value, uplift and confidence "
+            "interval are suppressed; descriptive sample coverage and the "
+            "observed coach win rate remain available. NOT causal proof."
+        )
+    elif mode == "synthetic":
+        interpretation = (
+            "SYNTHETIC FIXTURE ONLY: DR figures check arithmetic, not "
+            "actual NFL outcomes. NOT causal proof or permission to "
+            "change public coaching recommendations."
+        )
+    else:
+        interpretation = (
             "Exploratory observational single-decision comparison, "
             "NOT causal proof, not a full-season sequential rollout, "
             "and not permission to remove coaching-uncertainty caveats."
+        )
+    return {
+        "supported_decisions": len(supported),
+        "distinct_supported_games": supported_games,
+        "support_coverage": coverage,
+        "disagreements_with_coaches": disagreements,
+        "matched_importance_weight_ess": ess,
+        "support_rule": (
+            f"{PROPENSITY_FLOOR:.2f} <= e(policy|pre-snap X) "
+            f"<= {PROPENSITY_CEILING:.2f}"
         ),
+        "overlap_failures": failures,
+        "sufficient_overlap_to_report_exploratory_comparison": sufficient,
+        "prospective_contrast_suppressed": suppress,
+        "coaches_observed_win_rate_on_supported": _mean(
+            [r["offense_win"] for r in supported]
+        ),
+        "dr_one_step_policy_value": (
+            None if suppress else _mean([_dr_policy_win(r) for r in supported])
+        ),
+        "dr_minus_observed_coaches_value": (
+            None if suppress else _mean([difference(r) for r in supported])
+        ),
+        "dr_difference_95pct_game_cluster_ci": (
+            None if suppress else _ci_game_cluster(
+                supported, difference, draws=draws, seed=seed + 1,
+            )
+        ),
+        "interpretation": interpretation,
     }
 
 
@@ -445,7 +481,7 @@ def evaluate(
             rows, draws=bootstrap_draws, seed=seed,
         ),
         "observational_one_step_policy_comparison": _policy_report(
-            rows, draws=bootstrap_draws, seed=seed,
+            rows, draws=bootstrap_draws, seed=seed, mode=mode,
         ),
         "prespecified_descriptive_subgroups": _prespecified_subgroups(rows),
         "warning": (
