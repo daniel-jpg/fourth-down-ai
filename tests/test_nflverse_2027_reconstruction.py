@@ -188,3 +188,28 @@ def test_census_is_deterministic_independent_of_source_order():
     )
     pd.testing.assert_frame_equal(first["preplay_features"], second["preplay_features"])
     assert first["audit"] == second["audit"]
+
+
+def test_original_nflreadpy_polars_frame_is_supported():
+    """nflreadpy.load_pbp returns Polars, not pandas, in this project."""
+    pl = pytest.importorskip("polars")
+    raw = synthetic_rows()
+    pandas_result = intake.reconstruct_source_preplay(raw, mode=intake.MODE_SYNTHETIC)
+    polars_result = intake.reconstruct_source_preplay(
+        pl.from_pandas(raw), mode=intake.MODE_SYNTHETIC,
+    )
+    pd.testing.assert_frame_equal(
+        pandas_result["preplay_features"],
+        polars_result["preplay_features"],
+        check_dtype=False,
+    )
+    assert pandas_result["audit"] == polars_result["audit"]
+    pandas_labels = intake.project_postplay_labels(raw, mode=intake.MODE_SYNTHETIC)
+    polars_labels = intake.project_postplay_labels(
+        pl.from_pandas(raw), mode=intake.MODE_SYNTHETIC,
+    )
+    pd.testing.assert_frame_equal(
+        pandas_labels["observed_actions"],
+        polars_labels["observed_actions"],
+        check_dtype=False,
+    )
