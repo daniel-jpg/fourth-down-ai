@@ -40,12 +40,16 @@ def input_fixture():
             "frozen_wp": .38 + i*.1, "candidate_wp": .40 + i*.1,
         })
         go.append({
-            **base, **k, "observed_go_action":
+            **base, **k, "predicted_go_action":
                 "NORMAL_GO_PASS" if i != 1 else "NORMAL_GO_RUN",
             "frozen_conversion": .5, "candidate_conversion": .6,
         })
         wp_final.append({**k, "offense_win": int(i == 2)})
-        go_final.append({**k, "converted": int(i > 0)})
+        go_final.append({
+            **k, "observed_go_action":
+                "NORMAL_GO_PASS" if i != 1 else "NORMAL_GO_RUN",
+            "converted": int(i > 0),
+        })
     return {
         "manifest": {
             "mode": "synthetic",
@@ -66,6 +70,7 @@ def test_schema_and_separate_factual_outcomes_score_without_promotion():
     assert r["mode"] == "synthetic"
     assert r["n_wp_states"] == 3
     assert r["n_go_attempts"] == 3
+    assert r["unselected_presnap_go_forecasts"] == 0
     assert len(r["forecasts_sha256"]) == 64
     assert r["wp_calibration"]["Q4"]["states"] == 3
     assert r["wp_calibration"]["Q4_FINAL_FIVE_OWN10_LEADING4"]["games"] == 3
@@ -90,13 +95,43 @@ def test_forecast_seal_excludes_labels_and_is_stable():
 
 @pytest.mark.parametrize("field", [
     "offense_win", "converted", "winner", "home_score_final",
-    "post_snap_epa", "yards_gained", "result",
+    "post_snap_epa", "yards_gained", "result", "observed_go_action",
 ])
 def test_post_snap_outcome_field_cannot_enter_predictions(field):
     obj = input_fixture()
     obj["predictions"]["wp"][0][field] = 1
     with pytest.raises(ValueError, match="EXACT approved keys"):
         evaluate(obj["predictions"], obj["outcomes"], obj["manifest"], draws=20)
+
+
+def test_unselected_hypothetical_go_calls_do_not_become_factual_labels():
+    obj = input_fixture()
+    frozen_archive = forecast_sha256(obj["predictions"])
+    for pred in list(obj["predictions"]["go"]):
+        other = deepcopy(pred)
+        other["predicted_go_action"] = (
+            "NORMAL_GO_RUN"
+            if pred["predicted_go_action"] == "NORMAL_GO_PASS"
+            else "NORMAL_GO_PASS"
+        )
+        # Counterfactual-style GO predictions are available before
+        # the logged play. Only the ACTUALLY chosen action is scored.
+        other["frozen_conversion"] = .25
+        other["candidate_conversion"] = .35
+        obj["predictions"]["go"].append(other)
+    assert forecast_sha256(obj["predictions"]) != frozen_archive
+    sealed_with_both = forecast_sha256(obj["predictions"])
+    out = evaluate(obj["predictions"], obj["outcomes"], obj["manifest"], draws=20)
+    assert out["n_go_attempts"] == 3
+    assert out["unselected_presnap_go_forecasts"] == 3
+    assert out["go_conversion_calibration"]["GO_RUN"]["states"] == 1
+    assert out["go_conversion_calibration"]["GO_PASS"]["states"] == 2
+    # A coach could have chosen RUN instead: the archived pre-snap
+    # predictions stay unchanged while only the factual label changes.
+    obj["outcomes"]["go"][0]["observed_go_action"] = "NORMAL_GO_RUN"
+    assert forecast_sha256(obj["predictions"]) == sealed_with_both
+    swapped = evaluate(obj["predictions"], obj["outcomes"], obj["manifest"], draws=20)
+    assert swapped["go_conversion_calibration"]["GO_RUN"]["states"] == 2
 
 
 def test_future_or_protected_season_never_accepted_in_fixture():
