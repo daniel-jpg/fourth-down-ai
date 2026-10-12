@@ -207,6 +207,9 @@ def version_manifest(plan: dict, source: dict, external: dict) -> dict:
 def write_snapshot(path: Path, cohort: dict, plan: dict, manifest: dict) -> dict:
     """Create a NEW local stage directory; write file hashes and manifest LAST."""
     directory = Path(path)
+    if (directory.resolve().is_relative_to(ROOT)
+            and not directory.resolve().is_relative_to(ROOT / "artifacts")):
+        raise ValueError("Shadow tables may never overwrite tracked source/model/reports")
     if directory.exists() or directory.is_symlink():
         raise FileExistsError("Existing shadow intake must never be silently overwritten")
     tables = {
