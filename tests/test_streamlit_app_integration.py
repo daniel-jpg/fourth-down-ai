@@ -678,7 +678,7 @@ def test_weather_fields_are_empty_by_default_and_can_be_entered_directly(ui):
     assert metrics(at)["Recommendation"] == "GO FOR IT"
     assert "Weather what-if FG make" not in metrics(at)
 
-    temperature.set_value(32)
+    widget(at, "number_input", "Temperature (°F)").set_value(32)
     run(at)
     assert widget(at, "number_input", "Temperature (°F)").value == 32
     assert widget(at, "number_input", "Wind speed (mph)").value is None
