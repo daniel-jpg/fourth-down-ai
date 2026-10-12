@@ -59,5 +59,17 @@
     "Final game-score margins only; no kickoff directions, roof states, action intent, pre-snap time seals, or unchosen-action counterfactuals verified.",
     "No 2026 or 2027 results in archive.",
     "Full ESPN event IDs and raw weekly response hashes are in the GitHub Actions audit ZIP, which has a separate expiration date."
-  ]
+  ],
+  "neutral_site_provenance": {
+    "status": "SECONDARY_STADIUM_SITE_DIAGNOSTIC_NOT_SNAP_TIME_VERIFIED",
+    "espn_neutral_site_games": 49,
+    "flag_order": "Identical 3151 game key order as independent signed-int16 margin vector",
+    "encoding": "base64(zlib(bytes([int(espn_neutralSite)] for each game)))",
+    "binary_sha256": "cfb3406242e2c30baf09736bda9ab88de974f238fc043a31d4a9880ee7c3a76b",
+    "flag_vector_base64": "eNrtllEKADAIQnv3v/Su0GyBxfyeDM3CCAl0cHj2VT9Qn3nKaR0/GhFrvQjUoeqrdrFvAQqHKxmIhTatBH96tUOX6QVMc5SEOiRzME/+HbfSj7C/ArIJUmdyiMoBKA8AMg==",
+    "limitations": [
+      "ESPN neutralSite is a retrospective event property, not time-sealed decision-time venue evidence.",
+      "A discrepancy with nflverse location must be investigated, not auto-corrected in model features."
+    ]
+  }
 }
