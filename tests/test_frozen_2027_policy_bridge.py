@@ -254,6 +254,34 @@ def test_inconsistent_engine_rank_or_eligibility_rejected(snapshot):
         )
 
 
+def test_exact_go_action_ties_and_strategy_ties_do_not_fabricate_winner(snapshot):
+    class TieEngine(SyntheticEngine):
+        def recommend(self, state, n_simulations, seed):
+            out = super().recommend(state, n_simulations, seed)
+            rows = out["results"].copy()
+            both_go_fg = rows["action"].isin([
+                "NORMAL_GO_RUN", "NORMAL_GO_PASS", "FIELD_GOAL",
+            ])
+            rows.loc[both_go_fg, "expected_win_probability"] = .58
+            out["results"] = pd.concat([
+                rows.loc[rows["eligible"]].sort_values(
+                    "expected_win_probability", ascending=False,
+                ),
+                rows.loc[~rows["eligible"]],
+            ], ignore_index=True)
+            return out
+    state = fabricated(ydstogo=2., goal_to_go=0.)
+    result = build_synthetic_policy_forecast(
+        MANIFEST, state, engine=TieEngine(), nuisance_snapshot=snapshot,
+        n_simulations=24,
+    )
+    assert result["pre_snap"]["policy_action"] in {
+        "NORMAL_GO_RUN", "NORMAL_GO_PASS", "FIELD_GOAL",
+    }
+    assert result["pre_snap"]["close_call"] is True
+    assert result["pre_snap"]["q_wp_by_action"]["FIELD_GOAL"] == .58
+
+
 def test_non_fabricated_manifest_or_nonfrozen_seed_rejected(snapshot):
     record = fabricated()
     for fake in [
