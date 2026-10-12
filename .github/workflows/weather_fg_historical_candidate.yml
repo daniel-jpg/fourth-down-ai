@@ -1,0 +1,68 @@
+name: Temperature and wind FG candidate - 2014-2024 development only
+
+# Train 2014-22 / validate 2023-24 only. Does not read 2025
+# held-out outcomes, 2026 or 2027 games, or alter frozen models.
+# No production change until reviewed metrics are available.
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/weather_fg_candidate_development.py
+      - .github/workflows/weather_fg_historical_candidate.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  historical-weather-development:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install locked dev requirements
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Analyze only pre-2025 observed normal FG outcomes
+        run: |
+          mkdir -p artifacts
+          PYTHONPATH=. python -m src.weather_fg_candidate_development \
+            --development-only --report artifacts/fg_outdoor_weather_development.json
+      - name: Reject false official weather model or future outcome claim
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("artifacts/fg_outdoor_weather_development.json").read_text())
+          assert r["source_seasons"] == {
+              "train":"2014-2022", "validation":"2023-2024"
+          }
+          assert r["number_training"] >= 900
+          assert r["number_validation"] >= 200
+          assert not r["2025_heldout_data_used"]
+          assert not r["2026_or_2027_data_used"]
+          assert not r["may_change_frozen_production"]
+          assert not r["calibrated_official_decision_effect"]
+          assert not r["condition_rain_snow_fitted"]
+          assert set(r["effect_coefficients"]) == {
+              "per_20f_log_odds","per_10mph_log_odds"
+          }
+          print("PASS: historical weather effect only; no model weights changed")
+          PY
+      - name: Confirm original model files and 2026 gates untouched
+        run: |
+          git diff --exit-code -- app.py models data \
+            src/42_build_decision_engine.py \
+            src/66_forward_2026_continuation_wp.py \
+            src/83_forward_2026_native_challenger_once.py
+      - name: Archive experimental fit and validation data only
+        uses: actions/upload-artifact@v4
+        with:
+          name: historical-outdoor-weather-fg-sensitivity-research
+          path: artifacts/fg_outdoor_weather_development.json
+          retention-days: 28
