@@ -713,3 +713,74 @@ def test_closed_roof_never_promises_outdoor_weather_adjustment(ui):
         "do not enter the field-goal weather sensitivity" in
         values(ui.at, "caption")
     )
+
+
+
+def test_metar_receipt_is_off_field_context_only_not_model_state(ui):
+    """Typed research receipt is interpreted, but NEVER sent to frozen engine."""
+    import json
+    from datetime import datetime, timezone
+    from src.metar_decision_weather import build_metar_decision_evidence
+
+    records = [{
+        "icaoId": "KSEA",
+        "obsTime": int(datetime(
+            2026, 10, 12, 18, 0, tzinfo=timezone.utc,
+        ).timestamp()),
+        "receiptTime": "2026-10-12T18:04:00Z",
+        "lat": 47.4489,
+        "lon": -122.3094,
+        "wdir": 90,
+        "wspd": 12,
+        "rawOb": "METAR KSEA 121800Z 09012KT 10SM -RA BKN015 12/08 A2996",
+    }]
+    blob = json.dumps(records).encode("utf-8")
+    receipt = build_metar_decision_evidence(
+        observations=records, source_bytes=blob,
+        station_id="KSEA",
+        decision_at_utc="2026-10-12T18:35:00Z",
+        captured_at_utc="2026-10-12T18:45:00Z",
+        field_lat=47.595, field_lon=-122.332,
+        offense_attack_heading_true_deg=90,
+        roof="outdoors", fetched_from_awc_https=False,
+    )
+
+    widget(
+        ui.at, "checkbox", "Enter observed temperature and wind"
+    ).set_value(True)
+    run(ui.at)
+    widget(
+        ui.at, "checkbox", "Inspect timestamped airport METAR evidence"
+    ).set_value(True)
+    run(ui.at)
+    widget(
+        ui.at, "text_area", "METAR research receipt JSON"
+    ).set_value(json.dumps(receipt))
+    run(ui.at)
+    captions = values(ui.at, "caption")
+    assert "METAR wind vector:" in captions
+    assert "Airport KSEA" in captions
+    assert "signed headwind" in captions
+    assert "No on-field rainfall/snowfall intensity is measured" in captions
+    assert "Neither the official recommendation" in captions
+    assert "RETROSPECTIVE context" in values(ui.at, "info")
+    assert len(ui.engine.calls) == 0
+
+    analyze(ui.at)
+    assert metrics(ui.at)["Recommendation"] == "GO FOR IT"
+    assert all(
+        "raw_metar" not in state and "headwind_mph_signed" not in state
+        and "wind_from_true_degrees" not in state
+        for state, _, _ in ui.engine.calls
+    )
+
+    # A pasted JSON number cannot silently forge trusted airport wind.
+    receipt["headwind_mph_signed"] = -99
+    widget(
+        ui.at, "text_area", "METAR research receipt JSON"
+    ).set_value(json.dumps(receipt))
+    run(ui.at)
+    assert "Invalid, inconsistent or unsupported METAR receipt" in values(
+        ui.at, "warning"
+    )
+    assert "METAR wind vector:" not in values(ui.at, "caption")
