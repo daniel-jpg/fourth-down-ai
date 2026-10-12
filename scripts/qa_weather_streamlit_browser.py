@@ -353,7 +353,8 @@ def check_baseline_and_weather(frame, page) -> dict:
     # original outdoor prediction to remain the same after this change.
     select_choice(frame, page, "Stadium / roof", "Fixed dome")
     frame.get_by_text(
-        "The roof is closed or domed.", exact=False
+        "Covered stadium: outdoor temperature and wind do not apply",
+        exact=False,
     ).wait_for(state="visible", timeout=50000)
     for label in ("Include temperature", "Include wind speed"):
         assert frame.get_by_text(label, exact=True).count() == 0, (
