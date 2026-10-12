@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "archive_status": "RESEARCH_ONLY_INDEPENDENT_HISTORICAL_FINAL_SCORES_NOT_PRESNAP",
+  "source": "ESPN Site API v2 historical 2014-2025 final NFL REG scoreboards",
+  "captured_utc_date": "2026-10-12",
+  "source_week_count": 209,
+  "source_game_count": 3151,
+  "independent_final_score_matches": 3151,
+  "historical_fourth_down_rows_with_verified_final_scores": 47942,
+  "nuisance_training_model_changed": false,
+  "source_pbp_git_blob_sha1": "d7230df63cad1c24579ee40cabaacd0b330e4784",
+  "source_pbp_sha256": "07fb573961131e02340b1403e9b03edec306523d528136e438f269447dbba903",
+  "years": [
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "ordered_matchup_key_format": "[season,week,normalized_home,normalized_away] sorted ascending; canonical compact JSON",
+  "ordered_matchup_key_sha256": "58f90a4a6a61ad934573c75fe6e80490df906489e8100d62e55057b40828ac76",
+  "margin_vector_encoding": "base64(zlib(struct.pack('<3151h', home_final_score - away_final_score)))",
+  "margin_vector_raw_sha256": "4801e7df90243eecdd2d1e69bf22c71b1f7ffffc47cf59970071b6ff29809580",
+  "margin_vector_base64": "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",
+  "full_espn_score_records_canonical_sha256": "bf0523ae05abb872fa8ac44e1cb44e6a91d171039ee702b265382b343c3c8ceb",
+  "week_response_provenance_canonical_sha256": "0be8f6e3b8624abfff52d812f05cf248dfd5c0634e44a86d720d454fb7011f10",
+  "audit_source": "https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38207988956",
+  "nonfinal_provider_placeholders": [
+    {
+      "year": 2014,
+      "week": 12,
+      "espn_event_id": "400554331",
+      "status": "STATUS_POSTPONED",
+      "matchup": "NYJ @ BUF"
+    },
+    {
+      "year": 2017,
+      "week": 1,
+      "espn_event_id": "400951581",
+      "status": "STATUS_POSTPONED",
+      "matchup": "TB @ MIA"
+    },
+    {
+      "year": 2022,
+      "week": 17,
+      "espn_event_id": "401437947",
+      "status": "STATUS_CANCELED",
+      "matchup": "BUF @ CIN"
+    }
+  ],
+  "limitations": [
+    "Final game-score margins only; no kickoff directions, roof states, action intent, pre-snap time seals, or unchosen-action counterfactuals verified.",
+    "No 2026 or 2027 results in archive.",
+    "Full ESPN event IDs and raw weekly response hashes are in the GitHub Actions audit ZIP, which has a separate expiration date."
+  ]
+}
