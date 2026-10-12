@@ -136,6 +136,26 @@ def test_wrong_week_type_or_future_season_fails(change, expected):
         parse_espn_week(bad, 2025, 1)
 
 
+def test_postponed_placeholder_never_becomes_a_winner_label():
+    raw = {"events": [
+        espn_game(
+            season=2014, week=12, home="BUF", away="NYJ",
+            home_score="0", away_score="0", final=False,
+            event_id="400554331",
+        ),
+        espn_game(
+            season=2014, week=12, home="BUF", away="NYJ",
+            home_score="38", away_score="3", final=True,
+            event_id="401012345",
+        ),
+    ]}
+    raw["events"][0]["status"]["type"]["name"] = "STATUS_POSTPONED"
+    finished = parse_espn_week(raw, 2014, 12)
+    assert len(finished) == 1
+    assert finished[0]["margin"] == 35
+    assert finished[0]["event_id"] == "401012345"
+
+
 def test_documented_2022_canceled_buf_cin_cannot_be_treated_as_final():
     raw = {"events": [
         espn_game(
