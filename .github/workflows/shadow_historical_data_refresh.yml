@@ -47,7 +47,10 @@ jobs:
           obj=json.loads((root/"manifest.json").read_text())
           assert obj["status"] == "SHADOW_HISTORICAL_DEVELOPMENT_NOT_A_NEW_EVALUATION"
           assert obj["source"]["git_blob_sha1"] == "d7230df63cad1c24579ee40cabaacd0b330e4784"
-          assert obj["source_fourth_down_candidates"] == 47942
+          assert obj["regular_season_fourth_down_candidates"] == 47942
+          assert obj["source_fourth_down_candidates"] >= 47942
+          assert (obj["source_fourth_down_candidates"] ==
+                  obj["included_historical_decisions"] + obj["excluded_historical_decisions"])
           assert obj["independent_final_scores"]["games"] == 3151
           assert obj["training_years"] == list(range(2014,2023))
           assert obj["validation_years"] == [2023,2024]
