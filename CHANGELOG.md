@@ -16,6 +16,9 @@ native kickoff-input correction without model retraining.
 - The 2023–2024 Q4 site-calibration audit found only 7 final-five-minute own-10/leading-4 play states across 3 games (zero HOME-offense examples). It reproduced an 11.11 pp mirrored frozen-WP site difference in an illustrative failed-GO continuation. The late Q4 goal-line demo now gives a narrow site-support caption, without any home-advantage adjustment.
 - Both auditable development reports and their test workflows are linked in [Issue #9 follow-up](reports/issue9_field_position_go_q4_site_followup.md). The original 2026 once-only gates, preregistered 2027 research, and published stable v1.1.0 remain untouched.
 
+- Benchmarked a fixed 2014–22-trained constrained regulation-WP challenger against frozen weights on 2023–24 historical development states: all-state Brier 0.161844 vs 0.160611, but Q4 and final-five-minute game-cluster intervals include zero. No model promotion; [results](reports/issue9_field_position_go_q4_site_followup.md).
+- Preregistered a separate [2027 factual GO/WP component test](reports/2027_component_candidates_prospective_protocol.md) with a pure offline scorer, synthetic tests, presnap forecast sealing, no logged-coach-action lookahead, and strict own-5 plus site-balanced Q4 support gates. No protected 2026 results or future 2027 outcomes are accessed, and no automatic release or causal claim is allowed.
+
 ### Interface and interpretation
 
 - Streamlit focuses on the **official** GO (pass/run), FIELD GOAL and
