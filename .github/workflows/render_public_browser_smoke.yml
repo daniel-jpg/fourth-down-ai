@@ -1,0 +1,139 @@
+name: Verify public Render Q4 and weather in Chromium
+
+# Manual run only after owner-authorized Render deployment.
+on:
+  workflow_dispatch:
+    inputs:
+      public_base_url:
+        description: "Actual deployed HTTPS URL (https://<name>.onrender.com)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fourth-down-render-public-browser
+  cancel-in-progress: false
+
+jobs:
+  public-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Reject non-public or non-Render URLs
+        id: target
+        env:
+          PUBLIC_URL: ${{ inputs.public_base_url }}
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          from urllib.parse import urlsplit
+          raw = os.environ["PUBLIC_URL"].strip().rstrip("/")
+          url = urlsplit(raw)
+          assert url.scheme == "https", "HTTPS required"
+          assert re.fullmatch(r"[a-z0-9-]+\.onrender\.com", url.hostname or ""), (
+              "Only onrender.com public subdomains are permitted"
+          )
+          assert url.port is None and url.username is None
+          assert not url.path and not url.query and not url.fragment
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write("url=" + raw + "\n")
+          print("PASS: public HTTPS Render URL", url.hostname)
+          PY
+
+      - name: Install Chromium browser driver
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.55.0
+          python -m playwright install --with-deps chromium
+
+      - name: Verify public source and weather UI match tested GitHub
+        env:
+          TARGET_URL: ${{ steps.target.outputs.url }}
+        run: |
+          EXPECTED_SHA="$(python -m src.deployment_source_fingerprint)"
+          export EXPECTED_SHA
+          python - <<'PY'
+          import os
+          import time
+          from playwright.sync_api import sync_playwright
+          expected = os.environ["EXPECTED_SHA"]
+          with sync_playwright() as driver:
+              browser = driver.chromium.launch(headless=True)
+              page = browser.new_page(viewport={"width": 1440, "height": 900})
+              try:
+                  page.goto(
+                      os.environ["TARGET_URL"],
+                      wait_until="domcontentloaded", timeout=60000,
+                  )
+                  deadline = time.monotonic() + 125
+                  found = None
+                  weather_ui = False
+                  while time.monotonic() < deadline:
+                      for frame in page.frames:
+                          try:
+                              marker = frame.locator(
+                                  "#fourth-down-runtime-source"
+                              )
+                              if marker.count():
+                                  found = marker.first.get_attribute(
+                                      "data-source-sha256"
+                                  )
+                                  weather_ui = frame.get_by_text(
+                                      "Weather observations (optional)",
+                                      exact=True,
+                                  ).count() == 1
+                                  break
+                          except Exception:
+                              pass
+                      if found is not None:
+                          break
+                      page.wait_for_timeout(1000)
+                  assert found is not None, "No hosted app/source marker"
+                  assert len(found) == 64
+                  assert found == expected, (
+                      "Hosted source " + found[:12] +
+                      " differs from tested GitHub " + expected[:12]
+                  )
+                  assert weather_ui, "Expected live weather UI not found"
+                  print(
+                      "PUBLIC_RENDER_SOURCE_AND_WEATHER_PASS",
+                      found[:12], flush=True,
+                  )
+              finally:
+                  try:
+                      page.screenshot(
+                          path="render-public-source.png", full_page=True
+                      )
+                  except Exception:
+                      pass
+                  browser.close()
+          PY
+
+      - name: Confirm hosted HOME Q4 recommendation and corrected kickoff
+        env:
+          FOURTH_DOWN_SMOKE_BASE_URL: ${{ steps.target.outputs.url }}
+        run: python scripts/qa_local_streamlit_home_browser.py
+
+      - name: Confirm hosted weather isolation, METAR rejection and roof
+        env:
+          FOURTH_DOWN_SMOKE_BASE_URL: ${{ steps.target.outputs.url }}
+        run: python scripts/qa_weather_streamlit_browser.py
+
+      - name: Retain browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-public-q4-weather-browser
+          path: |
+            render-public-source.png
+            local-streamlit-q4-home.png
+            docker-streamlit-weather-qa.png
+          if-no-files-found: ignore
+          retention-days: 7
