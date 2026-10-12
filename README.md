@@ -340,6 +340,20 @@ real 2027 evaluation tag today**. [Audit and remaining release requirements](rep
 A real future release still needs authenticated 2027 sources, season
 completion, approved tag protections and a separately reviewed activation.
 
+The [postseason evaluation rehearsal](src/postseason_2027_once_only.py)
+now optionally records a **shared local Git claim after the forecast seal but
+before any game-outcome read**. A second fake runner, even from a different
+checkout/output directory, cannot evaluate the same fabricated season.
+The [read-only GitHub tag protection auditor](scripts/audit_2027_tag_rulesets.py)
+and [admin-ready proposal](reports/2027_tag_protection_ruleset_proposal.json)
+identify missing/bypassable protections for the future release tag. The
+[focused CI run](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38287998156)
+passed **46 tests**. **Actual GitHub tag rulesets are currently absent;
+no GitHub rule or real 2027 release ref was installed/created.** See the
+[release-readiness status and required admin setup](reports/2027_release_tag_protection_preflight.md).
+The separate complete-season provenance and explicit 2028 authorization
+remain mandatory before real future-season scoring.
+
 ## Independent 2027 Fourth-Down Action-Policy Study
 
 The separate [preregistered 2027 decision study](reports/2027_fourth_down_action_policy_protocol.md)
