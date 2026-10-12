@@ -2,8 +2,9 @@
 
 Targets:
 * GO (normal RUN or PASS): actual logged conversion, Brier and log loss
-* PUNT (ordinary, opponent possession, verified next state): receiving
-  offense's next-start yardline_100, MAE and RMSE
+* PUNT (ordinary recorded kick with a positive kick distance): SAME-PLAY
+  GROSS punt kick distance in yards, MAE and RMSE. This is not receiving
+  team field position, net punt distance or downstream win probability.
 
 The baseline and every candidate train and validate on the EXACT same
 outdoor/open-roof cases with valid game-level wind/temp; no 2025+
@@ -42,7 +43,6 @@ from .weather_pbp_signal import (
 
 ROOT = Path(__file__).resolve().parents[1]
 LABELED = ROOT / "data/fourth_downs_labeled.parquet"
-PUNT_AUDIT = ROOT / "data/punt_outcome_audit.parquet"
 YEARS_TRAIN = (2014, 2022)
 YEARS_VALIDATE = (2023, 2024)
 VALID_YEARS = frozenset(range(2014, 2025))
@@ -54,10 +54,7 @@ RAW_COLUMNS = (
     "ydstogo", "yardline_100", "goal_to_go", "qtr",
     "game_seconds_remaining", "score_differential",
     "posteam_timeouts_remaining", "defteam_timeouts_remaining", "converted",
-)
-PUNT_COLUMNS = (
-    "game_id", "play_id", "season", "punt_branch",
-    "transition_class", "state_usable", "state_yardline_100",
+    "kick_distance",
 )
 BASE_GENERAL = (
     "ydstogo", "yardline_100", "goal_to_go", "qtr",
@@ -106,27 +103,6 @@ def _label_source() -> tuple[pd.DataFrame, dict]:
     return raw, directions
 
 
-def _punt_targets() -> pd.DataFrame:
-    missing = _schema_missing(PUNT_AUDIT, PUNT_COLUMNS)
-    if missing:
-        raise ValueError(f"Missing verified punt audit columns: {missing}")
-    # Source target is the original script 39 next-opponent-offensive-state
-    # reconstruction; no novel post-snap label reconstruction is attempted.
-    punt = (
-        pl.scan_parquet(PUNT_AUDIT)
-        .filter(pl.col("season").is_between(2014, 2024))
-        .filter(pl.col("punt_branch") == "REGULAR")
-        .filter(pl.col("transition_class") == "opponent_ball_no_score")
-        .filter(pl.col("state_usable") == True)
-        .select(list(PUNT_COLUMNS))
-        .collect()
-        .to_pandas()
-    )
-    if punt.duplicated(["game_id", "play_id"]).any():
-        raise ValueError("Duplicate original verified punt outcome")
-    return punt
-
-
 def _prepare(data: pd.DataFrame, *, action: str) -> tuple[pd.DataFrame, dict]:
     if action not in ("GO", "PUNT"):
         raise ValueError("Unknown weather research action")
@@ -158,9 +134,12 @@ def _prepare(data: pd.DataFrame, *, action: str) -> tuple[pd.DataFrame, dict]:
         valid_target = data[target].isin([0, 1])
         baseline = (*BASE_GENERAL, "is_pass")
     else:
-        target = "state_yardline_100"
-        data[target] = pd.to_numeric(data[target], errors="coerce")
-        valid_target = data[target].between(0, 100)
+        # Recorded SAME-PLAY gross punt distance only, not receiving
+        # offense post-punt field position or an arbitrary reconstructed
+        # next state. Exclude broken/zero-distance outcomes.
+        target = "gross_punt_yards"
+        data[target] = pd.to_numeric(data["kick_distance"], errors="coerce")
+        valid_target = data[target].between(1, 95)
         baseline = BASE_GENERAL
     mask = (
         valid_target
@@ -232,8 +211,8 @@ def _metrics(action: str, y: np.ndarray, pred: np.ndarray) -> dict[str, float]:
     return {
         "mae_yards": float(mean_absolute_error(y, pred)),
         "rmse_yards": float(np.sqrt(mean_squared_error(y, pred))),
-        "actual_mean_receiving_offense_yardline_100": float(np.mean(y)),
-        "predicted_mean_receiving_offense_yardline_100": float(np.mean(pred)),
+        "actual_mean_gross_punt_distance_yards": float(np.mean(y)),
+        "predicted_mean_gross_punt_distance_yards": float(np.mean(pred)),
     }
 
 
@@ -293,7 +272,7 @@ def _precip_support(coverage: dict) -> dict:
 def _compare(action: str, frame: pd.DataFrame, coverage: dict) -> dict:
     train = frame.loc[frame["season"].between(2014, 2022)].copy()
     val = frame.loc[frame["season"].between(2023, 2024)].copy()
-    target = "converted" if action == "GO" else "state_yardline_100"
+    target = "converted" if action == "GO" else "gross_punt_yards"
     features = (*BASE_GENERAL, "is_pass") if action == "GO" else BASE_GENERAL
     y_train = train[target].to_numpy(dtype=float)
     y_val = val[target].to_numpy(dtype=float)
@@ -347,7 +326,7 @@ def _compare(action: str, frame: pd.DataFrame, coverage: dict) -> dict:
         "target": (
             "FOURTH_DOWN_ACTUAL_CONVERSION"
             if action == "GO" else
-            "NEXT_OPPONENT_OFFENSE_YARDLINE_100_ON_REGULAR_PUNT"
+            "SAME_PLAY_RECORDED_GROSS_PUNT_KICK_DISTANCE_YARDS"
         ),
         "preplay_baseline_is_original_frozen_production_model": False,
         "all_candidates_use_identical_validation_rows": True,
@@ -368,16 +347,10 @@ def run_historical_weather_study() -> dict:
     go = go.loc[go["execution_status"].eq("NORMAL")].copy()
     go_frame, go_coverage = _prepare(go, action="GO")
 
-    targets = _punt_targets()
-    punt_raw = raw.loc[raw["action"].eq("PUNT")].copy()
-    punt = punt_raw.merge(
-        targets[list(PUNT_COLUMNS)],
-        on=["game_id", "play_id", "season"],
-        how="inner", validate="one_to_one",
-    )
-    if punt.empty:
-        raise ValueError("No exact verified regular punt/terminal state joins")
-    punt_frame, punt_coverage = _prepare(punt, action="PUNT")
+    punt_raw = raw.loc[
+        raw["action"].eq("PUNT") & raw["execution_status"].eq("NORMAL")
+    ].copy()
+    punt_frame, punt_coverage = _prepare(punt_raw, action="PUNT")
     result = {
         "status": "2014_2024_HISTORICAL_WEATHER_GO_PUNT_DEVELOPMENT_ONLY",
         "train_seasons": "2014-2022",
@@ -386,7 +359,6 @@ def run_historical_weather_study() -> dict:
         "study_inputs": "NFLVERSE_GAME_LEVEL_TEMPERATURE_WIND_WEATHER_TEXT",
         "source_files": [
             "data/fourth_downs_labeled.parquet",
-            "data/punt_outcome_audit.parquet",
         ],
         "wind_direction_provenance": direction,
         "go": _compare("GO", go_frame, go_coverage),
@@ -402,7 +374,9 @@ def run_historical_weather_study() -> dict:
         "interpretation": (
             "Matched-row, out-of-time predictive ablations on logged "
             "decisions only. GO run/pass selection is confounded; punt "
-            "target excludes scoring, broken and unsupported branches. "
+            "target is only the SAME-PLAY gross recorded kick distance "
+            "(not net punt, post-punt field position or win probability). "
+            "Broken snaps and zero-distance punts are excluded. "
             "Weather descriptions are game-level and directional wind "
             "relative to the play is unavailable. No official decision "
             "policy or coaching causal effect can be inferred."
