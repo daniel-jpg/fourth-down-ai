@@ -276,3 +276,29 @@ def test_utc_accepts_epoch_and_offsets_without_guessing_timezone():
         utc_time(float("nan"))
     with pytest.raises(ValueError):
         utc_time("Monday at noon")
+
+
+
+def test_research_receipt_display_is_arithmetically_checked_but_unsigned():
+    from src.metar_decision_weather import validate_metar_receipt_for_display
+    data = packet()
+    result = validate_metar_receipt_for_display(data)
+    assert result["airport"] == "KSEA"
+    assert result["observed_at_utc"] == OBSERVED
+    assert result["age_minutes"] == 35
+    assert result["captured_after_decision"] is True
+    assert result["headwind_mph_signed"] > 13
+    assert result["airport_precipitation"] == "AIRPORT_RAIN_REPORTED"
+    assert result["unsigned_manual_import_not_source_authenticated"] is True
+    assert result["changes_official_recommendation"] is False
+    for field, bad in (
+        ("headwind_mph_signed", -100),
+        ("airport_present_weather_code", "CLEAR_SKIES_ON_FIELD"),
+        ("snap_specific_weather_verified", True),
+        ("source_downloaded_after_decision", False),
+        ("raw_metar_sha256", "0"*64),
+    ):
+        altered = deepcopy(data)
+        altered[field] = bad
+        with pytest.raises(ValueError):
+            validate_metar_receipt_for_display(altered)
