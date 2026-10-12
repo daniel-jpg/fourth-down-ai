@@ -143,6 +143,16 @@ frozen GO/FG/PUNT models and future-season release gate remain untouched.
 Real signed on-field wind vectors and precipitation intensity are still
 needed for any **validated weather-aware recommendation**.
 
+A [real NOAA API schema smoke test](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38292972017)
+**passed on October 12, 2026**, retrieving a genuine KSEA airport report
+after introducing a tightly bounded second try for a transient HTTP read
+timeout. The [deterministic offline checks](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38292941260)
+also passed **28 tests**, including a published NOAA response-format example
+and no-retry guards for blocked or empty responses. The live trial used
+**the airport itself as a fake football field** with an invented heading,
+so it certifies API compatibility—not an actual NFL stadium or validated
+on-field weather. [See exact timing and evidence limits](reports/weather_decision_time_noaa_metar_evidence.md).
+
 ## Overtime Support
 
 The engine supports both **regular-season** and **postseason** overtime.
