@@ -1,0 +1,85 @@
+name: GO and PUNT weather ablation - historical development only
+
+# Only 2014-22 training + 2023-24 validation from existing local
+# nflverse/parquet files; no 2025 held-out outcomes, 2026/27 data,
+# external weather provider, production model weight writes or PRs.
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/weather_pbp_signal.py
+      - src/weather_go_punt_development.py
+      - tests/test_weather_pbp_signal.py
+      - tests/test_weather_go_punt_development.py
+      - .github/workflows/weather_go_punt_historical.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  weather-ablation-go-punt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install pinned development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Verify preprocessing and temporal holdout safeguards
+        run: |
+          PYTHONPATH=. python -m pytest -q \
+            tests/test_weather_pbp_signal.py \
+            tests/test_weather_go_punt_development.py
+      - name: Fit independent GO and PUNT weather candidates on historical development data
+        run: |
+          mkdir -p artifacts
+          PYTHONPATH=. python -m src.weather_go_punt_development \
+            --development-only --report artifacts/go_punt_weather_2014_2024.json
+      - name: Verify matched cohorts and absolutely no production promotion
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path("artifacts/go_punt_weather_2014_2024.json").read_text())
+          assert report["status"]=="2014_2024_HISTORICAL_WEATHER_GO_PUNT_DEVELOPMENT_ONLY"
+          assert report["train_seasons"]=="2014-2022"
+          assert report["validation_seasons"]=="2023-2024"
+          for flag in ("2025_holdout_rows_examined","protected_2026_rows_examined",
+                       "2027_outcomes_examined","frozen_go_and_punt_models_modified",
+                       "official_recommendation_changed","production_promotion_authorized",
+                       "weather_at_exact_decision_time_verified",
+                       "rain_snow_intensity_fitted"):
+              assert report[flag] is False, flag
+          for name in ("go","punt"):
+              sub=report[name]
+              assert sub["all_candidates_use_identical_validation_rows"] is True
+              assert sub["preplay_baseline_is_original_frozen_production_model"] is False
+              assert sub["weather_effect_on_go_or_punt_calibrated_for_official_policy"] is False
+              assert sub["coverage"]["training_rows"]>=400
+              assert sub["coverage"]["validation_rows"]>=75
+              assert "weather_temperature_wind" in sub["model_validation"]
+              assert "weather_temperature_wind" in sub["gains_against_preplay_baseline"]
+              assert len(sub["gains_against_preplay_baseline"]["weather_temperature_wind"]["game_cluster_95pct_ci"])==2
+          assert report["wind_direction_provenance"]["directional_effect_estimated"] is False
+          print("PASS: 2014-2024 GO/PUNT weather ablations; real models unchanged")
+          PY
+      - name: Prove original production models and 2026 holdouts untouched
+        run: |
+          git diff --exit-code -- app.py models data \
+            src/42_build_decision_engine.py \
+            src/66_forward_2026_continuation_wp.py \
+            src/83_forward_2026_native_challenger_once.py
+      - name: Archive only historical research and coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: historical-go-punt-weather-text-direction-evidence
+          path: artifacts/go_punt_weather_2014_2024.json
+          if-no-files-found: ignore
+          retention-days: 30
