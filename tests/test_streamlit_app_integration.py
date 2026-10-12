@@ -659,6 +659,10 @@ def test_weather_is_optional_separate_from_frozen_official_recommendation(ui, mo
     run(ui.at)
     widget(ui.at, "selectbox", "Weather conditions").set_value("Snow")
     run(ui.at)
+    widget(
+        ui.at, "selectbox", "Wind direction relative to offense"
+    ).set_value("Headwind")
+    run(ui.at)
     analyze(ui.at)
 
     observed = metrics(ui.at)
@@ -671,6 +675,7 @@ def test_weather_is_optional_separate_from_frozen_official_recommendation(ui, mo
     assert scenario == {
         "roof": "outdoors", "temperature_f": 32,
         "wind_mph": 24, "conditions": "Snow",
+        "wind_relative_direction": "Headwind",
     }
     assert all("temperature_f" not in state and "wind_mph" not in state
                for state, _, _ in ui.engine.calls)
@@ -684,6 +689,15 @@ def test_weather_is_optional_separate_from_frozen_official_recommendation(ui, mo
     assert metrics(ui.at)["Weather what-if FG make"] == "68.0%"
     # Changing a weather input invalidates the *displayed completed result*.
     widget(ui.at, "number_input", "Wind speed (mph)").set_value(26)
+    run(ui.at)
+    assert "Weather what-if FG make" not in metrics(ui.at)
+    analyze(ui.at)
+    assert "Weather what-if FG make" in metrics(ui.at)
+    # Direction is recorded in the UI but never fed as an official
+    # feature; changing it invalidates stale scenario output.
+    widget(
+        ui.at, "selectbox", "Wind direction relative to offense"
+    ).set_value("Tailwind")
     run(ui.at)
     assert "Weather what-if FG make" not in metrics(ui.at)
 
