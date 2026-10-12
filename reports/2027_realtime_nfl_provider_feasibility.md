@@ -45,6 +45,10 @@ The [full registered-budget benchmark](../src/frozen_2027_policy_latency_rehears
 
 **Interpretation:** Compute time itself appears sub-second for these four sampled states on this particular runner. These tiny samples are **not** an empirical 95th/99th percentile. They exclude Sportradar operator delay and message transport, pre-forecast source reconciliation, live traffic queueing, distributed witness network/signature latency, independent snap timing and server load. A 40-second maximum source-age heuristic does not imply the play is still live or that a forecast can be sealed before the snap. Before even considering a live trial, benchmark a realistic multi-game concurrent feed replay with externally time-referenced snap events and account for ALL missed calls in the denominator. The timing code collects **no** live or historical holdout outcomes and changes no registered model.
 
+## Owner-ready procurement and witness acceptance packet
+
+The [vendor RFI, licensed Pulse evaluation request, independent timestamp/snap evidence contract, and prospective go/no-go checklist](2027_live_feed_vendor_and_witness_procurement_packet.md) were added on October 12, 2026. These are procurement/review materials only: no vendor was contacted, no subscription or TSA was activated, and no real pre-snap forecast has been independently witnessed. The repository must remain **NO-GO** for real prospective collection until an external provider, independent witness and snap reference are demonstrated.
+
 ## Blocking real-2027 requirement matrix
 
 | Requirement | Today | Required evidence before real prospective start |
