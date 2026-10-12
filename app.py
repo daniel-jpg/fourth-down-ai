@@ -1804,11 +1804,27 @@ with st.expander(
                     "separately validated precipitation model exists."
                 ),
             )
+            current_relative_wind = st.selectbox(
+                "Wind direction relative to offense",
+                [
+                    "Unknown",
+                    "Headwind",
+                    "Tailwind",
+                    "Crosswind",
+                    "Variable",
+                ],
+                help=(
+                    "Descriptive only. The historical nflverse weather "
+                    "record does not verify wind direction at the snap; "
+                    "no directional probability adjustment is applied."
+                ),
+            )
             weather_inputs = {
                 "roof": roof,
                 "temperature_f": current_temp_f,
                 "wind_mph": current_wind_mph,
                 "conditions": current_conditions,
+                "wind_relative_direction": current_relative_wind,
             }
             if current_conditions in (
                 "Rain", "Snow", "Mixed precipitation", "Fog",
@@ -2369,8 +2385,10 @@ if situation_valid:
             st.caption(
                 f"Observed: {weather_inputs['temperature_f']}°F, "
                 f"{weather_inputs['wind_mph']} mph wind, "
-                f"{weather_inputs['conditions'].lower()}. "
-                "Wind direction and precipitation effects are not modeled."
+                f"{weather_inputs['conditions'].lower()}; "
+                f"relative wind: {weather_inputs['wind_relative_direction'].lower()}. "
+                "Wind direction and precipitation effects are NOT modeled; "
+                "these selections are descriptive only."
             )
             if weather_error or weather_preview is None:
                 st.warning(
