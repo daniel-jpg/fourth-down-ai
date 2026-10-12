@@ -124,6 +124,14 @@ def verify_response(
             ("chain.pem", intermediate_chain_pem),
         ):
             (work / name).write_bytes(data)
+        query_detail = _openssl(
+            "-query", "-in", "query.tsq", "-text", cwd=work,
+        )
+        if ("Hash Algorithm: sha256" not in query_detail
+                or "Certificate required: yes" not in query_detail
+                or not re.search(r"^Nonce: 0x[0-9A-Fa-f]+$",
+                                 query_detail, re.MULTILINE)):
+            raise ValueError("Require SHA-256, embedded nonce and TSA signer certificate")
         common = (
             "-in", "reply.tsr", "-CAfile", "root.pem",
             "-untrusted", "chain.pem",
