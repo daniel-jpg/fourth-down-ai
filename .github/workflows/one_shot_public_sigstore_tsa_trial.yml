@@ -1,0 +1,125 @@
+name: One-shot public TSA signature proof - fabricated data only
+
+# One-shot technical probe on the file's initial creation (or an explicit edit
+# to this workflow). There is NO cron, real football feed, coach recommendation,
+# protected 2026 validation access, production engine change, or auto promotion.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one_shot_public_sigstore_tsa_trial.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fabricated-sigstore-timestamp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install released cosign client for authenticated Sigstore TUF root
+        uses: sigstore/cosign-installer@v3.10.0
+      - name: Verify Sigstore-signed TUF metadata and get trusted root
+        run: cosign initialize
+      - name: Request exactly one real timestamp for fabricated hash and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import ssl
+          from src.rfc3161_synthetic_tsa_trial import (
+              PUBLIC_TEST_TSA, commitment_bytes, make_query,
+              request_public_test_timestamp, verify_response,
+          )
+
+          # Cosign initialized and verified TUF metadata before this point.
+          # Do NOT download a raw, unauthenticated trusted_root.json via curl.
+          root_path = (
+              Path.home() / ".sigstore" / "root"
+              / "tuf-repo-cdn.sigstore.dev" / "targets" / "trusted_root.json"
+          )
+          if not root_path.is_file() or root_path.is_symlink():
+              raise RuntimeError("Cosign-verified Sigstore TUF target unavailable")
+          trusted_raw = root_path.read_bytes()
+          trust = json.loads(trusted_raw)
+          authorities = [
+              entry for entry in trust.get("timestampAuthorities", [])
+              if entry.get("uri") == PUBLIC_TEST_TSA
+              and entry.get("subject", {}).get("organization") == "sigstore.dev"
+          ]
+          if len(authorities) != 1:
+              raise RuntimeError("Expected one official Sigstore TSA authority")
+          cert_records = authorities[0]["certChain"]["certificates"]
+          if len(cert_records) < 2:
+              raise RuntimeError("Sigstore TSA trust root missing leaf/root chain")
+          der_certs = [
+              base64.b64decode(item["rawBytes"], validate=True)
+              for item in cert_records
+          ]
+          root_pem = ssl.DER_cert_to_PEM_cert(der_certs[-1]).encode("ascii")
+          chain_pem = "".join(
+              ssl.DER_cert_to_PEM_cert(d) for d in der_certs[:-1]
+          ).encode("ascii")
+
+          # Source is a deliberately invented string, not nflverse or 2027.
+          fabricated_hash = hashlib.sha256(
+              b"FOURTH-DOWN-AI-2027-FAKE-EXTERNAL-TIMESTAMP-TRIAL"
+          ).hexdigest()
+          commitment = commitment_bytes(fabricated_hash)
+          query = make_query(commitment)
+          # An opt-in technical trial authorized for this one workflow only.
+          token = request_public_test_timestamp(
+              query, allow_public_network_test=True
+          )
+          verified = verify_response(
+              commitment=commitment,
+              query=query,
+              response=token,
+              trust_anchor_pem=root_pem,
+              intermediate_chain_pem=chain_pem,
+          )
+          if (not verified["nonce_and_commitment_imprint_verified"]
+                  or not verified["signature_and_supplied_trust_chain_verified"]
+                  or verified["independent_snap_timestamp_verified"] is not False
+                  or verified["real_2027_prospective_collection_approved"] is not False):
+              raise RuntimeError("Real third-party timestamp proof is incomplete")
+          # Only a small report; NEVER archive raw feed, signed keys or events.
+          outcome = {
+              **verified,
+              "trusted_root_from_cosign_verified_tuf": True,
+              "tuf_trusted_root_sha256": hashlib.sha256(trusted_raw).hexdigest(),
+              "sigstore_tsa_root_cert_sha256": hashlib.sha256(der_certs[-1]).hexdigest(),
+              "sigstore_tsa_leaf_cert_sha256": hashlib.sha256(der_certs[0]).hexdigest(),
+              "real_provider_connected": False,
+              "live_fourth_down_coverage_verified": False,
+              "real_pre_snap_collection_ready": False,
+              "trial_input_only_fabricated": True,
+              "interpretation": (
+                  "A public TSA signed a commitment to invented source data. "
+                  "No real pre-snap NFL evidence or independently attested snap "
+                  "time exists. This is not prospective or policy validation."
+              ),
+          }
+          dest = Path("artifacts/fabricated_public_tsa_trial.json")
+          dest.parent.mkdir(exist_ok=True)
+          dest.write_text(json.dumps(outcome, sort_keys=True, indent=2) + "\n")
+          print(json.dumps(outcome, sort_keys=True))
+          PY
+      - name: Archive only fabricated token hash and trust-root proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fabricated-one-shot-sigstore-timestamp-evidence
+          path: artifacts/fabricated_public_tsa_trial.json
+          if-no-files-found: ignore
+          retention-days: 14
