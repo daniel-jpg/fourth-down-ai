@@ -131,6 +131,25 @@ def parse_espn_week(payload: Mapping[str, Any], season: int, week: int) -> list[
         if not isinstance(status, dict) or not isinstance(status.get("type"), dict):
             raise ValueError("Missing final game-status provenance")
         if status["type"].get("completed") is not True:
+            # The 2022 W17 BUF @ CIN game was stopped and canceled
+            # without a final score. Do not score its partial points
+            # as final or silently erase an OTHER unfinished matchup.
+            # Even when ESPN exposes the canceled event in the week,
+            # there is no factual final winner to verify for that game.
+            nonfinal = competition.get("competitors", [])
+            if (season == 2022 and week == 17
+                    and status["type"].get("name") in {
+                        "STATUS_CANCELED", "STATUS_POSTPONED",
+                    }
+                    and isinstance(nonfinal, list) and len(nonfinal) == 2
+                    and all(isinstance(x, dict) and
+                            isinstance(x.get("team"), dict) for x in nonfinal)):
+                nonfinal_sides = {
+                    x.get("homeAway"): team_code(x["team"].get("abbreviation"))
+                    for x in nonfinal
+                }
+                if nonfinal_sides == {"home":"CIN", "away":"BUF"}:
+                    continue
             raise ValueError("Historical ESPN game is not final")
         team_rows = competition.get("competitors")
         if not isinstance(team_rows, list) or len(team_rows) != 2:
