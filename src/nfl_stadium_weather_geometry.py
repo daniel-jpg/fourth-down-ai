@@ -86,6 +86,44 @@ def load_stadium_reference(*, season: Any = SUPPORTED_SEASON) -> dict:
                 raise ValueError(
                     "Buffalo 2026 center cannot be paired with a guessed field axis"
                 )
+            qualitative = v.get("qualitative_field_axis")
+            if (
+                not isinstance(qualitative, dict)
+                or qualitative.get("orientation") !=
+                    "NORTH_SOUTH_REPORTED_NOT_SURVEYED"
+                or qualitative.get("end_zone_names") != ["north", "south"]
+                or qualitative.get("nominal_true_north_axis_azimuth_degrees")
+                    is not None
+                or qualitative.get("exact_azimuth_degrees") is not None
+                or qualitative.get("maximum_true_north_deviation_degrees_known")
+                    is not False
+                or qualitative.get("attack_end_for_any_given_snap_known")
+                    is not False
+                or qualitative.get("numerical_wind_projection_authorized")
+                    is not False
+                or qualitative.get("source_grade") !=
+                    "DESIGNER_AND_INDEPENDENT_AP_REPORT"
+            ):
+                raise ValueError(
+                    "Buffalo reported north/south orientation is qualitative "
+                    "only; exact azimuth and snap direction remain unknown"
+                )
+            links = qualitative.get("documentary_sources")
+            if (
+                not isinstance(links, list) or len(links) < 2
+                or not any(
+                    isinstance(s, dict) and s.get("url") ==
+                    "https://populous.com/highmarkstadium"
+                    for s in links
+                )
+                or not any(
+                    isinstance(s, dict) and
+                    "washingtonpost.com/sports/nfl/2026/08/07/" in
+                    s.get("url", "")
+                    for s in links
+                )
+            ):
+                raise ValueError("Buffalo north/south field orientation lacks architect and AP corroboration")
             # A coarse geographic consistency bound rejects reuse of the
             # old Buffalo stadium west/east coordinate or a foreign venue.
             lat = _finite(v.get("lat"), 42.772, 42.774, "new Buffalo latitude")
@@ -144,6 +182,15 @@ def resolve_stadium_location(*, team: Any, season: Any) -> dict[str, Any]:
             "OSM_2026_NEW_BUFFALO_APPROX_CENTER" if team == "BUF"
             else "PINNED_UNVERIFIED_COMMUNITY_GOOGLE_EARTH"
         ),
+        "qualitative_field_orientation": (
+            "REPORTED_APPROX_NORTH_SOUTH_NOT_SURVEYED"
+            if team == "BUF" else "COMMUNITY_APPROX_UNORIENTED_AXIS"
+        ),
+        "physical_endzone_labels": (
+            ["north", "south"] if team == "BUF" else None
+        ),
+        "surveyed_numeric_headwind_projection_approved": False,
+        "attack_end_at_snap_independently_verified": False,
     }
 
 
