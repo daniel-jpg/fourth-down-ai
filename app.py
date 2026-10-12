@@ -5,6 +5,8 @@ import io
 import pandas as pd
 import streamlit as st
 import altair as alt
+from pathlib import Path
+from src.deployment_source_fingerprint import runtime_source_fingerprint
 
 def format_field_position(yardline_100: int) -> str:
     if yardline_100 == 50:
@@ -37,6 +39,15 @@ st.set_page_config(
     page_title="NFL Fourth-Down Decision AI",
     page_icon="🏈",
     layout="wide",
+)
+
+# Hidden synchronization signal for the public-browser deployment test.
+# It displays no build-info panel and never changes model inputs.
+st.markdown(
+    '<span id="fourth-down-runtime-source" '
+    f'data-source-sha256="{runtime_source_fingerprint(Path(__file__).resolve().parent)}" '
+    'hidden></span>',
+    unsafe_allow_html=True,
 )
 
 # =========================================================

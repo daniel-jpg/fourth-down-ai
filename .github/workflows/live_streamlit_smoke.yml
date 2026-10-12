@@ -43,18 +43,30 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Checkout tested main revision
+        uses: actions/checkout@v4
+
+      - name: Calculate expected runtime source fingerprint
+        id: expected
+        run: echo "fingerprint=$(python -m src.deployment_source_fingerprint)" >> "$GITHUB_OUTPUT"
+
       - name: Install Playwright Chromium
         run: |
           python -m pip install playwright==1.55.0
           python -m playwright install --with-deps chromium
 
       - name: Exercise public Streamlit app without changing model state
+        env:
+          EXPECTED_SOURCE_FINGERPRINT: ${{ steps.expected.outputs.fingerprint }}
         run: |
           python - <<'PY'
+          import os
           import time
           from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
           url = "https://fourth-down-ai.streamlit.app/"
+          expected_source_fingerprint = os.environ["EXPECTED_SOURCE_FINGERPRINT"]
+          assert len(expected_source_fingerprint) == 64, "Invalid expected fingerprint"
 
           def find_app_frame(page, seconds=80):
               deadline = time.monotonic() + seconds
@@ -121,24 +133,41 @@ jobs:
                       exact=True
                   ).count() == 0, "Removed scenario checkbox is still visible"
 
-                  # The main GitHub app.py has exposed this section since
-                  # earlier weather commits. If hosted Streamlit still shows
-                  # a form that jumps directly from Stadium/roof to Analyze,
-                  # that is a DEPLOYMENT SYNC problem, not a policy failure.
-                  # Give Community Cloud time to finish any triggered
-                  # dependency-file rebuild; never misreport older UI as
-                  # successful because the Q4 model still returns results.
+                  # A weather heading alone cannot prove a new version deployed.
+                  # Compare a hidden hash of the actual hosted app.py, src/**/*.py,
+                  # src/**/*.json, and pinned requirements against this checkout.
+                  # This marker is invisible to users and changes no predictions.
                   deployment_deadline = time.monotonic() + 180
                   reloads = 0
-                  while app.get_by_text(
-                      "Weather observations (optional)", exact=True
-                  ).count() == 0:
+                  while True:
+                      marker = app.locator("#fourth-down-runtime-source")
+                      hosted_fingerprint = (
+                          marker.first.get_attribute("data-source-sha256")
+                          if marker.count() == 1 else None
+                      )
+                      weather_heading_present = app.get_by_text(
+                          "Weather observations (optional)", exact=True
+                      ).count() > 0
+                      if (
+                          hosted_fingerprint == expected_source_fingerprint
+                          and weather_heading_present
+                      ):
+                          break
                       body = app.locator("body").inner_text(timeout=10000)
                       print(
-                          "HOSTED UI BEHIND EXPECTED GITHUB MAIN? ",
+                          "HOSTED SOURCE BEHIND EXPECTED GITHUB MAIN? ",
                           {
                               "reloads": reloads,
-                              "weather_heading_present": False,
+                              "source_marker_present":
+                                  hosted_fingerprint is not None,
+                              "source_matches_main":
+                                  hosted_fingerprint == expected_source_fingerprint,
+                              "expected_prefix": expected_source_fingerprint[:12],
+                              "hosted_prefix": (
+                                  hosted_fingerprint[:12]
+                                  if hosted_fingerprint else None
+                              ),
+                              "weather_heading_present": weather_heading_present,
                               "model_analyze_present":
                                   "Analyze Fourth Down" in body,
                               "visible_form_tail":
@@ -149,11 +178,11 @@ jobs:
                       if time.monotonic() > deployment_deadline:
                           raise AssertionError(
                               "HOSTED_DEPLOYMENT_NOT_SYNCED_WITH_MAIN: "
-                              "Public Streamlit app renders Q4 but lacks "
-                              "Weather observations (optional), which is "
-                              "present in main/app.py. Check Streamlit Cloud "
-                              "deployment's repo/branch/entrypoint and "
-                              "reboot it; do not claim weather controls live."
+                              "The public Streamlit app lacks the expected "
+                              "source fingerprint or weather UI. Check the "
+                              "Streamlit Cloud repository/branch/entrypoint, "
+                              "review deployment logs and reboot the app. "
+                              "Do not claim that the latest main code is live."
                           )
                       page.wait_for_timeout(12000)
                       page.reload(wait_until="domcontentloaded", timeout=60000)
@@ -161,9 +190,9 @@ jobs:
                       assert app is not None, "Cloud app unavailable after reload"
                       reloads += 1
                   print(
-                      "LIVE PASS: Hosted application includes weather "
-                      "section from latest post-weather main, after "
-                      f"{reloads} reload(s)",
+                      "LIVE PASS: hosted code/dependency source fingerprint "
+                      "matches the tested main checkout and the weather UI "
+                      f"is present, after {reloads} reload(s)",
                       flush=True,
                   )
 
