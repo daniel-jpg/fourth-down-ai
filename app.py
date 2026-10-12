@@ -156,7 +156,8 @@ body {
 }
 
 .los-control {
-    margin-bottom: 10px;
+    /* Make room for the two adjacent Streamlit weather inputs. */
+    margin-bottom: 38px;
 }
 
 .los-control label {
@@ -791,7 +792,7 @@ def draggable_football_field(
 
         width="stretch",
 
-        height=230,
+        height=265,
     )
 
 
@@ -806,6 +807,41 @@ st.markdown(
         max-width: 1200px;
         padding-top: 2rem;
         padding-bottom: 3rem;
+    }
+
+    /* Inline weather lives on the SAME input row as line of scrimmage.
+       Do not split the field diagram into columns or clip its iframe. */
+    .st-key-ball_weather_layout {
+        position: relative;
+    }
+    .st-key-weather_inline_controls {
+        position: absolute !important;
+        right: 0.5rem;
+        top: 0;
+        width: 57%;
+        z-index: 2;
+    }
+    .st-key-weather_inline_controls [data-testid="stHorizontalBlock"] {
+        gap: 0.75rem;
+        align-items: start;
+    }
+    .st-key-weather_inline_controls [data-testid="stNumberInput"] {
+        min-width: 0;
+    }
+    .st-key-weather_inline_controls [data-testid="stNumberInput"] label {
+        font-size: 0.85rem;
+    }
+    .st-key-weather_inline_note {
+        padding-top: 0;
+    }
+    /* On smaller screens, allow a natural row below the wide field.
+       Never create a narrow, independently scrollable field column. */
+    @media (max-width: 850px) {
+        .st-key-weather_inline_controls {
+            position: static !important;
+            width: 100%;
+            margin-top: 0.5rem;
+        }
     }
 
     div[data-testid="stMetric"] {
@@ -1715,20 +1751,18 @@ st.markdown(
     "#### Ball Position"
 )
 
-# Keep the interactive field and optional weather visible in the same row.
-# The right-hand container is populated after reading Stadium / roof below,
-# so covered venues do not expose irrelevant outdoor weather inputs.
-ball_position_col, weather_position_col = st.columns([2.15, 1], gap="large")
-
-with ball_position_col:
+# The field spans the full content width. The small native weather
+# inputs are positioned alongside the field's line-of-scrimmage INPUT
+# row, not alongside (or on top of) the playable field diagram.
+# Keeping the original field component intact preserves its drag/input sync.
+with st.container(key="ball_weather_layout"):
     yardline_100 = draggable_football_field(
         ydstogo=ydstogo,
         default=30,
         key="football_field",
     )
-
-with weather_position_col:
-    weather_slot = st.container()
+    inline_weather_slot = st.container(key="weather_inline_controls")
+    weather_note_slot = st.container(key="weather_inline_note")
 
 max_yards_to_go = max(
     1.0,
@@ -1783,42 +1817,39 @@ with col5:
     )
 
 
-# This content appears in the container beside the ball-position field.
-# Streamlit's blank numeric inputs are truly optional (value=None).
-# Weather never becomes part of the official frozen recommendation.
+# Weather inputs occupy the spare right side of the LOS input row.
+# The field graphic itself is always full-width and not in any column.
 weather_inputs = None
-with weather_slot:
-    st.markdown("**Weather (optional)**")
-    if roof not in ("outdoors", "open"):
-        st.caption(
-            "Covered stadium: outdoor temperature and wind do not apply "
-            "to this optional comparison. Use the normal recommendation."
-        )
-    else:
-        current_temp_f = st.number_input(
-            "Temperature (°F)",
-            min_value=-25,
-            max_value=115,
-            value=None,
-            step=1,
-            placeholder="Leave blank",
-            help=(
-                "Optional outdoor temperature in Fahrenheit, observed "
-                "at the time of the fourth-down decision."
-            ),
-        )
-        current_wind_mph = st.number_input(
-            "Wind speed (mph)",
-            min_value=0,
-            max_value=40,
-            value=None,
-            step=1,
-            placeholder="Leave blank",
-            help=(
-                "Optional outdoor wind speed in mph, observed at the play. "
-                "Wind direction is not modeled."
-            ),
-        )
+with inline_weather_slot:
+    if roof in ("outdoors", "open"):
+        temp_col, wind_col = st.columns(2, gap="small")
+        with temp_col:
+            current_temp_f = st.number_input(
+                "Temperature (°F)",
+                min_value=-25,
+                max_value=115,
+                value=None,
+                step=1,
+                placeholder="Optional",
+                help=(
+                    "Outdoor temperature observed before the play. "
+                    "Only used by an unvalidated experimental FG comparison."
+                ),
+            )
+        with wind_col:
+            current_wind_mph = st.number_input(
+                "Wind speed (mph)",
+                min_value=0,
+                max_value=40,
+                value=None,
+                step=1,
+                placeholder="Optional",
+                help=(
+                    "Outdoor wind speed observed before the play. "
+                    "Only used by an unvalidated experimental FG comparison. "
+                    "Wind direction is not modeled."
+                ),
+            )
         if current_temp_f is not None and current_wind_mph is not None:
             weather_inputs = {
                 "roof": roof,
@@ -1826,22 +1857,29 @@ with weather_slot:
                 "wind_mph": current_wind_mph,
                 "conditions": "Unknown",
             }
-            st.caption(
-                "Experimental field-goal comparison enabled. "
-                "It did not improve validation accuracy and cannot "
-                "change the official recommended play."
-            )
-        elif current_temp_f is not None or current_wind_mph is not None:
-            st.caption(
-                "Add the other weather value to see the experimental "
-                "field-goal comparison. You can still analyze normally."
-            )
-        else:
-            st.caption(
-                "Leave either field blank to skip the experimental "
-                "field-goal comparison. The official recommendation "
-                "never uses weather."
-            )
+
+with weather_note_slot:
+    if roof not in ("outdoors", "open"):
+        st.caption(
+            "Covered stadium: outdoor temperature and wind do not apply "
+            "to this optional comparison. Use the normal recommendation."
+        )
+    elif weather_inputs is not None:
+        st.caption(
+            "Experimental FG comparison enabled; it did not improve "
+            "validation accuracy and does not change the official play."
+        )
+    elif current_temp_f is not None or current_wind_mph is not None:
+        st.caption(
+            "Add the other weather value to see the experimental "
+            "field-goal comparison. You can still analyze normally."
+        )
+    else:
+        st.caption(
+            "Temperature and wind are optional. Both are needed for "
+            "the experimental FG what-if; the official recommendation "
+            "never uses weather."
+        )
 
 
 second_half_receiver = None
