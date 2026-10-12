@@ -42,6 +42,10 @@ PINNED_ASSETS = {
     "data/fg_live_transition_rates.parquet": "090bbd4cfb119e7ed4bcc3ace895989fe32ccff5",
     "data/win_probability_spec.json": "857ef77f7ca0a041502ed28811fdcbf48a5d6e95",
     "data/fourth_down_modeling_split.parquet": "fa1d64f187810c08edc9a113051c8b633e2e9168",
+    # These TWO functions are part of the true registered policy. Merely
+    # running the frozen base engine would silently use old Q4 kickoff inputs.
+    "src/streamlit_kickoff_preview.py": "c41782a34b1f0e9e75ec812174247d6dae3273fd",
+    "src/kickoff_q4_native_features_candidate.py": "03bca375f042b24fb51099050cc7b3fd9ef796a7",
 }
 # Historical X intentionally excludes roof/kickoff receiver: those remain
 # decision-engine context and must be sourced independently at snap time.
@@ -51,8 +55,13 @@ SNAPSHOT_KEYS = frozenset(PRESNAP_COLUMNS) | {
 }
 ROOF_VALUES = frozenset({"outdoors", "open", "closed", "dome", "indoors"})
 NORMAL_ORDER = ("NORMAL_GO_RUN", "NORMAL_GO_PASS", "PUNT", "FIELD_GOAL")
-N_SIMULATIONS, RANDOM_SEED = 4000, 42
+ENGINE_SIMULATIONS = 4000
+APP_PILOT_SIMULATIONS, APP_HIGH_SIMULATIONS = 300, 1200
+RANDOM_SEED, HIGH_SEED = 42, 43
 MC_HEURISTIC_Z = 1.96
+# Pinned app.py is NOT the same file on main because later changes added
+# UI reliability notices. These values are frozen from its registered commit.
+REGISTERED_APP_BLOB = "b5588fb16bff7bb595155ab5141e946303f56a1f"
 if frozenset(NORMAL_ORDER) != ACTIONS:
     raise RuntimeError("Normal action vocabulary differs from registered 2027 policy")
 
@@ -88,7 +97,7 @@ def load_verified_engine(root: Path = ROOT):
         raise RuntimeError("Unable to load registered 2027 policy module")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    if (module.N_SIMULATIONS != N_SIMULATIONS or module.RANDOM_SEED != RANDOM_SEED
+    if (module.N_SIMULATIONS != ENGINE_SIMULATIONS or module.RANDOM_SEED != RANDOM_SEED
             or module.ALLOW_FAKE_RECOMMENDATIONS is not False):
         raise RuntimeError("Policy seed, simulations, or fake action eligibility changed")
     return module
@@ -185,10 +194,93 @@ def engine_state(raw: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _action_gap_z(result: Mapping[str, Any]) -> float:
+    """Exact fixed app pilot criterion (action level, excluding fakes)."""
+    rows = result.get("results")
+    if not isinstance(rows, pd.DataFrame) or not {
+        "action", "eligible", "expected_win_probability", "mc_se"
+    }.issubset(rows):
+        raise RuntimeError("Invalid pilot action results")
+    top = rows.loc[
+        rows["eligible"] & ~rows["action"].str.startswith("FAKE_")
+    ].sort_values("expected_win_probability", ascending=False)
+    if len(top) < 2:
+        return math.inf
+    a, b = top.iloc[0], top.iloc[1]
+    vals = [
+        float(a["expected_win_probability"]), float(a["mc_se"]),
+        float(b["expected_win_probability"]), float(b["mc_se"]),
+    ]
+    if not all(math.isfinite(v) for v in vals):
+        return math.nan
+    gap = vals[0]-vals[2]
+    denominator = math.hypot(vals[1], vals[3])
+    if denominator > 0:
+        return gap/denominator
+    return math.inf if gap > 0 else 0.
+
+
+def registered_policy_response(
+    engine: Any, state: Mapping[str, Any], *,
+    synthetic_high_budget: int = APP_HIGH_SIMULATIONS,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Use the actual registered app policy, NOT bare engine.recommend.
+
+    Q4: native standard-35 kickoff state via per-call isolated engine,
+    always 1200 simulations/seed43 in the registered app.
+    Q1-Q3: 300/seed42 pilot, and rerun 1200/seed43 only if
+    the action gap is <1.96 combined MC SE or nonfinite.
+
+    Lower budgets are allowed only for synthetic test smoke runs and
+    are explicitly labeled as NOT reproducing official numeric precision.
+    """
+    n = _int(synthetic_high_budget, "synthetic_high_budget",
+             2, APP_HIGH_SIMULATIONS)
+    if int(state["qtr"]) == 4:
+        if n < 200:
+            raise ValueError("Q4 native kickoff patch requires >=200 simulations")
+        from src.streamlit_kickoff_preview import (
+            isolated_engine_from_loaded_engine,
+            preview_native_kickoff_feature_candidate,
+        )
+        private = isolated_engine_from_loaded_engine(engine)
+        result = preview_native_kickoff_feature_candidate(
+            state, simulations=n, action_seed=HIGH_SEED,
+            isolated_engine=private,
+        )
+        return result, {
+            "kickoff_input_mode": "Q4_NATIVE_STANDARD_35",
+            "simulation_count": n, "final_seed": HIGH_SEED,
+            "pilot_simulations": 0, "pilot_action_gap_z": None,
+            "adaptive_escalated": False,
+        }
+    pilot_n = min(APP_PILOT_SIMULATIONS, n)
+    pilot = engine.recommend(
+        dict(state), n_simulations=pilot_n, seed=RANDOM_SEED,
+    )
+    z = _action_gap_z(pilot)
+    escalate = not math.isfinite(z) or z < MC_HEURISTIC_Z
+    if escalate:
+        output = engine.recommend(
+            dict(state), n_simulations=n, seed=HIGH_SEED,
+        )
+    else:
+        output = pilot
+    return output, {
+        "kickoff_input_mode": "NO_Q4_KICKOFF_PATCH",
+        "simulation_count": n if escalate else pilot_n,
+        "final_seed": HIGH_SEED if escalate else RANDOM_SEED,
+        "pilot_simulations": pilot_n, "pilot_action_gap_z": (
+            z if math.isfinite(z) else None
+        ),
+        "adaptive_escalated": bool(escalate),
+    }
+
+
 def build_synthetic_policy_forecast(
     manifest: Mapping[str, Any], raw: Mapping[str, Any], *,
     engine: Any, nuisance_snapshot: Mapping[str, Any],
-    n_simulations: int = N_SIMULATIONS, seed: int = RANDOM_SEED,
+    n_simulations: int = APP_HIGH_SIMULATIONS, seed: int = RANDOM_SEED,
 ) -> dict[str, Any]:
     """Synthetic pre-snap forecast -> existing cohort_builder input.
 
@@ -202,12 +294,14 @@ def build_synthetic_policy_forecast(
         "policy_commit": POLICY_COMMIT,
     }:
         raise ValueError("Only synthetic fabricated pinned manifest allowed")
-    n = _int(n_simulations, "n_simulations", 2, N_SIMULATIONS)
+    n = _int(n_simulations, "n_simulations", 2, APP_HIGH_SIMULATIONS)
     if type(seed) is not int or seed != RANDOM_SEED:
         raise ValueError("Policy seed must stay pinned to 42")
     pre = validate_synthetic_snapshot(raw)
     state = engine_state(raw)
-    output = engine.recommend(state, n_simulations=n, seed=seed)
+    output, replay_info = registered_policy_response(
+        engine, state, synthetic_high_budget=n
+    )
     if not isinstance(output, dict) or not isinstance(output.get("results"), pd.DataFrame):
         raise RuntimeError("Frozen engine returned no result table")
     scored = output["results"]
@@ -277,8 +371,15 @@ def build_synthetic_policy_forecast(
             "frozen_policy_commit": POLICY_COMMIT,
             "engine_blob_sha1": PINNED_ENGINE_BLOB,
             "historical_nuisance": EXPECTED_STATUS,
-            "simulation_count": n, "seed": seed,
-            "full_precision": n == N_SIMULATIONS,
+            "simulation_count": replay_info["simulation_count"],
+            "seed": replay_info["final_seed"],
+            "full_precision": n == APP_HIGH_SIMULATIONS,
+            "registered_app_blob": REGISTERED_APP_BLOB,
+            "kickoff_input_mode": replay_info["kickoff_input_mode"],
+            "adaptive_escalated": replay_info["adaptive_escalated"],
+            "pilot_action_gap_z": replay_info["pilot_action_gap_z"],
+            "pilot_simulations": replay_info["pilot_simulations"],
+            "default_kicker_context": "PINNED ENGINE MODEL PRIOR, NO INDIVIDUAL KICKER DATA",
             "site": raw["site"], "goal_to_go": raw["goal_to_go"],
             "roof": raw["roof"],
             "second_half_receiver": raw["second_half_receiver"],
