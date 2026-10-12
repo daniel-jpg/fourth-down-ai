@@ -1,0 +1,153 @@
+{
+  "schema": "2026_NFL_OFFICIAL_SCHEDULED_INTERNATIONAL_VENUES_V1",
+  "season": 2026,
+  "as_of": "2026-10-12",
+  "source": "https://operations.nfl.com/programs-initiatives/international-growth/nfl-international-games",
+  "source_kind": "NFL-official published international game schedule, not an actual play-level venue witness or authenticated game result",
+  "nfl_schedule_date_et_notice": "Date identifies the NFL published Eastern Time schedule date. Australia hosts the local Friday morning after the ET Thursday game date.",
+  "events": [
+    {
+      "nfl_schedule_date_et": "2026-09-10",
+      "participants": [
+        "SF",
+        "LAR"
+      ],
+      "venue_name": "Melbourne Cricket Ground",
+      "city_country": "Melbourne, Australia",
+      "external_venue_id": "AUS-MCG",
+      "stadium_coordinates": null,
+      "playing_field_axis": null,
+      "actual_game_played_verified": false,
+      "opposite_direction_at_snap_verified": false,
+      "roster_or_outcome_loaded": false
+    },
+    {
+      "nfl_schedule_date_et": "2026-09-27",
+      "participants": [
+        "BAL",
+        "DAL"
+      ],
+      "venue_name": "Maracanã Stadium",
+      "city_country": "Rio de Janeiro, Brazil",
+      "external_venue_id": "BRA-MARACANA",
+      "stadium_coordinates": null,
+      "playing_field_axis": null,
+      "actual_game_played_verified": false,
+      "opposite_direction_at_snap_verified": false,
+      "roster_or_outcome_loaded": false
+    },
+    {
+      "nfl_schedule_date_et": "2026-10-04",
+      "participants": [
+        "IND",
+        "WAS"
+      ],
+      "venue_name": "Tottenham Hotspur Stadium",
+      "city_country": "London, United Kingdom",
+      "external_venue_id": "GBR-TOTTENHAM",
+      "stadium_coordinates": null,
+      "playing_field_axis": null,
+      "actual_game_played_verified": false,
+      "opposite_direction_at_snap_verified": false,
+      "roster_or_outcome_loaded": false
+    },
+    {
+      "nfl_schedule_date_et": "2026-10-11",
+      "participants": [
+        "PHI",
+        "JAX"
+      ],
+      "venue_name": "Tottenham Hotspur Stadium",
+      "city_country": "London, United Kingdom",
+      "external_venue_id": "GBR-TOTTENHAM",
+      "stadium_coordinates": null,
+      "playing_field_axis": null,
+      "actual_game_played_verified": false,
+      "opposite_direction_at_snap_verified": false,
+      "roster_or_outcome_loaded": false
+    },
+    {
+      "nfl_schedule_date_et": "2026-10-18",
+      "participants": [
+        "HOU",
+        "JAX"
+      ],
+      "venue_name": "Wembley Stadium",
+      "city_country": "London, United Kingdom",
+      "external_venue_id": "GBR-WEMBLEY",
+      "stadium_coordinates": null,
+      "playing_field_axis": null,
+      "actual_game_played_verified": false,
+      "opposite_direction_at_snap_verified": false,
+      "roster_or_outcome_loaded": false
+    },
+    {
+      "nfl_schedule_date_et": "2026-10-25",
+      "participants": [
+        "PIT",
+        "NO"
+      ],
+      "venue_name": "Stade de France",
+      "city_country": "Paris, France",
+      "external_venue_id": "FRA-STADEDEFRANCE",
+      "stadium_coordinates": null,
+      "playing_field_axis": null,
+      "actual_game_played_verified": false,
+      "opposite_direction_at_snap_verified": false,
+      "roster_or_outcome_loaded": false
+    },
+    {
+      "nfl_schedule_date_et": "2026-11-08",
+      "participants": [
+        "CIN",
+        "ATL"
+      ],
+      "venue_name": "Bernabéu Stadium",
+      "city_country": "Madrid, Spain",
+      "external_venue_id": "ESP-BERNABEU",
+      "stadium_coordinates": null,
+      "playing_field_axis": null,
+      "actual_game_played_verified": false,
+      "opposite_direction_at_snap_verified": false,
+      "roster_or_outcome_loaded": false
+    },
+    {
+      "nfl_schedule_date_et": "2026-11-15",
+      "participants": [
+        "NE",
+        "DET"
+      ],
+      "venue_name": "FC Bayern Munich Arena",
+      "city_country": "Munich, Germany",
+      "external_venue_id": "DEU-MUNICH-ARENA",
+      "stadium_coordinates": null,
+      "playing_field_axis": null,
+      "actual_game_played_verified": false,
+      "opposite_direction_at_snap_verified": false,
+      "roster_or_outcome_loaded": false
+    },
+    {
+      "nfl_schedule_date_et": "2026-11-22",
+      "participants": [
+        "MIN",
+        "SF"
+      ],
+      "venue_name": "Estadio Banorte",
+      "city_country": "Mexico City, Mexico",
+      "external_venue_id": "MEX-ESTADIO-BANORTE",
+      "stadium_coordinates": null,
+      "playing_field_axis": null,
+      "actual_game_played_verified": false,
+      "opposite_direction_at_snap_verified": false,
+      "roster_or_outcome_loaded": false
+    }
+  ],
+  "constraints": [
+    "This records only nine official 2026 international schedules; other neutral/relocated/alternate venues must be verified separately.",
+    "The default 2026 NFL team home-stadium map is NOT valid for these fixtures.",
+    "No coordinates or fields are inferred for international venues; no prediction weather adjustment.",
+    "Never guess which physical goal line the offense attacks from NFL home/away or quarter.",
+    "Scheduled venue information does not prove the game occurred, its specific snap timing, roof or results.",
+    "No 2026 protected outcomes or 2027 results were inspected."
+  ]
+}
