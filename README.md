@@ -351,6 +351,19 @@ the actual snap. Paid feed entitlement, externally trusted time,
 per-game roof/receiver coverage and authorized real capture remain
 unresolved.
 
+For a future, separate model version, the
+[shadow historical-data refresh](reports/shadow_historical_development_intake.md)
+now rehearses a safe nflverse-based intake **only on the pinned
+2014–2025 archive**. It checks the original Git blob before opening any
+Parquet rows, replays the independent ESPN final-score check, preserves
+separate pre-snap features / actual actions / post-game labels, and
+partitions training (2014–22), validation (2023–24), and the **previously
+examined** 2025 development season. Outputs are untracked manifests and
+separate Parquet tables under artifacts/, not new production models.
+An updated 2026/2027 source is explicitly rejected until a new,
+independently approved experiment permits it; nflverse does not replace
+true pre-snap evidence for the 2027 prospective study.
+
 Passing the original once-only 2026 native-kickoff test may eventually
 allow narrowing the phrase *"kickoff inputs not yet validated on future
 games"*; even a positive 2027 observational result would not by itself
