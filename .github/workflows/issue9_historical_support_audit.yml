@@ -1,0 +1,45 @@
+name: Issue 9 historical support audit
+
+# One-time historical model audit only. Do not run reserved 2026+ data.
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/audit_issue9_support_and_branches.py
+      - .github/workflows/issue9_historical_support_audit.yml
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check out frozen repository artifacts
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install existing test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Compile historical-only audit
+        run: python -m py_compile scripts/audit_issue9_support_and_branches.py
+
+      - name: Audit development support and action branches
+        run: |
+          PYTHONPATH=. python scripts/audit_issue9_support_and_branches.py | tee issue9-audit.txt
+
+      - name: Preserve historical audit outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue9-development-only-audit
+          path: issue9-audit.txt
+          if-no-files-found: ignore
+          retention-days: 14
