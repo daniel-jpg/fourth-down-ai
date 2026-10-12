@@ -17,7 +17,8 @@
     "Buffalo 2026 new stadium center approximate coordinates are recorded from current OSM; its unsurveyed field axis is still MISSING. Never use retired stadium 2025 coordinates/direction.",
     "Tennessee existing 2026 stadium mapping expires before planned 2027 move.",
     "No real current live weather is fetched or inferred from this registry.",
-    "Never feeds the frozen fourth-down model or validates on-field wind or precipitation."
+    "Never feeds the frozen fourth-down model or validates on-field wind or precipitation.",
+    "New Buffalo architecture/AP prove qualitative north/south orientation, not exact true-north field bearing or the direction at a specific fourth-down snap; numerical wind vectors remain prohibited."
   ],
   "venues": {
     "ARI": {
@@ -68,7 +69,38 @@
         "no_survey_or_field_axis": true,
         "caution": "Approximate map feature center, not stadium playing-field center; do not reuse previous Highmark Stadium coordinate or field axis."
       },
-      "note": "Replacement 2026 stadium center (~42.77304,-78.79219), west of old field. Verified approximate venue site from OSM-derived mapping and independent coordinate reference; physical end-zone compass axis NOT verified. Direction-aware METAR calculation remains BLOCKED."
+      "note": "Replacement 2026 stadium center (~42.77304,-78.79219), west of old field. Verified approximate venue site from OSM-derived mapping and independent coordinate reference; physical end-zone compass axis NOT verified. Direction-aware METAR calculation remains BLOCKED. Later documentary review confirms approximate NORTH/SOUTH field axis via architect and AP; no surveyed azimuth, no known snap attack end.",
+      "qualitative_field_axis": {
+        "orientation": "NORTH_SOUTH_REPORTED_NOT_SURVEYED",
+        "end_zone_names": [
+          "north",
+          "south"
+        ],
+        "nominal_true_north_axis_azimuth_degrees": null,
+        "exact_azimuth_degrees": null,
+        "maximum_true_north_deviation_degrees_known": false,
+        "attack_end_for_any_given_snap_known": false,
+        "source_grade": "DESIGNER_AND_INDEPENDENT_AP_REPORT",
+        "documentary_sources": [
+          {
+            "publisher": "Populous stadium architect",
+            "url": "https://populous.com/highmarkstadium",
+            "description": "Stadium architect documents north and south end zones and northern entrance"
+          },
+          {
+            "publisher": "Associated Press (republished by Washington Post)",
+            "url": "https://www.washingtonpost.com/sports/nfl/2026/08/07/bills-highmark-stadium/2467e0ae-9291-11f1-9fdc-0a725c989a7b_story.html",
+            "description": "AP Aug 7 2026 reports new north-south rather than old west-east stadium orientation"
+          },
+          {
+            "publisher": "WBEN / Audacy on-site reporter",
+            "url": "https://www.audacy.com/wcmf/sports/buffalo-bills/bills-open-highmark-stadium-for-first-event",
+            "description": "2026 report distinguishes north end-zone entrance and south end zone"
+          }
+        ],
+        "numerical_wind_projection_authorized": false,
+        "caveat": "These credible sources establish qualitative N/S orientation but NOT exact field-axis true azimuth; no snap-specific attacking end has been independently validated."
+      }
     },
     "CAR": {
       "team": "CAR",
