@@ -40,6 +40,7 @@ class FixedEngine:
         self.close = False
         self.bad_detail = False
         self.wp_overrides = {}
+        self.native_wp_overrides = {}
         self.calls = []
         self.outputs = []
 
@@ -143,6 +144,21 @@ def ui(monkeypatch):
         fn = Mock(side_effect=lambda *args, **kwargs: engine.result(experimental=True))
         monkeypatch.setattr(preview, name, fn)
         previews[name] = fn
+
+    def native_q4_estimate(state, *, simulations, action_seed):
+        # Private Q4 preview boundary; only Q4 receives updated results.
+        result = engine.recommend(
+            state, n_simulations=simulations, seed=action_seed,
+        )
+        for action, value in engine.native_wp_overrides.items():
+            rows = result["results"]
+            rows.loc[rows["action"].eq(action),
+                     "expected_win_probability"] = value
+        return result
+
+    native = Mock(side_effect=native_q4_estimate)
+    monkeypatch.setattr(preview, "preview_native_kickoff_feature_candidate", native)
+    previews["preview_native_kickoff_feature_candidate"] = native
     at = run(AppTest.from_file(str(ROOT / "app.py"), default_timeout=15))
     yield SimpleNamespace(at=at, engine=engine, probe=probe, previews=previews)
     # Do not leak the fake cached module to real-engine tests or another session.
@@ -174,12 +190,15 @@ def test_regulation_inputs_reach_engine_and_render_probabilities(ui, quarter, se
     widget(at, "selectbox", "Stadium / roof").set_value("closed")
     run(at)
     analyze(at)
+    budget = (1200, 43) if quarter == 4 else (300, 42)
     assert ui.engine.calls == [({
         "qtr": quarter, "game_seconds_remaining": seconds,
         "yardline_100": 30, "ydstogo": 2., "score_differential": -4.,
         "posteam_timeouts_remaining": 1., "defteam_timeouts_remaining": 2.,
         "site": "NEUTRAL", "roof": "closed",
-    }, 300, 42)]
+    }, *budget)]
+    native = ui.previews["preview_native_kickoff_feature_candidate"]
+    assert native.call_count == (1 if quarter == 4 else 0)
     assert metrics(at) == {
         "Recommendation": "GO FOR IT", "Win probability if chosen": "64.00%",
         "Advantage over FIELD GOAL": "+24.00 pp", "PASS / DROPBACK": "64.00%",
@@ -242,7 +261,10 @@ def test_invalid_explanation_fails_closed_but_official_result_remains(ui):
 
 
 def test_close_action_fixture_exercises_adaptive_budget_and_playcall_message(ui):
+    # Non-Q4 cases keep the original adaptive Monte Carlo budget.
     ui.engine.close = True
+    widget(ui.at, "radio", "Quarter").set_value(3)
+    run(ui.at)
     analyze(ui.at)
     assert [(n, seed) for _, n, seed in ui.engine.calls] == [(300, 42), (1200, 43)]
     assert "Slight lean: PASS / DROPBACK" in values(ui.at, "info")
@@ -307,20 +329,22 @@ def test_second_quarter_requires_known_halftime_receiver(ui, receiver, expected)
     ui.probe.assert_not_called()
 
 
-def test_q4_material_warning_is_automatic_and_does_not_change_official_results(ui):
+def test_q4_material_sensitivity_shows_close_call_and_new_estimates(ui):
     ui.probe.return_value = {
         "applicable": True, "material": True,
-        "legacy_conditional_made_fg_wp": .76, "native_conditional_made_fg_wp": .50,
+        "legacy_conditional_made_fg_wp": .76,
+        "native_conditional_made_fg_wp": .50,
         "absolute_difference_pp": 26., "assumed_fg_execution_seconds": 5.,
     }
     analyze(ui.at)
-    assert "Model reliability warning" in values(ui.at, "warning")
-    assert "conditional post-FG win probabilities" in values(ui.at, "warning")
-    assert "frozen-model outputs are unchanged" in values(ui.at, "warning")
+    assert "Close call" in values(ui.at, "info")
     assert metrics(ui.at)["Win probability if chosen"] == "64.00%"
+    assert "Q4 estimates use corrected standard-35" in values(ui.at, "caption")
     assert not any("experimental" in c.label.lower() for c in ui.at.checkbox)
     ui.probe.assert_called_once_with(ui.engine.calls[0][0])
-    assert not any(fn.called for fn in ui.previews.values())
+    ui.previews["preview_native_kickoff_feature_candidate"].assert_called_once()
+    assert not any(fn.called for name, fn in ui.previews.items()
+                   if name != "preview_native_kickoff_feature_candidate")
 
 
 @pytest.mark.parametrize("quarter,clock", [(3, "07:38"), (4, "00:45"), (4, "00:00")])
@@ -330,26 +354,27 @@ def test_warning_probe_skips_out_of_scope_periods_and_clocks(ui, quarter, clock)
     run(ui.at)
     analyze(ui.at)
     ui.probe.assert_not_called()
-    assert "Model reliability warning" not in values(ui.at, "warning")
+    assert "Close call" not in values(ui.at, "info")
 
 
-def test_warning_probe_failure_has_visible_fallback_and_preserves_result(ui):
+def test_sensitivity_probe_failure_keeps_updated_result_with_caution(ui):
     ui.probe.side_effect = RuntimeError("unavailable fixture")
     analyze(ui.at)
-    assert "reliability check is unavailable" in values(ui.at, "caption")
+    assert "Kickoff sensitivity check unavailable" in values(ui.at, "caption")
     assert metrics(ui.at)["FIELD GOAL"] == "40.00%"
+    assert ui.previews["preview_native_kickoff_feature_candidate"].called
 
 
-def test_q4_459_trailing_four_fg_sensitivity_is_not_a_confident_pick(ui):
-    # Real historical reproducibility state: 4th-and-4 at opponent 6,
-    # trailing 27-31 with 4:59 and both teams holding three timeouts.
-    # Fixed estimates mirror the observed live official model output;
-    # the reliability probe is mocked to avoid a second live engine.
+def test_q4_459_trailing_four_recomputes_wp_and_shows_close_call(ui):
+    # The exact requested state. These output numbers are MOCKS to verify
+    # updated display wiring, not claimed real-engine probabilities.
     at = AppTest.from_file(str(ROOT / "app.py"), default_timeout=15)
     at.session_state["football_field"] = {"yardline_100": 6}
     ui.engine.wp_overrides = {
-        "NORMAL_GO_PASS": .3545,
-        "FIELD_GOAL": .4157,
+        "NORMAL_GO_PASS": .3545, "FIELD_GOAL": .4157,
+    }
+    ui.engine.native_wp_overrides = {
+        "NORMAL_GO_PASS": .3680, "FIELD_GOAL": .3820,
     }
     ui.engine.unavailable = {"NORMAL_GO_RUN", "PUNT"}
     ui.probe.return_value = {
@@ -366,28 +391,28 @@ def test_q4_459_trailing_four_fg_sensitivity_is_not_a_confident_pick(ui):
     widget(at, "number_input", "Defense score").set_value(31)
     run(at)
     analyze(at)
-
-    observed_state = ui.engine.calls[0][0]
-    assert observed_state["game_seconds_remaining"] == 299.
-    assert observed_state["yardline_100"] == 6
-    assert observed_state["ydstogo"] == 4.
-    assert observed_state["score_differential"] == -4.
-    assert observed_state["site"] == "AWAY"
-    assert ui.probe.call_count == 1
+    state = ui.engine.calls[0][0]
+    assert state["game_seconds_remaining"] == 299.
+    assert state["yardline_100"] == 6
+    assert state["ydstogo"] == 4.
+    assert state["score_differential"] == -4.
+    assert state["site"] == "AWAY"
+    assert ui.engine.calls[0][1:] == (1200, 43)
     assert len(ui.engine.calls) == 1
-    assert metrics(at)["Recommendation"] == "INCONCLUSIVE"
-    assert metrics(at)["Frozen-model FG WP"] == "41.57%"
-    assert metrics(at)["Unverified FG lead vs GO FOR IT"] == "+6.12 pp"
-    assert metrics(at)["FIELD GOAL"] == "41.57%"
-    assert metrics(at)["PASS / DROPBACK"] == "35.45%"
-    assert "No dependable pick" in values(at, "info")
-    assert "Model reliability warning" in values(at, "warning")
-    assert "separate experimental panel" not in values(at, "warning")
-    assert "2025 kickoff comparison" not in [w.label for w in at.expander]
-    assert not any(fn.called for fn in ui.previews.values())
+    ui.previews["preview_native_kickoff_feature_candidate"].assert_called_once()
+    assert ui.probe.call_count == 1
+    assert metrics(at)["Recommendation"] == "FIELD GOAL"
+    assert metrics(at)["Win probability if chosen"] == "38.20%"
+    assert metrics(at)["Advantage over GO FOR IT"] == "+1.40 pp"
+    assert metrics(at)["FIELD GOAL"] == "38.20%"
+    assert metrics(at)["PASS / DROPBACK"] == "36.80%"
+    assert "Close call" in values(at, "info")
+    assert "INCONCLUSIVE" not in str(metrics(at))
+    assert "Model reliability warning" not in values(at, "warning")
+    assert not any("kickoff comparison" in e.label.lower() for e in at.expander)
 
 
-def test_q4_nonmaterial_fg_leader_retains_original_recommendation(ui):
+def test_q4_nonmaterial_fg_leader_is_a_normal_recommendation(ui):
     ui.engine.wp_overrides = {"NORMAL_GO_PASS": .35, "FIELD_GOAL": .41}
     ui.engine.unavailable = {"NORMAL_GO_RUN"}
     ui.probe.return_value = {"applicable": True, "material": False}
@@ -395,24 +420,23 @@ def test_q4_nonmaterial_fg_leader_retains_original_recommendation(ui):
     assert metrics(ui.at)["Recommendation"] == "FIELD GOAL"
     assert metrics(ui.at)["Win probability if chosen"] == "41.00%"
     assert metrics(ui.at)["Advantage over GO FOR IT"] == "+6.00 pp"
-    assert "Frozen-model FG WP" not in metrics(ui.at)
-    assert "Model reliability warning" not in values(ui.at, "warning")
+    assert "Close call" not in values(ui.at, "info")
+    ui.previews["preview_native_kickoff_feature_candidate"].assert_called_once()
 
 
-def test_q4_fg_leader_probe_failure_fails_closed_without_changing_wp(ui):
+def test_q4_probe_failure_preserves_field_goal_leader(ui):
     ui.engine.wp_overrides = {"NORMAL_GO_PASS": .35, "FIELD_GOAL": .41}
     ui.engine.unavailable = {"NORMAL_GO_RUN"}
-    ui.probe.side_effect = RuntimeError("probe unavailable")
+    ui.probe.side_effect = RuntimeError("unavailable fixture")
     analyze(ui.at)
-    assert metrics(ui.at)["Recommendation"] == "INCONCLUSIVE"
-    assert metrics(ui.at)["Frozen-model FG WP"] == "41.00%"
+    assert metrics(ui.at)["Recommendation"] == "FIELD GOAL"
+    assert metrics(ui.at)["Win probability if chosen"] == "41.00%"
     assert metrics(ui.at)["FIELD GOAL"] == "41.00%"
-    assert "reliability check is unavailable" in values(ui.at, "caption")
-    assert "No dependable pick" in values(ui.at, "info")
+    assert "Kickoff sensitivity check unavailable" in values(ui.at, "caption")
     assert len(ui.engine.calls) == 1
 
 
-def test_public_q4_analysis_uses_only_official_model(ui):
+def test_public_q4_uses_native_kickoff_calculation_without_any_toggle(ui):
     at = ui.at
     assert not any("kickoff comparison" in e.label.lower() for e in at.expander)
     assert not any("experimental" in c.label.lower() for c in at.checkbox)
@@ -420,7 +444,9 @@ def test_public_q4_analysis_uses_only_official_model(ui):
     assert metrics(at)["Recommendation"] == "GO FOR IT"
     assert metrics(at)["FIELD GOAL"] == "40.00%"
     assert len(ui.engine.calls) == 1
-    assert not any(fn.called for fn in ui.previews.values())
+    ui.previews["preview_native_kickoff_feature_candidate"].assert_called_once()
+    assert not any(fn.called for name, fn in ui.previews.items()
+                   if name != "preview_native_kickoff_feature_candidate")
     assert not any("Experimental strategy" in name for name in metrics(at))
 
 
@@ -499,12 +525,10 @@ def test_real_frozen_engine_loads_and_renders_without_live_data(monkeypatch, qua
         run(at)
         analyze(at)
         assert metrics(at)["Recommendation"] in {
-            "GO FOR IT", "FIELD GOAL", "PUNT", "INCONCLUSIVE",
+            "GO FOR IT", "FIELD GOAL", "PUNT",
         }
-        if metrics(at)["Recommendation"] == "INCONCLUSIVE":
-            assert quarter == 4
-            assert "Frozen-model FG WP" in metrics(at)
-            assert "Model reliability warning" in values(at, "warning")
+        if quarter == 4:
+            assert "Q4 estimates use corrected standard-35" in values(at, "caption")
         odds = widget(at, "expander", EXPLAINER).dataframe[0].value
         assert not odds.empty
         label_map = {"GO — PASS / DROPBACK": "PASS / DROPBACK", "GO — RUN": "RUN",
@@ -514,6 +538,6 @@ def test_real_frozen_engine_loads_and_renders_without_live_data(monkeypatch, qua
             assert row[value_column] == metrics(at)[label_map[row["Play"]]]
             assert 0 <= float(row[value_column].rstrip("%")) <= 100
         if quarter == 4:
-            assert "Model reliability warning" in values(at, "warning")
+            assert "INCONCLUSIVE" not in str(metrics(at))
     finally:
         st.cache_resource.clear()

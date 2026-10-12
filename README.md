@@ -183,15 +183,19 @@ defaults to the training-data median unless supplied in the engine.
 See [the presentation-only explainer](src/fourth_down_action_explainer.py)
 and [its tests](tests/test_fourth_down_action_explainer.py).
 
-**Q4 decision reliability:** In some late-game states the original
-field-goal continuation is materially sensitive to how a hypothetical
-post-made-FG kickoff is encoded. When the frozen model ranks **FIELD GOAL**
-first *and* this existing check detects a material discrepancy (or fails),
-the public app shows **INCONCLUSIVE** instead of a confident recommendation.
-It still displays the unchanged official WP figures and their model-only
-gap for inspection. This does **not** mean GO FOR IT is known to be better.
-There is no extra experimental checkbox or scenario panel; the research
-candidate remains unpromoted.
+**Updated Q4 calculations (research demo):** The public Streamlit app now
+uses the existing native standard-35 kickoff-input correction automatically
+for regulation Q4, with the *same frozen model weights* and a fixed
+1,200-simulation/action budget. The app recomputes the **action win
+probabilities and recommended play**; it does not merely replace a
+disclaimer while leaving the older Q4 scores unchanged. No separate
+kickoff checkbox or research panel is presented.
+
+When the old-vs-native made-FG input check is materially sensitive, a
+short **Close call** note accompanies the model recommendation. These are
+still estimated probabilities, not prospectively validated 2026+ coaching
+effects. The published stable v1.1.0 model and original precommitted
+forward-evaluation protocols remain unchanged.
 
 ## Q4 Kickoff Feature-Encoding Audit (Research)
 

@@ -148,9 +148,8 @@ def reliability_warning_markdown(diagnostic: Mapping) -> str | None:
         f"assumes a {diagnostic['assumed_fg_execution_seconds']:.0f}-second FG). "
         "**These are conditional post-FG win probabilities, NOT the "
         "field-goal action's win probability or its edge over GO FOR IT.** "
-        "The underlying frozen-model outputs are unchanged. "
-        "When FIELD GOAL is the model's leader, the app reports its "
-        "selection as inconclusive rather than claiming a dependable "
-        "coaching edge. This input-sensitivity check does NOT establish "
-        "that GO FOR IT or a different play is the better choice."
+        "The underlying frozen-model weights are unchanged. "
+        "The research-demo Q4 result uses native kickoff inputs "
+        "and marks representation-sensitive choices as close calls. "
+        "This does NOT prove GO FOR IT or a different play is better."
     )

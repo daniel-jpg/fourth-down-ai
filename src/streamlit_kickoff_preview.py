@@ -177,7 +177,9 @@ def preview_native_kickoff_feature_candidate(
 
     Retrospective 2023–25 post-score kickoff Brier improves in aggregate,
     but 2025 was inspected and the away-kicker subgroup worsens slightly.
-    Never substitute this for the official default without validation.
+    May be displayed as a provisional research-demo Q4 estimate, with
+    an explicit prospective-validation caveat. The published stable
+    v1.1.0 model and once-only future evaluation stay untouched.
     """
     if int(state.get("qtr", 0)) != 4:
         raise ValueError("The native kickoff candidate is Q4 regulation only.")

@@ -5,10 +5,10 @@ Prepared 2026-10-11. **This document is a release candidate checklist, not a dec
 ## Candidate scope
 
 - Streamlit interactive app for regulation and both overtime formats.
-- Official comparison of eligible normal fourth-down GO (pass/run), FG and PUNT using frozen production artifacts.
+- Single-screen comparison of eligible normal fourth-down GO (pass/run), FG and PUNT. Stable prediction weights remain frozen; Q4 research-demo results use native standard-35 kickoff input encoding instead of the previously misleading missing-field representation.
 - Presentation-only immediate modeled action odds and uncertainty statements.
-- Historical kickoff simulations preserved as research code, not user-facing Streamlit controls.
-- No changes to production coefficients, no automatic candidate promotion, and no manual future-data validation execution.
+- Historical 2025 kickoff donor/onside simulations remain research-only, without a public checkbox. The native Q4 feature-encoding correction now runs automatically for public research-demo Q4 action estimates, with a close-call limitation note.
+- No changes to published stable-model coefficients, no stable release promotion, and no manual execution of future-data validation. The research-demo UI uses a provisional Q4 input correction requested by the owner.
 
 ## Reproducibility instructions
 
@@ -68,7 +68,7 @@ total model uncertainty or a byte-for-byte hosted revision attestation.
 
 ## Model limitations that must remain visible
 
-These are model-estimated probabilities and Monte Carlo sampling errors, not causal coaching impact or total predictive uncertainty. Historic 2025 model performance originally provided a held-out v1.1.0 benchmark, but subsequent exploratory 2025 research means those years are not untouched future holdouts. The original frozen Q4 post-score kickoff encoding exhibits known site-sensitive rankings, and proposed corrections remain research-only. Observed 2025 kickoff donor coverage excludes unsupported onside/re-kick/return-TD states. Even passing a prospective kickoff Brier validation would not establish optimal fourth-down coaching decisions.
+The Q4 demo now recomputes action probabilities with native kickoff features in a separate model module. These are model-estimated probabilities and Monte Carlo sampling errors, not causal coaching impact or total predictive uncertainty. Historic 2025 model performance originally provided a held-out v1.1.0 benchmark, but subsequent exploratory 2025 research means those years are not untouched future holdouts. The original frozen Q4 post-score kickoff encoding exhibits known site-sensitive rankings, and the provisional correction is being used in the research demo without promotion to the published v1.1.0 stable model. Observed 2025 kickoff donor coverage excludes unsupported onside/re-kick/return-TD states. Even passing a prospective kickoff Brier validation would not establish optimal fourth-down coaching decisions.
 
 ## Publishing instructions — intentionally NOT executed
 

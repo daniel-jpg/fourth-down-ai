@@ -1,4 +1,4 @@
-name: Live Streamlit browser smoke (official-only interface)
+name: Live Streamlit browser smoke (corrected Q4 demo)
 
 # This runs when first added (or deliberately edited) and can also be
 # dispatched manually. It never blocks the regular offline regression suite.
@@ -94,56 +94,53 @@ jobs:
                       exact=True
                   ).count() == 0, "Removed scenario checkbox is still visible"
 
-                  # Select Q4 HOME before the first analysis: the real
-                  # frozen-engine AppTest confirms this state is model-
-                  # sensitive and its result is now INCONCLUSIVE.
+                  # The Q4 HOME default scenario is known to have a
+                  # material legacy-vs-native kickoff-input discrepancy.
+                  # Choose it BEFORE Analyze; Streamlit reruns on changes.
                   app.get_by_text("Home", exact=True).first.click()
                   page.wait_for_timeout(3500)
-
                   for attempt in range(2):
                       app.get_by_role(
                           "button", name="Analyze Fourth Down"
                       ).click()
-                      print(
-                          f"Clicked Analyze Fourth Down for Q4 HOME "
-                          f"(attempt {attempt + 1})",
-                          flush=True,
-                      )
+                      print(f"Clicked Analyze for Q4 HOME attempt {attempt + 1}",
+                            flush=True)
                       try:
                           app.get_by_text(
-                              "INCONCLUSIVE", exact=True
-                          ).first.wait_for(timeout=100000)
+                              "Q4 estimates use corrected standard-35 kickoff inputs",
+                              exact=False
+                          ).first.wait_for(timeout=130000)
                           break
                       except PlaywrightTimeoutError:
                           try:
-                              text_dump = app.locator("body").inner_text(
-                                  timeout=12000
-                              )
-                              print(
-                                  "Live Q4 state excerpt:",
-                                  repr(text_dump[-1200:]),
-                                  flush=True,
-                              )
+                              content = app.locator("body").inner_text(timeout=10000)
+                              print("Q4 live state:", repr(content[-900:]), flush=True)
                           except Exception as exc:
-                              print("Cannot read live state:", exc, flush=True)
+                              print("Cannot inspect rendered text:", str(exc), flush=True)
                           if attempt == 1:
                               raise
                           page.wait_for_timeout(2500)
 
                   assert app.get_by_text(
-                      "2025 kickoff scenario results", exact=True
-                  ).count() == 0
+                      "Recommendation", exact=True
+                  ).count() > 0
                   assert app.get_by_text(
-                      "Experimental strategy (not official)", exact=True
+                      "Win probability if chosen", exact=True
+                  ).count() > 0
+                  assert app.get_by_text(
+                      "Close call", exact=False
+                  ).count() > 0
+                  assert app.get_by_text(
+                      "INCONCLUSIVE", exact=True
                   ).count() == 0
                   assert app.get_by_text(
                       "Frozen-model FG WP", exact=True
-                  ).count() > 0
+                  ).count() == 0
                   assert app.get_by_text(
                       "Model reliability warning", exact=False
-                  ).count() > 0
+                  ).count() == 0
                   assert app.get_by_text(
-                      "separate experimental panel", exact=False
+                      "2025 kickoff scenario results", exact=True
                   ).count() == 0
                   assert app.get_by_text(
                       "Show the experimental kickoff-adjusted comparison",
@@ -151,9 +148,9 @@ jobs:
                   ).count() == 0
 
                   print(
-                      "LIVE PASS: no public kickoff-research panel; "
-                      "official decision works, and materially sensitive "
-                      "Q4 FG lead is labeled INCONCLUSIVE.",
+                      "LIVE PASS: updated native Q4 estimate and concise "
+                      "Close call displayed; no INCONCLUSIVE label or "
+                      "historical kickoff checkbox.",
                       flush=True,
                   )
               finally:

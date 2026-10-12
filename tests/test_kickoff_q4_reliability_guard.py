@@ -48,7 +48,7 @@ def test_known_home_site_anomaly_triggers_automatic_conditional_warning():
     message = reliability_warning_markdown(home)
     assert "conditional post-FG" in message
     assert "NOT the" in message
-    assert "frozen-model outputs are unchanged" in message
+    assert "frozen-model weights are unchanged" in message
     assert "separate experimental panel" not in message
 
 
@@ -130,6 +130,37 @@ def test_production_recommendation_before_and_after_reliability_probe_identical(
     )
 
 
+def test_exact_q4_459_native_candidate_recomputes_real_action_probabilities():
+    # Same budget and random seed isolate representation changes from
+    # Monte Carlo sampling noise. No model refit or future-season data.
+    from src.streamlit_kickoff_preview import (
+        preview_native_kickoff_feature_candidate,
+    )
+    state = {
+        **BASE, "game_seconds_remaining": 299.,
+        "yardline_100": 6., "ydstogo": 4.,
+        "score_differential": -4., "site": "AWAY",
+    }
+    private = isolated_engine_for_preview()
+    baseline = private["recommend"](state, n_simulations=1200, seed=43)
+    corrected = preview_native_kickoff_feature_candidate(
+        state, simulations=1200, action_seed=43,
+    )
+    old = baseline["results"].set_index("action")
+    new = corrected["results"].set_index("action")
+    assert old.index.tolist() == new.index.tolist()
+    assert bool(old.loc["FIELD_GOAL", "eligible"])
+    assert bool(new.loc["FIELD_GOAL", "eligible"])
+    old_fg = float(old.loc["FIELD_GOAL", "expected_win_probability"])
+    corrected_fg = float(new.loc["FIELD_GOAL", "expected_win_probability"])
+    assert 0 <= corrected_fg <= 1
+    assert abs(old_fg - corrected_fg) > .001, (
+        "The corrected Q4 model must produce a different action-level "
+        "field-goal win probability, not a cosmetic change."
+    )
+    assert baseline["pre_decision_wp"] == corrected["pre_decision_wp"]
+
+
 def test_streamlit_guard_is_automatic_but_requires_eligible_fg_and_q4():
     app=(ROOT/"app.py").read_text()
     ast.parse(app)
@@ -137,7 +168,9 @@ def test_streamlit_guard_is_automatic_but_requires_eligible_fg_and_q4():
     assert 'result["results"]["action"].eq("FIELD_GOAL")' in app
     assert 'result["results"]["eligible"].eq(True)' in app
     assert "inspect_made_fg_kickoff_encoding(" in app
-    assert "st.warning(fg_encoding_warning)" in app
+    assert "fg_input_sensitive = bool(" in app
+    assert "Close call" in app
+    assert "preview_native_kickoff_feature_candidate(" in app
     assert "if len(fg_eligible_rows) == 1:" in app
     before=app.index("fg_encoding_probe = inspect_made_fg_kickoff_encoding(")
     # The automatic guard remains part of the official decision path,

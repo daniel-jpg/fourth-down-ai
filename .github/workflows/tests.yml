@@ -40,6 +40,9 @@ jobs:
         run: |
           python -m pytest -v --ignore=tests/test_streamlit_app_integration.py
 
+      - name: Verify corrected Q4 percentages against legacy model
+        run: PYTHONPATH=. python scripts/verify_q4_latest_case.py
+
       - name: Exercise deployed Streamlit UI with AppTest
         run: |
           python -m pytest -v tests/test_streamlit_app_integration.py \

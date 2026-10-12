@@ -1,8 +1,10 @@
 # Step 88 — Research-demo release readiness (2026-10-11)
 
 **Updated 2026-10-12:** The public Streamlit demo is now the
-official-only interface, with its historical 2025 kickoff comparison
-removed. [Live browser smoke #9](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193289281)
+single-decision interface, with the historical 2025 kickoff comparison
+and checkbox removed. The next Q4 research-demo revision displays
+action values recomputed using corrected native standard-35 kickoff
+inputs, rather than merely relabeling frozen legacy estimates. [Live browser smoke #9](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193289281)
 passed on app commit `053e4a5`, and the
 [full regression/AppTest run #233](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193413685)
 covers source revision `85f0874`. The mobile layout has been accepted
@@ -19,9 +21,9 @@ coaching policy; `v1.1.0` remains the stable release.
 
 ## How to interpret a recommendation
 
-The official system compares normal GO (pass or run), FIELD GOAL and PUNT actions using frozen models and simulated transitions. Its displayed win probabilities are **model estimates**, and the advantage in percentage points is the difference between those estimates—not a measured increase in actual wins. Immediate conversion/FG/punt outcome odds describe short-run events and must not be substituted for overall win probability. Monte Carlo standard errors measure **sampling noise of the simulations only**, excluding model misspecification, dataset shift, and uncertainty about football decisions. In overtime the target is **game value**, not simply probability of winning, because a tie at expiration contributes 0.5.
+The decision tool compares normal GO (pass or run), FIELD GOAL and PUNT actions using frozen model weights and simulated transitions. For regulation Q4, the research demo now computes these values using the native standard-35 post-score kickoff input correction, without updating the published v1.1.0 model artifacts. Its displayed win probabilities are **model estimates**, and the advantage in percentage points is the difference between those estimates—not a measured increase in actual wins. Immediate conversion/FG/punt outcome odds describe short-run events and must not be substituted for overall win probability. Monte Carlo standard errors measure **sampling noise of the simulations only**, excluding model misspecification, dataset shift, and uncertainty about football decisions. In overtime the target is **game value**, not simply probability of winning, because a tie at expiration contributes 0.5.
 
-The public UI offers **no historical kickoff scenario panel**. Observed-2025, onside, and native-input studies remain **research-only in the repository**, isolated from the official decision. The 538 matched ordinary/penalty-affected 2025 Q4 kickoff transitions describe a selected historical sample; they do not constitute a 2026+ calibrated forecast. Unmatched outcomes, onside policy, return TDs, and re-kicks limit extrapolation.
+The public UI offers **no historical kickoff scenario panel**. Observed-2025 return donors and onside studies remain available only in the research repository. The narrow **native Q4 feature-encoding correction** now powers the public research-demo Q4 estimate (without a toggle), while the published stable model and precommitted future-data gates stay frozen. A short **Close call** note flags materially representation-sensitive cases; this is not a calibrated coaching edge. The 538 matched ordinary/penalty-affected 2025 Q4 kickoff transitions describe a selected historical sample; they do not constitute a 2026+ calibrated forecast. Unmatched outcomes, onside policy, return TDs, and re-kicks limit extrapolation.
 
 ## Known calibration and causal limitations
 
@@ -31,7 +33,7 @@ The precommitted 2026 Weeks 6–18 **Step 66** one-time gate requires at least 1
 
 ## Demo checklist (what can be shown responsibly)
 
-1. Enter a valid fourth-down game state and display official GO/FG/PUNT comparison and run/pass uncertainty.
+1. Enter a valid fourth-down game state and display the GO/FG/PUNT comparison and run/pass uncertainty. For Q4, disclose the provisional native kickoff-input correction and avoid presenting its edge as prospectively validated.
 2. Expand **Why this recommendation? Immediate action odds** and explain short-run conversion or kick probabilities versus estimated full-game WP.
 3. In overtime, explain **game value** and its explicit tie treatment.
 4. Verify no historical kickoff comparison controls appear in the public app; direct research questions to the versioned audit reports.
@@ -42,4 +44,4 @@ The precommitted 2026 Weeks 6–18 **Step 66** one-time gate requires at least 1
 - **Ready now:** technical research demo of the tested `main` app with explicit uncertainty and limitations.
 - **Not claimed:** production-grade coaching advice, independently calibrated 2026+ field-goal/onside policy, independently certified responsive behavior on all devices, or a new stable tagged version.
 - **Functional release QA:** completed in [closed Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5). User accepted responsive presentation; hosted end-to-end behavior passed. **Exact hosted revision identity:** not independently attested; keep it as a documented limitation rather than reintroducing a build-ID widget. New stable-version publication and claims require separate signoff.
-- **Frozen components:** No changes to model weights, official decision probabilities, action rules, experimental algorithms, or Step 66/83 preregistrations were made by this document.
+- **Frozen components:** No model coefficients, eligible-action rules or Step 66/83 precommitted protocols are modified. The Q4 research-demo display now uses the independently evaluated native input encoding and recomputes strategy probabilities; it is not an official stable-model release.

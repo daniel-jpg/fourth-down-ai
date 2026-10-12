@@ -1876,12 +1876,33 @@ if run_model:
 
 
     with st.spinner(
-        "Running adaptive decision simulation..."
+        "Running fourth-down decision simulation..."
     ):
 
-        result = adaptive_recommend(
-            state
-        )
+        if qtr == 4:
+            # Native Q4 kickoff-feature correction runs in an isolated
+            # model namespace: weights and future-data gates unchanged.
+            # No empirical donor assumptions or visible opt-in switch.
+            from src.streamlit_kickoff_preview import (
+                preview_native_kickoff_feature_candidate,
+            )
+            try:
+                result = preview_native_kickoff_feature_candidate(
+                    state,
+                    simulations=ADAPTIVE_HIGH_SIMULATIONS,
+                    action_seed=ADAPTIVE_HIGH_SEED,
+                )
+            except Exception:
+                st.error(
+                    "The updated Q4 kickoff-input estimate is unavailable. "
+                    "Older percentages have NOT been silently substituted. "
+                    "Please try again later."
+                )
+                st.stop()
+        else:
+            result = adaptive_recommend(
+                state
+            )
 
 
     (
@@ -1998,7 +2019,6 @@ if run_model:
     # =====================================================
 
     fg_encoding_probe = None
-    fg_encoding_warning = None
     fg_guard_unavailable = False
 
     if (
@@ -2014,33 +2034,21 @@ if run_model:
             try:
                 from src.kickoff_q4_reliability_guard import (
                     inspect_made_fg_kickoff_encoding,
-                    reliability_warning_markdown,
                 )
 
                 fg_encoding_probe = inspect_made_fg_kickoff_encoding(
                     state,
                 )
-                fg_encoding_warning = reliability_warning_markdown(
-                    fg_encoding_probe,
-                )
             except Exception:
                 fg_guard_unavailable = True
 
-    # A known material post-FG input discrepancy cannot be called a
-    # verified action-level FG edge. Flag the FG pick, not the
-    # unmodified engine probability or any other action's WP.
-    fg_leader_sensitive = (
-        best["strategy"] == "FIELD GOAL"
-        and (
-            fg_guard_unavailable
-            or (
-                fg_encoding_probe is not None
-                and fg_encoding_probe.get("applicable", False)
-                and fg_encoding_probe.get("material", False)
-            )
-        )
+    # This diagnostic compares conditional made-FG kickoff encoding,
+    # NOT the action-level ranking's Monte Carlo standard error.
+    fg_input_sensitive = bool(
+        fg_encoding_probe is not None
+        and fg_encoding_probe.get("applicable", False)
+        and fg_encoding_probe.get("material", False)
     )
-
 
     recommendation_col, wp_col, edge_col = (
         st.columns(3)
@@ -2051,14 +2059,14 @@ if run_model:
 
         st.metric(
             "Recommendation",
-            "INCONCLUSIVE" if fg_leader_sensitive else best["strategy"],
+            best["strategy"],
         )
 
 
     with wp_col:
 
         st.metric(
-            "Frozen-model FG WP" if fg_leader_sensitive else value_metric_label,
+            value_metric_label,
             f"{100 * best['wp']:.2f}%",
         )
 
@@ -2078,11 +2086,7 @@ if run_model:
         with edge_col:
 
             st.metric(
-                (
-                    f"Unverified FG lead vs {second['strategy']}"
-                    if fg_leader_sensitive
-                    else f"Advantage over {second['strategy']}"
-                ),
+                f"Advantage over {second['strategy']}",
                 f"+{strategy_edge:.2f} pp",
             )
 
@@ -2112,17 +2116,15 @@ if run_model:
         )
 
 
-        if fg_leader_sensitive:
+        if fg_input_sensitive:
 
             st.info(
-                "**No dependable pick from this model.** "
-                f"The frozen calculation ranks FIELD GOAL above "
-                f"{second['strategy']} by {strategy_edge:.2f} pp, "
-                "but its Q4 post-field-goal kickoff representation is "
-                "materially sensitive (or cannot be verified). "
-                "The percentages are shown for transparency, "
-                "not as a validated coaching edge. "
-                "This does not establish that GO FOR IT is better."
+                f"**Close call — kickoff-sensitive estimate.** "
+                f"{best['strategy']} leads {second['strategy']} "
+                f"by {strategy_edge:.2f} percentage points with "
+                "corrected Q4 kickoff inputs. This model-based edge "
+                "is sensitive to kickoff representation and has "
+                "not yet been validated in future games."
             )
 
         elif near_tie:
@@ -2154,21 +2156,20 @@ if run_model:
             f"{100 * result['pre_decision_wp']:.2f}%"
         )
 
-    # =====================================================
-    # Show the already-computed Q4 reliability diagnostic.
-    # Do not reference a removed experimental panel.
-    # =====================================================
-
-    if fg_guard_unavailable:
+    # The Q4 display already uses native kickoff features. One small
+    # caption states the remaining validation limitation, avoiding
+    # the old long warning and any research checkbox.
+    if qtr == 4:
         st.caption(
-            "Q4 made-field-goal kickoff reliability check "
-            "is unavailable. Treat the frozen model's post-score "
-            "continuation as unverified; the underlying "
-            "calculation is unchanged."
+            "Q4 estimates use corrected standard-35 kickoff inputs "
+            "and unchanged model weights. Future-season validation "
+            "is still pending."
         )
-
-    elif fg_encoding_warning is not None:
-        st.warning(fg_encoding_warning)
+        if fg_guard_unavailable:
+            st.caption(
+                "Kickoff sensitivity check unavailable; compare "
+                "the estimated action edge with extra caution."
+            )
 
     # =====================================================
     # GO play call
