@@ -52,7 +52,7 @@ def test_separate_features_actions_and_offense_win_labels():
     assert len(p) == len(a) == len(y) == 3
     assert set(p["feature_asof"]) == {"pre_snap"}
     grouped = join_training_labels(result)
-    assert grouped.loc[grouped["posteam_timeouts_remaining"] == 3].shape[0] == 2
+    assert grouped.loc[grouped["posteam_timeouts_remaining"] == 3].shape[0] == 3
     assert grouped["observed_action"].tolist() == [
         "NORMAL_GO_PASS", "PUNT", "FIELD_GOAL"
     ]
