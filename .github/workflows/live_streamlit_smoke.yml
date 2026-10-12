@@ -9,6 +9,9 @@ name: Live Streamlit browser smoke (corrected Q4 demo)
 # GO support warning (that warning is covered by headless AppTest).
 # Re-run the actual hosted Q4 warning after caching the FG-input
 # sensitivity probe alongside completed results on Streamlit reruns.
+# Current deployment QA ALSO checks opt-in temperature/wind/conditions,
+# the manual METAR viewer and distinct international stadium lookup.
+# Research metadata must never automatically alter official recommendations.
 on:
   push:
     paths:
@@ -188,6 +191,77 @@ jobs:
                       "together without the experimental checkbox.",
                       flush=True,
                   )
+
+                  # Verify NEW weather controls against the real hosted
+                  # Streamlit application, not just the AppTest harness.
+                  # This only interacts with descriptive research inputs
+                  # and does NOT click Analyze again or call weather APIs.
+                  print("Opening hosted weather controls", flush=True)
+                  app.get_by_text(
+                      "Weather observations (optional)", exact=True
+                  ).click(timeout=20000)
+                  app.get_by_text(
+                      "Enter observed temperature and wind", exact=True
+                  ).wait_for(state="visible", timeout=45000)
+                  app.get_by_text(
+                      "Enter observed temperature and wind", exact=True
+                  ).click(timeout=20000)
+                  weather_labels = (
+                      "Temperature (°F)", "Wind speed (mph)",
+                      "Weather conditions",
+                      "Wind direction relative to offense",
+                      "Show 2026 stadium compass lookup (research only)",
+                      "Inspect timestamped airport METAR evidence",
+                  )
+                  for item in weather_labels:
+                      app.get_by_text(item, exact=True).first.wait_for(
+                          state="visible", timeout=25000
+                      )
+                  print(
+                      "LIVE PASS: temperature, wind speed, rain/snow context, "
+                      "wind direction and source-evidence controls rendered",
+                      flush=True,
+                  )
+
+                  app.get_by_text(
+                      "Show 2026 stadium compass lookup (research only)",
+                      exact=True,
+                  ).click(timeout=25000)
+                  app.get_by_text(
+                      "2026 venue context", exact=True
+                  ).wait_for(state="visible", timeout=25000)
+                  app.get_by_text(
+                      "Official 2026 international game", exact=True
+                  ).first.click(timeout=25000)
+                  app.get_by_text(
+                      "2026 NFL international fixture", exact=True
+                  ).wait_for(state="visible", timeout=25000)
+                  assert app.get_by_text(
+                      "2026 venue to inspect", exact=True
+                  ).count() == 0, (
+                      "International games must not silently show the "
+                      "domestic home stadium selector"
+                  )
+                  print(
+                      "LIVE PASS: venue context separates international "
+                      "games from domestic stadium direction estimates",
+                      flush=True,
+                  )
+
+                  # Explicitly check that changing descriptive weather UI
+                  # did not resurrect the old kickoff checkbox or promote
+                  # a weather-adjusted official action recommendation.
+                  body = app.locator("body").inner_text(timeout=12000)
+                  assert "Show the experimental kickoff-adjusted comparison" not in body
+                  assert "Weather-adjusted field goal comparison (experimental)" not in (
+                      body.split("Analyze Fourth Down")[0]
+                  ), "Weather research what-if appeared as an official input"
+                  print(
+                      "LIVE PASS: current hosted Weather + 2026 stadium UI "
+                      "has no unvalidated official weather policy controls",
+                      flush=True,
+                  )
+
               finally:
                   try:
                       page.screenshot(path="live-streamlit-smoke.png", full_page=True)
