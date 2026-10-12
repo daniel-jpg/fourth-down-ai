@@ -235,3 +235,114 @@ def assess_2026_buffalo_snap_direction(
             "No true azimuth or weather-model feature is output."
         ),
     }
+
+
+
+def validate_buffalo_direction_receipt_for_display(receipt: Any) -> dict[str, Any]:
+    """Validate a pasted UNSIGNED direction receipt; never trust its sources.
+
+    Media bytes are NOT in the receipt, so the hashes and witness URLs
+    cannot be independently authenticated here. This is a self-consistency
+    display validator only, not approval to use the compass heading.
+    """
+    if not isinstance(receipt, dict) or len(receipt) > 55:
+        raise ValueError("Expected a bounded Buffalo research receipt")
+    if receipt.get("status") != RECEIPT_STATUS:
+        raise ValueError("Only 2026 Buffalo research direction receipts allowed")
+    if (
+        receipt.get("season") != 2026 or type(receipt.get("season")) is not int
+        or receipt.get("venue_team") != "BUF"
+        or receipt.get("claimed_attack_end") not in ENDS
+        or receipt.get("numeric_true_north_attack_azimuth_degrees") is not None
+    ):
+        raise ValueError("No surveyed numeric direction or other venue is allowed")
+    for field in (
+        "numeric_headwind_crosswind_permitted",
+        "direction_of_attack_independently_certified",
+        "trusted_live_forecast_provenance",
+        "source_content_authentication_independent",
+        "game_home_venue_confirmed_by_trusted_schedule_or_feed",
+        "protected_2026_fourth_down_outcomes_evaluated",
+        "real_2027_outcomes_accessed",
+        "may_change_frozen_go_fg_punt_probabilities",
+        "source_bytes_in_receipt",
+    ):
+        if receipt.get(field) is not False:
+            raise ValueError("Direction receipt falsely claims trusted provenance")
+    if receipt.get("no_post_snap_labels_ingested") is not True:
+        raise ValueError("Snap evidence cannot use post-play result labels")
+    if set(receipt) & FORBIDDEN_FIELDS:
+        raise ValueError("Post-play output fields are not direction evidence")
+    decision = utc_time(receipt.get("decision_at_utc_user_supplied"))
+    witnesses = receipt.get("witnesses")
+    if (
+        not isinstance(witnesses, list) or not 1 <= len(witnesses) <= 2
+        or receipt.get("source_count") != len(witnesses)
+    ):
+        raise ValueError("Direction witness source count is invalid")
+    ids, observers, media_hashes, source_urls = set(), set(), set(), set()
+    available_by_decision = []
+    for witness in witnesses:
+        if not isinstance(witness, dict):
+            raise ValueError("Malformed source evidence metadata")
+        if witness.get("claim_north_south_end") != receipt["claimed_attack_end"]:
+            raise ValueError("Source witnesses disagree about physical direction")
+        source_id, observer = witness.get("source_id"), witness.get("witness_id")
+        media_hash = witness.get("original_local_artifact_sha256")
+        source_url = witness.get("source_url_user_asserted")
+        if (
+            type(source_id) is not str or not SOURCE_ID.fullmatch(source_id)
+            or type(observer) is not str or not SOURCE_ID.fullmatch(observer)
+            or type(media_hash) is not str or
+                not re.fullmatch(r"[0-9a-f]{64}", media_hash)
+            or type(source_url) is not str
+            or not source_url.startswith("https://")
+            or witness.get("artifact_bytes_not_in_receipt") is not True
+            or witness.get("independently_authenticated") is not False
+            or witness.get(
+                "video_frame_or_observer_location_independently_verified"
+            ) is not False
+        ):
+            raise ValueError("Direction media metadata is not trust-safe")
+        obs = utc_time(witness.get("artifact_observed_at_utc"))
+        avail = utc_time(witness.get("artifact_available_at_utc"))
+        if (
+            obs > decision or avail < obs
+            or (decision - obs).total_seconds() > MAX_OBSERVATION_LEAD_SECONDS
+        ):
+            raise ValueError("Video/observer timestamp conflicts with decision")
+        is_pre = avail <= decision
+        if witness.get("source_asserted_available_by_decision") is not is_pre:
+            raise ValueError("Video source available-time claim is inconsistent")
+        available_by_decision.append(is_pre)
+        ids.add(source_id); observers.add(observer)
+        media_hashes.add(media_hash); source_urls.add(source_url)
+    if any(len(x) != len(witnesses) for x in (
+        ids, observers, media_hashes, source_urls,
+    )):
+        raise ValueError("Duplicate direction witness metadata")
+    is_alleged_pre = all(available_by_decision)
+    if (
+        receipt.get("all_sources_asserted_available_predecision") is not is_alleged_pre
+        or receipt.get("retrospective_source_present") is not (not is_alleged_pre)
+        or receipt.get("claim_consistency") != (
+            "TWO_USER_ASSERTED_DISTINCT_WITNESSES"
+            if len(witnesses) == 2 else "ONE_UNCORROBORATED_USER_ASSERTION"
+        )
+    ):
+        raise ValueError("Unsigned receipt's directional evidence claims conflict")
+    return {
+        "claimed_attack_end": receipt["claimed_attack_end"],
+        "source_count": len(witnesses),
+        "claim_consistency": receipt["claim_consistency"],
+        "retrospective_source_present": not is_alleged_pre,
+        "decision_at_utc_user_supplied": decision.isoformat().replace("+00:00", "Z"),
+        "numeric_attack_bearing_available": False,
+        "independently_verified": False,
+        "may_change_official_forecast": False,
+        "caveat": (
+            "Source-hash and witness fields are merely self-consistent; "
+            "original media, attribution, observed play and availability "
+            "are NOT independently authenticated. No numerical headwind."
+        ),
+    }
