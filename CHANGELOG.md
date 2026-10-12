@@ -9,6 +9,13 @@ Notable changes to Fourth Down AI are documented here.
 model weights remain frozen; the live Q4 research demo uses a separate
 native kickoff-input correction without model retraining.
 
+### Model-validity follow-up (October 11 Pacific / October 12 UTC)
+
+- Rejected the fixed-spec continuous-yardline GO conversion challenger after a 2014–2022 fit and 2023–2024 development evaluation: normal GO Brier was 0.217991 frozen versus 0.218233 challenger. Zero comparable own-5 GO training examples remain, and challenger predictions were more aggressive there. No model weights or conversion odds were promoted.
+- For regulation fourth-and-2/3 inside the offense's own 10 **when GO is the model leader**, the primary recommendation now says **INSUFFICIENT DATA**. Original modeled win probabilities and ranked actions remain visible with explicit sparse-support caveats; no PUNT rule was invented.
+- The 2023–2024 Q4 site-calibration audit found only 7 final-five-minute own-10/leading-4 play states across 3 games (zero HOME-offense examples). It reproduced an 11.11 pp mirrored frozen-WP site difference in an illustrative failed-GO continuation. The late Q4 goal-line demo now gives a narrow site-support caption, without any home-advantage adjustment.
+- Both auditable development reports and their test workflows are linked in [Issue #9 follow-up](reports/issue9_field_position_go_q4_site_followup.md). The original 2026 once-only gates, preregistered 2027 research, and published stable v1.1.0 remain untouched.
+
 ### Interface and interpretation
 
 - Streamlit focuses on the **official** GO (pass/run), FIELD GOAL and
