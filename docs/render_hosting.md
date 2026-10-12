@@ -11,12 +11,16 @@ rename an existing service or automatically trigger a deployment.
 
 ## Limits and verification status
 
-The Free tier has **512 MB RAM** and a small CPU allocation. Q4 HOME
-and Snow/Rain/wind-direction what-if calculations have passed in a real
-browser on this hostname. The complete METAR receipt, international venue
-and closed-roof end-to-end smoke is still pending. The weather adjustment
-is research-only; the held-out Brier score did not improve, so weather
-does not affect the official action recommendation.
+The Free tier has **512 MB RAM** and a small CPU allocation. The
+[complete public Chromium end-to-end smoke #38315221787](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38315221787)
+**PASSED** on this exact hostname: source fingerprint, weather UI,
+Q4 HOME calculation (21.71 s), 32°F/25 mph Snow/Rain/wind-direction
+comparisons, invalid METAR receipt rejection, international venue
+context and a closed-roof rerun. No frozen weights were modified.
+The weather sensitivity remains **research-only**: historical held-out
+Brier did not improve, so weather does not change the official action
+recommendation. A passing browser smoke is **not** a claim of long-term
+uptime, model calibration or coaching effectiveness.
 
 The server can sleep after 15 minutes idle. There is a **750-hour shared
 monthly free-service allowance across the workspace**. Running several

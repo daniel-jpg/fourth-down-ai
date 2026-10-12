@@ -18,8 +18,9 @@ The project supports regulation, 2025+ NFL regular-season overtime, and postseas
 fourth-down calculator is live at the URL above. A real public Chromium test
 verified the source fingerprint, weather controls and a **Q4 HOME
 recommendation**, plus 32°F/25 mph Snow, Rain and wind-direction research
-comparisons. The complete public METAR/stadium/roof workflow is still
-under test and must not yet be described as end-to-end green.
+comparisons. The [complete hosted Chromium smoke #38315221787](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38315221787)
+**PASSED** on the exact Render URL, including invalid METAR rejection,
+international venue context, and covered-roof behavior.
 On the Free plan the service can sleep after 15 minutes of inactivity and
 take time to wake, and Q4 calculations can take tens of seconds.
 
