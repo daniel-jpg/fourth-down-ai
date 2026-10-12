@@ -1,8 +1,8 @@
 # Fourth Down AI
 
 [![Tests](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/tests.yml)
-[![Hosted Streamlit browser smoke](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/live_streamlit_smoke.yml/badge.svg?branch=main)](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/live_streamlit_smoke.yml)
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://fourth-down-ai.streamlit.app/)
+[![Render public browser smoke](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/render_public_browser_smoke.yml/badge.svg?branch=main)](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/render_public_browser_smoke.yml)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Render-46E3B7?logo=render&logoColor=white)](https://fourth-down-ai-nfl.onrender.com/)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -12,26 +12,22 @@ The project supports regulation, 2025+ NFL regular-season overtime, and postseas
 
 ## Live Demo
 
-[Launch the NFL Fourth-Down Decision AI](https://fourth-down-ai.streamlit.app/)
+[Launch the NFL Fourth-Down Decision AI](https://fourth-down-ai-nfl.onrender.com/)
 
-**Hosted app status (October 12, 2026):** The GitHub `main`
-code tests pass and a second
-[real Chromium browser attempt](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38302133517)
-at 20:11 UTC **verified the latest source fingerprint and the optional
-weather controls on the public Streamlit site**. The prior stale-UI
-deployment problem was therefore resolved in that attempt. However, when
-the browser clicked **Analyze Fourth Down** for a Q4 HOME scenario, no
-recommendation appeared within the next 220 seconds. A prior run also
-observed intermittent startup unavailability. **Do not describe the current
-hosted demo as end-to-end verified** until an actual calculation and its
-weather/stadium controls complete in the public browser.
+**Render Free deployment (October 12, 2026):** The official frozen-model
+fourth-down calculator is live at the URL above. A real public Chromium test
+verified the source fingerprint, weather controls and a **Q4 HOME
+recommendation**, plus 32°F/25 mph Snow, Rain and wind-direction research
+comparisons. The complete public METAR/stadium/roof workflow is still
+under test and must not yet be described as end-to-end green.
+On the Free plan the service can sleep after 15 minutes of inactivity and
+take time to wake, and Q4 calculations can take tens of seconds.
 
+[Render public browser checks](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/render_public_browser_smoke.yml) ·
 [Hosted reliability issue and evidence](https://github.com/daniel-jpg/fourth-down-ai/issues/11) ·
-[Q1 versus Q4 action-path diagnostic](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/hosted_action_path_diagnostic.yml).
-The **Hosted Streamlit browser smoke** badge above verifies the public
-site, including source fingerprint, weather UI and a Q4 recommendation.
-A green **Tests** badge verifies offline code only; it cannot establish
-hosted availability or calculation completion.
+[Legacy Streamlit Community Cloud mirror](https://fourth-down-ai.streamlit.app/) (intermittently unreliable).
+The **Tests** badge verifies offline model and application code only;
+the public browser smoke is a separate verification of the hosted website.
 
 ## Portable Docker fallback
 
@@ -53,32 +49,29 @@ raw/evaluation/prospective play data, and unreviewed candidate models.
 
 [Portable Docker browser QA](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/portable_docker_streamlit.yml)
 builds the image and tests a full Q4 HOME recommendation in Chromium.
-A separate **Render Free** trial now hosts the same image. A public
-Chromium test completed Q4 HOME and a cold/snow weather comparison, but the
-full live weather-controls smoke has not yet passed. This does not establish
-that Streamlit Community Cloud is healthy. The
-[hosted reliability issue](https://github.com/daniel-jpg/fourth-down-ai/issues/11)
-remains open until the new public URL passes end-to-end.
+The same image is deployed on the [Render Free service](https://fourth-down-ai-nfl.onrender.com/).
+Core Q4 and weather what-if calculations have been observed in a public browser.
+The legacy Streamlit Community Cloud website is not proven healthy;
+see [Issue #11](https://github.com/daniel-jpg/fourth-down-ai/issues/11).
 
-## Optional Render Free trial (no paid compute approved)
+## Render Free hosting
 
-The owner declined paid hosting. Our [Render Blueprint](render.yaml)
-specifies the **Free** web tier (512 MB), rather than the former
-$25/month option. The Render Free site has successfully run the official
-Q4 HOME prediction and the cold/snow research what-if in a real browser;
-complete live weather-interaction coverage is still pending. It spins down
-after 15 minutes idle and shares monthly free instance-hours with other
-services in the workspace. Render can bill excess bandwidth/build minutes
-if a payment method is on file, so verify usage and spend limits.
-Automatic deployments remain disabled.
+The deployment is **[fourth-down-ai-nfl.onrender.com](https://fourth-down-ai-nfl.onrender.com/)**,
+matching the requested hostname. It uses a **512 MB Free instance**;
+automatic deployments are disabled, and no paid plan was created.
+Q4 calculations work, but can take noticeably longer than our 1 GiB
+Docker tests. Weather is an **experimental FG-only what-if** and never
+changes the official action recommendation; prospective 2026/2027
+validation has not been unlocked.
 
-[Review free tier constraints and setup](docs/render_hosting.md) ·
-[Try the free Render deployment](https://render.com/deploy?repo=https://github.com/daniel-jpg/fourth-down-ai/tree/main) ·
-[Run Q4 and weather tests against the assigned public URL](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/render_public_browser_smoke.yml).
+The Free tier sleeps after inactivity and the workspace's 750 free
+instance-hours/month are shared across services. Avoid duplicate Free
+instances: two earlier Fourth-Down AI services should be deleted in Render
+once the new site is fully verified.
 
-Keep the current Streamlit demo link unchanged until the Render service
-is renamed (without its temporary suffix) and its final URL passes the
-complete public-browser tests.
+[Free hosting operation and cleanup](docs/render_hosting.md) ·
+[Actual public Q4 and weather browser tests](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/render_public_browser_smoke.yml).
+
 
 ## Demo
 
