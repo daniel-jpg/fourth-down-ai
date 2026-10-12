@@ -196,7 +196,9 @@ def test_deep_own_five_short_go_displays_sparse_support_notice(ui):
     widget(at, "number_input", "Yards to go").set_value(3)
     run(at)
     analyze(at)
-    assert metrics(at)["Recommendation"] == "GO FOR IT"
+    assert metrics(at)["Recommendation"] == "INSUFFICIENT DATA"
+    assert "Modeled edge over PUNT" in metrics(at)
+    assert "No supported play recommendation" in values(at, "info")
     assert "Limited historical GO support" in values(at, "info")
     assert "one normal GO attempt" in values(at, "info")
     assert ui.engine.calls[0][0]["yardline_100"] == 95
