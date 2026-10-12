@@ -59,16 +59,19 @@ provider would require the appropriate account and configuration. The
 [hosted reliability issue](https://github.com/daniel-jpg/fourth-down-ai/issues/11)
 stays open until the public-app end-to-end tests are stable.
 
-## Optional Render public deployment (owner approval required)
+## Optional Render Free trial (no paid compute approved)
 
-The existing frozen-model Docker image is ready for a separate Render
-deployment using [render.yaml](render.yaml), which requests a **2 GB /
-1 CPU web service (currently $25/month)**. Automatic deploys are disabled.
-The deployment configuration and test workflow **do not** create, charge
-for, or claim an existing public Render service.
+The owner has declined paid hosting. Our [Render Blueprint](render.yaml)
+now specifies the **Free** web tier (0.1 CPU / 512 MB), rather than the
+previous $25/month option. The ML app passed Docker testing with a 1 GiB
+limit; **the smaller free tier has not yet been validated**. It spins down
+after 15 minutes idle and shares monthly free instance-hours with other
+services in the workspace. Render can bill excess bandwidth/build minutes
+if a payment method is on file, so verify usage and spend limits.
+Automatic deployments remain disabled.
 
-[Review hosting cost and activation steps](docs/render_hosting.md) ·
-[Authorize a Render deployment](https://render.com/deploy?repo=https://github.com/daniel-jpg/fourth-down-ai/tree/main) ·
+[Review free tier constraints and setup](docs/render_hosting.md) ·
+[Try the free Render deployment](https://render.com/deploy?repo=https://github.com/daniel-jpg/fourth-down-ai/tree/main) ·
 [Run Q4 and weather tests against the assigned public URL](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/render_public_browser_smoke.yml).
 
 Keep the current Streamlit demo link unchanged until the Render URL is

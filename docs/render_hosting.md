@@ -2,19 +2,23 @@
 
 These steps deploy the **same frozen-model container** that passed the local and Docker-hosted Q4 HOME and weather browser tests. The original [Streamlit Community Cloud app](https://fourth-down-ai.streamlit.app/) is unchanged. This page does not claim a second public URL already exists.
 
-## Before creating a billable service
+## Free-only trial: no paid instance authorized
 
-Render's currently published compute plans include 512 MB free, 512 MB Starter, and 2 GB Standard. We verified the app inside a **1 GiB** limited container, not 512 MB. The included [Render Blueprint](../render.yaml) therefore requests one `1c-2g` (1 CPU / 2 GB) instance in Oregon, which Render lists at **$25/month** on a $0 Hobby workspace. Review billing and network charges before authorizing this ongoing expense. Committing deployment files alone creates no Render service.
+The owner declined paid hosting. The included [Render Blueprint](../render.yaml) now explicitly requests **plan `free`: 0.1 CPU and 512 MB RAM**. This is a free-compute experiment, **not a guaranteed $0 bill or an already validated hosting tier**. Our passing Docker browser test used 1 GiB of memory; the free instance has only half of that allocation and may fail under memory or CPU pressure.
+
+Free Render services sleep after 15 idle minutes and can take about a minute to wake. Each workspace shares **750 free running-instance hours per calendar month**, including the existing `chips-wordguesser-cs169` free service. Exceeding them suspends all free services for the month. **Outbound bandwidth and build minutes can incur overage charges if a payment method is on file**. To avoid surprises, inspect the [Render billing and usage page](https://dashboard.render.com/billing) and spend limits before a prolonged public launch; do not upgrade the compute plan or add a payment method for this experiment. GitHub configuration alone creates no service.
+
+If the free instance fails, stop the experiment and evaluate another genuinely free hosting option. Do **not** silently upgrade to a paid instance.
 
 [Official Render pricing](https://render.com/pricing) · [Compute specifications](https://render.com/docs/compute-plans) · [Blueprint reference](https://render.com/docs/blueprint-spec)
 
-## Create the service (account owner action)
+## Create a free test service
 
-1. Connect Render through the ChatGPT Render app suggestion, or sign in at the [Render Dashboard](https://dashboard.render.com/).
-2. Open [Deploy this GitHub repository to Render](https://render.com/deploy?repo=https://github.com/daniel-jpg/fourth-down-ai/tree/main). Authorize the repository connection as needed and import the root `render.yaml` Blueprint.
-3. Confirm **repository** `daniel-jpg/fourth-down-ai`, **branch** `main`, **service** `fourth-down-ai-verified`, **runtime** Docker, **plan** `1c-2g` ($25/month), **region** Oregon, and **health path** `/_stcore/health`.
-4. Confirm that **automatic deploys are disabled** and there is no database or disk. Only proceed with service creation after approving any displayed billable charges.
-5. Allow Render to build the existing repository `Dockerfile`. Copy the **actual** assigned HTTPS `*.onrender.com` URL. Do not assume it equals the requested service name.
+Render is connected to ChatGPT already. The assistant can create the new free web service through the Render connector when authorized. Alternatively, open [Deploy this GitHub repository to Render](https://render.com/deploy?repo=https://github.com/daniel-jpg/fourth-down-ai/tree/main) and import the root `render.yaml`.
+
+Verify **repo** `daniel-jpg/fourth-down-ai`, **branch** `main`, **service** `fourth-down-ai-verified`, **runtime** Docker, **plan** `free`, **region** Oregon, and health check `/_stcore/health`. **Do not accept any paid upsell or card charge**. Keep automatic deploys off, with no database or disk.
+
+The 512 MB trial may fail even though the 1 GiB Docker smoke passed. Only use the actual HTTPS URL provided by Render, not an assumed service name.
 
 Render's HTTP health checks use `/_stcore/health`. The Docker startup command listens on the host-provided `PORT`; it does not require secrets or a database.
 

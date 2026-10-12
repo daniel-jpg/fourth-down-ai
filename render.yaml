@@ -1,5 +1,7 @@
-# Optional Render hosting. GitHub changes alone do not create a service.
-# An owner must authorize the Render connection and approve the paid plan.
+# Optional zero-compute-fee experiment, not a production hosting guarantee.
+# Owner explicitly declined paid instance; never auto-promote to one.
+# Free plans may have bandwidth/build-minute overage charges if payment
+# method exists, and their 750 hours/month are shared with other services.
 services:
   - type: web
     name: fourth-down-ai-verified
@@ -7,9 +9,9 @@ services:
     repo: https://github.com/daniel-jpg/fourth-down-ai
     branch: main
     region: oregon
-    # Tested 1 GiB Docker limit; Render free 512 MB is not verified.
-    # Render lists 1 CPU / 2 GB at $25/month, billed only after setup.
-    plan: 1c-2g
+    # Free: 0.1 CPU / 512 MB, NOT previously verified for this ML app.
+    # Failure is acceptable; never increase the plan without approval.
+    plan: free
     numInstances: 1
     dockerfilePath: ./Dockerfile
     dockerContext: .

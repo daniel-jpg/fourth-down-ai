@@ -36,7 +36,9 @@ jobs:
           assert svc["type"] == "web" and svc["runtime"] == "docker"
           assert svc["repo"] == "https://github.com/daniel-jpg/fourth-down-ai"
           assert svc["branch"] == "main"
-          assert svc["plan"] == "1c-2g", "Untested free 512 MB plan"
+          assert svc["plan"] == "free", (
+              "Paid Render instance not authorized; stop before creating charges"
+          )
           assert svc["numInstances"] == 1
           assert svc["region"] == "oregon"
           assert svc["healthCheckPath"] == "/_stcore/health"
