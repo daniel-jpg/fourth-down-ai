@@ -2407,6 +2407,22 @@ if situation_valid:
                     "headline recommendation. Q4 scenarios keep native "
                     "standard-35 kickoff inputs and 1,200 simulations."
                 )
+                candidate_action = weather_preview.get(
+                    "weather_modeled_top_action"
+                )
+                if candidate_action in (
+                    "NORMAL_GO_PASS", "NORMAL_GO_RUN",
+                    "FIELD_GOAL", "PUNT",
+                ):
+                    candidate_label = (
+                        "GO FOR IT" if candidate_action.startswith("NORMAL_GO")
+                        else candidate_action.replace("_", " ")
+                    )
+                    st.caption(
+                        f"Weather what-if model leader: {candidate_label}. "
+                        "This scenario is not validated; follow the official "
+                        "recommendation and support warnings above."
+                    )
                 st.warning(
                     "Not validated for coaching decisions: adding weather "
                     "did not improve held-out Brier score. "
