@@ -144,6 +144,10 @@ def plan_historical_snapshot(cohort: dict) -> dict:
         "membership": memberships, "counts_by_role": counts,
         "years": sorted(set(int(y) for y in pre["season"])),
         "source_candidates": int(cohort["audit"]["source_candidates"]),
+        "reg_fourth_down_candidates": (
+            int(cohort["audit"]["source_candidates"]) -
+            int(cohort["audit"]["exclusion_counts"].get("not_regular_season", 0))
+        ),
         "included_decisions": len(pre), "excluded_decisions": len(excluded),
         "exclusion_counts": dict(cohort["audit"]["exclusion_counts"]),
         "distinct_included_games": int(pre["game_id"].nunique()),
@@ -164,7 +168,8 @@ def version_manifest(plan: dict, source: dict, external: dict) -> dict:
             or external.get("status") != "ALL_HISTORICAL_FINAL_SCORES_MATCH"
             or external.get("source_game_count") != 3151
             or external.get("source_fourth_down_rows") != 47942
-            or plan["source_candidates"] != 47942
+            or plan["reg_fourth_down_candidates"] != 47942
+            or plan["source_candidates"] < plan["reg_fourth_down_candidates"]
             or plan["years"] != list(range(2014, 2026))):
         raise ValueError("All frozen 2014-2025 games and independent score agreement required")
     return {
@@ -187,6 +192,10 @@ def version_manifest(plan: dict, source: dict, external: dict) -> dict:
         "observed_action_columns": list(ACTION_COLUMNS),
         "postgame_outcome_columns": list(OUTCOME_COLUMNS),
         "source_fourth_down_candidates": plan["source_candidates"],
+        "regular_season_fourth_down_candidates":plan["reg_fourth_down_candidates"],
+        "postseason_and_other_fourth_down_candidates": (
+            plan["source_candidates"] - plan["reg_fourth_down_candidates"]
+        ),
         "included_historical_decisions": plan["included_decisions"],
         "excluded_historical_decisions": plan["excluded_decisions"],
         "exclusion_counts": plan["exclusion_counts"],
