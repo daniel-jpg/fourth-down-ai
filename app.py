@@ -1800,9 +1800,9 @@ if qtr == 4:
         expanded=False,
     ):
 
-        st.caption(
-            "Explore how observed 2025 kickoff field position and timing "
-            "affect the comparison. The official recommendation is unchanged."
+        st.write(
+            "Compare the official decision with a scenario based on "
+            "observed 2025 kickoff outcomes."
         )
 
         experimental_kickoff_enabled = st.checkbox(
@@ -1819,131 +1819,125 @@ if qtr == 4:
         if experimental_kickoff_enabled:
 
             st.caption(
-                "Default: 2025 regular-season Q4 nonscoring kickoffs. "
-                "538 verified first possessions: 488 ordinary kickoffs "
-                "and 50 clean penalty-affected kickoffs. Field position "
-                "and elapsed time are sampled together from real plays."
+                "Uses 538 verified Q4 kickoff-to-possession transitions "
+                "from 2025 (488 ordinary; 50 penalty-affected). "
+                "Historical scenario only, not a validated future forecast."
             )
 
-            experimental_use_2024_assumptions = st.checkbox(
-                "Advanced: use older 2024 return data with an assumed "
-                "touchback rate instead",
-                value=False,
-            )
+            with st.expander("Advanced scenario settings", expanded=False):
 
-            if experimental_use_2024_assumptions:
-
-                assumed_touchback_pct = st.select_slider(
-                    "Assumed ordinary kickoff touchback rate",
-                    options=[20, 25, 30, 35, 40],
-                    value=30,
-                    format_func=lambda value: f"{value}%",
-                )
-
-                experimental_touchback_rate = (
-                    float(assumed_touchback_pct) / 100.0
-                )
-
-                st.caption(
-                    "Legacy sensitivity mode only. This rate is a "
-                    "what-if assumption, not a live forecast."
-                )
-
-            else:
-
-                st.caption(
-                    "No touchback or penalty rate needs to be guessed. "
-                    "The selected 2025 historical outcome distribution "
-                    "is not a calibrated 2026+ forecast."
-                )
-
-                experimental_ordinary_only = st.checkbox(
-                    "Advanced: compare using only the previous 488 "
-                    "ordinary kickoffs (exclude penalty-affected snaps)",
+                experimental_use_2024_assumptions = st.checkbox(
+                    "Advanced: use older 2024 return data with an assumed "
+                    "touchback rate instead",
                     value=False,
                 )
 
-                experimental_native_candidate_enabled = st.checkbox(
-                    "Advanced: also show native kickoff-input correction "
-                    "(research-only)",
-                    value=False,
-                    help=(
-                        "Uses the original frozen WP model with the native "
-                        "Q4 post-score kickoff yardline/distance features. "
-                        "It does not use 2025 first-snap donor sampling. "
-                        "The official recommendation never changes."
-                    ),
-                )
+                if experimental_use_2024_assumptions:
 
-                if experimental_native_candidate_enabled:
-
-                    st.caption(
-                        "Retrospective 2023–2025 post-score Q4 kicks "
-                        "(1,617 observations) had a lower pooled Brier "
-                        "score with this candidate (0.11561 to 0.10743), "
-                        "but the away-kicking-team subgroup was slightly "
-                        "worse. Historical data were previously examined; "
-                        "this is not a validated replacement or causal "
-                        "fourth-down policy test."
+                    assumed_touchback_pct = st.select_slider(
+                        "Assumed ordinary kickoff touchback rate",
+                        options=[20, 25, 30, 35, 40],
+                        value=30,
+                        format_func=lambda value: f"{value}%",
                     )
 
-                if (
-                    float(score_differential) + 3.0 < 0
-                    and int(minutes)*60 + int(seconds) > 40
-                ):
+                    experimental_touchback_rate = (
+                        float(assumed_touchback_pct) / 100.0
+                    )
 
-                    experimental_onside_enabled = st.checkbox(
-                        "Advanced: include hypothetical onside kicks "
-                        "after a made field goal",
+                    st.caption(
+                        "Legacy sensitivity mode only. This rate is a "
+                        "what-if assumption, not a live forecast."
+                    )
+
+                else:
+
+
+
+                    experimental_ordinary_only = st.checkbox(
+                        "Advanced: compare using only the previous 488 "
+                        "ordinary kickoffs (exclude penalty-affected snaps)",
+                        value=False,
+                    )
+
+                    experimental_native_candidate_enabled = st.checkbox(
+                        "Advanced: also show native kickoff-input correction "
+                        "(research-only)",
                         value=False,
                         help=(
-                            "Only applies if the kicking team would remain "
-                            "behind after making the FG. Samples historical "
-                            "2025 onside first-snap outcomes, but both "
-                            "probabilities are explicit what-if assumptions."
+                            "Uses the original frozen WP model with the native "
+                            "Q4 post-score kickoff yardline/distance features. "
+                            "It does not use 2025 first-snap donor sampling. "
+                            "The official recommendation never changes."
                         ),
                     )
 
-                    if experimental_onside_enabled:
+                    if experimental_native_candidate_enabled:
 
                         st.caption(
-                            "Hypothetical branch only. A 2025 observational "
-                            "sample of 41 attempts included just four "
-                            "kicking-team recoveries. Neither the chance "
-                            "of attempting nor recovering is validated "
-                            "for this particular game."
+                            "Retrospective 2023–2025 post-score Q4 kicks "
+                            "(1,617 observations) had a lower pooled Brier "
+                            "score with this candidate (0.11561 to 0.10743), "
+                            "but the away-kicking-team subgroup was slightly "
+                            "worse. Historical data were previously examined; "
+                            "this is not a validated replacement or causal "
+                            "fourth-down policy test."
                         )
 
-                        assumed_attempt_pct = st.select_slider(
-                            "Assumed chance of choosing an onside kick "
+                    if (
+                        float(score_differential) + 3.0 < 0
+                        and int(minutes)*60 + int(seconds) > 40
+                    ):
+
+                        experimental_onside_enabled = st.checkbox(
+                            "Advanced: include hypothetical onside kicks "
                             "after a made field goal",
-                            options=[0, 5, 10, 15, 20, 25, 30, 40, 50],
-                            value=25,
-                            format_func=lambda value: f"{value}%",
+                            value=False,
+                            help=(
+                                "Only applies if the kicking team would remain "
+                                "behind after making the FG. Samples historical "
+                                "2025 onside first-snap outcomes, but both "
+                                "probabilities are explicit what-if assumptions."
+                            ),
                         )
 
-                        assumed_recovery_pct = st.select_slider(
-                            "Assumed conditional kicking-team recovery chance",
-                            options=[0, 5, 10, 15, 20, 30, 50],
-                            value=10,
-                            format_func=lambda value: f"{value}%",
-                        )
+                        if experimental_onside_enabled:
 
-                        experimental_onside_attempt_probability = (
-                            float(assumed_attempt_pct) / 100.0
-                        )
-                        experimental_onside_recovery_probability = (
-                            float(assumed_recovery_pct) / 100.0
-                        )
+                            st.caption(
+                                "Hypothetical branch only. A 2025 observational "
+                                "sample of 41 attempts included just four "
+                                "kicking-team recoveries. Neither the chance "
+                                "of attempting nor recovering is validated "
+                                "for this particular game."
+                            )
 
-                if not experimental_onside_enabled:
+                            assumed_attempt_pct = st.select_slider(
+                                "Assumed chance of choosing an onside kick "
+                                "after a made field goal",
+                                options=[0, 5, 10, 15, 20, 25, 30, 40, 50],
+                                value=25,
+                                format_func=lambda value: f"{value}%",
+                            )
 
-                    st.caption(
-                        "Onside kicks, return touchdowns, actual re-kicks, "
-                        "and unmatched first possessions remain excluded. "
-                        "Enable the Advanced onside what-if to explore "
-                        "one additional hypothetical branch."
-                    )
+                            assumed_recovery_pct = st.select_slider(
+                                "Assumed conditional kicking-team recovery chance",
+                                options=[0, 5, 10, 15, 20, 30, 50],
+                                value=10,
+                                format_func=lambda value: f"{value}%",
+                            )
+
+                            experimental_onside_attempt_probability = (
+                                float(assumed_attempt_pct) / 100.0
+                            )
+                            experimental_onside_recovery_probability = (
+                                float(assumed_recovery_pct) / 100.0
+                            )
+
+                    if not experimental_onside_enabled:
+                        st.caption(
+                            "Unsupported return-TDs, re-kicks and unmatched "
+                            "plays are excluded from this scenario."
+                        )
 
 
 # =========================================================
