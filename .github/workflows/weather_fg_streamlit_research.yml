@@ -1,0 +1,65 @@
+name: Weather FG research inputs - frozen policy remains unchanged
+
+# The UI receives manual weather conditions only. No weather API, no
+# new 2026/27 collection, no production model training or artifact change.
+# Research fitting from 2014-22/2023-24 is a separate offline workflow.
+on:
+  push:
+    branches: [main]
+    paths:
+      - app.py
+      - src/weather_fg_sensitivity.py
+      - tests/test_weather_fg_sensitivity.py
+      - tests/test_streamlit_app_integration.py
+      - data/fg_weather_2014_2024_research_only.json
+      - .github/workflows/weather_fg_streamlit_research.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  weather-control-and-real-engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 19
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install existing requirements
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Verify new modules and full weather UI
+        run: |
+          python -m py_compile app.py src/weather_fg_sensitivity.py
+          PYTHONPATH=. python -m pytest -q \
+            tests/test_weather_fg_sensitivity.py \
+            tests/test_streamlit_app_integration.py
+      - name: Verify weather experiment is NOT supported for official decisions
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("data/fg_weather_2014_2024_research_only.json").read_text())
+          assert d["source_seasons"] == {
+              "train":"2014-2022", "validation":"2023-2024",
+          }
+          assert d["number_training"] == 5705
+          assert d["number_validation"] == 1186
+          assert d["brier_improvement_baseline_minus_weather"] < 0
+          assert d["validation_supports_official_weather_use"] is False
+          assert d["may_change_frozen_production"] is False
+          assert d["2025_heldout_data_used"] is False
+          assert d["2026_or_2027_data_used"] is False
+          assert d["condition_rain_snow_fitted"] is False
+          print("PASS: research comparison only; frozen official engine unchanged")
+          PY
+      - name: Never change production FG models or protected 2026 policies
+        run: |
+          git diff --exit-code -- models \
+            src/42_build_decision_engine.py \
+            src/66_forward_2026_continuation_wp.py \
+            src/83_forward_2026_native_challenger_once.py
