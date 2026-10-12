@@ -925,6 +925,8 @@ def test_buffalo_north_south_is_documented_but_not_numeric_forecast(ui):
     assert "Associated Press" in caption
     assert "Exact azimuth remains unknown" in caption
     assert "capture_buffalo_snap_direction_claim" in values(ui.at, "code")
+    assert "measure_buffalo_field_axis" in values(ui.at, "code")
+    assert "GOAL-LINE MIDPOINT" in values(ui.at, "caption")
     widget(
         ui.at, "selectbox",
         "Buffalo offense attack-end claim (research only)",
