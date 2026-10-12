@@ -107,10 +107,10 @@ jobs:
                   ).click()
                   print("Clicked Analyze Fourth Down for Q4 HOME", flush=True)
 
-                  # Streamlit can transiently render a result during a
-                  # rerun, then clear it. Require the FULL result to be
-                  # visible in two consecutive snapshots, not just the
-                  # native-input caption or an ephemeral metric.
+                  # App now saves completed analyses in session_state
+                  # across reruns, and invalidates when input changes.
+                  # Require the FULL result in two consecutive snapshots
+                  # so the hosted check catches regressions in persistence.
                   required = (
                       "Decision",
                       "Recommendation",
@@ -128,6 +128,7 @@ jobs:
                   consecutive = 0
                   deadline = time.monotonic() + 220
                   last_content = ""
+                  last_report = 0
                   while time.monotonic() < deadline:
                       try:
                           last_content = app.locator("body").inner_text(
@@ -142,6 +143,20 @@ jobs:
                           raise AssertionError(
                               "Q4 corrected calculation failed on hosted app: "
                               + last_content[-800:]
+                          )
+                      now = time.monotonic()
+                      if now - last_report > 25:
+                          last_report = now
+                          print(
+                              "Q4 progress",
+                              {
+                                  "required": {
+                                      phrase: phrase in last_content
+                                      for phrase in required
+                                  },
+                                  "tail": last_content[-350:],
+                              },
+                              flush=True,
                           )
                       if all(phrase in last_content for phrase in required):
                           consecutive += 1
