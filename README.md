@@ -328,6 +328,18 @@ See the [postseason admission contract](reports/2027_postseason_existing_data_ga
 admission and the permanent one-time release lock are still intentionally
 disabled until a reviewed post-season implementation in 2028.**
 
+The [2025 archived NFLverse/ESPN evidence collector](src/nflverse_espn_historical_collection.py)
+and [safe source CLI](scripts/collect_nflverse_espn_2025.py)
+now verify 272 real **completed 2025 regular-season games** against the
+original independently retrieved **3,151-game ESPN historical final-score
+archive**, with original PBP hashes, exact field schema hashes, and strict
+denial of 2026/2027 data. The [remote once-only Git tag claim mechanism](src/repository_once_claim.py)
+is tested on competing local bare-Git clones so a second runner cannot
+reuse the same fixed ref; the library **cannot push to GitHub or activate a
+real 2027 evaluation tag today**. [Audit and remaining release requirements](reports/2027_same_source_collector_and_git_once_claim.md).
+A real future release still needs authenticated 2027 sources, season
+completion, approved tag protections and a separately reviewed activation.
+
 ## Independent 2027 Fourth-Down Action-Policy Study
 
 The separate [preregistered 2027 decision study](reports/2027_fourth_down_action_policy_protocol.md)
