@@ -244,7 +244,7 @@ def test_explicit_noaa_download_is_single_host_and_a_one_shot_not_ui(monkeypatch
     data, captured = cli.fetch_recent_awc_metar("KSEA")
     assert data == payload
     assert captured.tzinfo == timezone.utc
-    assert requested == [(cli.awc_url("KSEA"), 12)]
+    assert requested == [(cli.awc_url("KSEA"), 20)]
 
 
 def test_offline_fixture_and_exclusive_audit_output(tmp_path):
@@ -302,3 +302,120 @@ def test_research_receipt_display_is_arithmetically_checked_but_unsigned():
         altered[field] = bad
         with pytest.raises(ValueError):
             validate_metar_receipt_for_display(altered)
+
+
+
+def test_noaa_published_json_example_shape_parses_without_false_rain():
+    """NOAA-compatible published 2023 sample, not a live HTTP response."""
+    sample = [{
+        "icaoId": "KORD",
+        "receiptTime": "2023-11-03 21:54:03.000Z",
+        "obsTime": 1699048260,
+        "reportTime": "2023-11-03 22:00:00.000Z",
+        "temp": 14.4,
+        "dewp": 2.8,
+        "wdir": 230,
+        "wspd": 6,
+        "wgst": 12,
+        "wxString": "-RA",  # Not actually in the coded present-weather group.
+        "rawOb": (
+            "KORD 032151Z 23006KT 10SM BKN110 OVC250 "
+            "14/03 A3000 RMK AO2 SLP162 VIRGA OHD T01440028"
+        ),
+        "lat": 41.9602,
+        "lon": -87.9316,
+    }]
+    original = json.dumps(sample).encode("utf-8")
+    report = build_metar_decision_evidence(
+        observations=sample, source_bytes=original, station_id="KORD",
+        decision_at_utc="2023-11-03T22:10:00Z",
+        captured_at_utc="2023-11-03T22:12:00Z",
+        field_lat=41.9602, field_lon=-87.9316,
+        offense_attack_heading_true_deg=230,
+        roof="outdoors", fetched_from_awc_https=False,
+    )
+    assert report["observed_at_utc"] == "2023-11-03T21:51:00Z"
+    assert report["noaa_receipt_at_utc"] == "2023-11-03T21:54:03Z"
+    assert report["wind_speed_knots"] == 6
+    assert report["headwind_mph_signed"] > 6.8
+    assert report["airport_present_weather_code"] == (
+        "AIRPORT_PRECIP_NOT_REPORTED_UNKNOWN"
+    )
+    assert report["may_change_official_go_fg_or_punt_model"] is False
+    assert report["provider_origin_https_verified_for_this_capture"] is False
+
+
+def test_noaa_one_transient_timeout_is_retried_at_most_once(monkeypatch):
+    from unittest.mock import Mock
+    payload = json.dumps([sample()]).encode()
+    calls = []
+    delays = []
+    class FakeResponse:
+        status = 200
+        headers = {"Content-Type": "application/json"}
+        def __init__(self, url):
+            self.url = url
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def geturl(self):
+            return self.url
+        def read(self, n):
+            return payload
+
+    def flaky(req, timeout):
+        calls.append((req.full_url, timeout))
+        if len(calls) == 1:
+            raise TimeoutError("Transient NOAA socket read")
+        return FakeResponse(req.full_url)
+
+    monkeypatch.setattr(cli, "urlopen", flaky)
+    monkeypatch.setattr(cli.time, "sleep", delays.append)
+    raw, fetched = cli.fetch_recent_awc_metar("KSEA")
+    assert raw == payload
+    assert fetched.tzinfo == timezone.utc
+    assert len(calls) == 2
+    assert calls[0] == calls[1] == (cli.awc_url("KSEA"), 20)
+    assert delays == [2]
+
+
+def test_noaa_unavailable_is_not_misreported_as_verified_weather(monkeypatch):
+    attempts = []
+    def always_timeout(req, timeout):
+        attempts.append(req.full_url)
+        raise TimeoutError("NOAA not responding")
+    monkeypatch.setattr(cli, "urlopen", always_timeout)
+    monkeypatch.setattr(cli.time, "sleep", lambda seconds: None)
+    with pytest.raises(
+        ConnectionError, match="NOAA_AWC_READ_TIMEOUT_TWICE_LIVE_WEATHER_NOT_VERIFIED"
+    ):
+        cli.fetch_recent_awc_metar("KSEA")
+    assert attempts == [cli.awc_url("KSEA")] * 2
+
+
+def test_noaa_rate_limits_and_empty_observations_are_never_retried(monkeypatch):
+    from urllib.error import HTTPError
+    counts = []
+    def rate_limited(req, timeout):
+        counts.append(req.full_url)
+        raise HTTPError(req.full_url, 429, "rate limited", None, None)
+    monkeypatch.setattr(cli, "urlopen", rate_limited)
+    with pytest.raises(ConnectionError, match="NOAA_AWC_NETWORK_UNAVAILABLE"):
+        cli.fetch_recent_awc_metar("KSEA")
+    assert counts == [cli.awc_url("KSEA")]
+
+    class NoContentResponse:
+        status = 204
+        headers = {"Content-Type": "application/json"}
+        def geturl(self):
+            return cli.awc_url("KSEA")
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+    monkeypatch.setattr(
+        cli, "urlopen", lambda *args, **kw: NoContentResponse(),
+    )
+    with pytest.raises(ValueError, match="NOAA_AWC_NO_OBSERVATIONS_AVAILABLE"):
+        cli.fetch_recent_awc_metar("KSEA")
