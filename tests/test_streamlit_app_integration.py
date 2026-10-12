@@ -489,6 +489,8 @@ def test_q4_459_trailing_four_recomputes_wp_and_shows_close_call(ui):
     assert metrics(at)["FIELD GOAL"] == "38.20%"
     assert metrics(at)["PASS / DROPBACK"] == "36.80%"
     assert "Close call" in values(at, "info")
+    assert "Q4 site caution" in values(at, "caption")
+    assert "13 games" in values(at, "caption")
     assert "INCONCLUSIVE" not in str(metrics(at))
     assert "Model reliability warning" not in values(at, "warning")
     assert not any("kickoff comparison" in e.label.lower() for e in at.expander)
