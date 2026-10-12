@@ -1,7 +1,7 @@
-name: Prepare research-demo draft (one-time)
+name: Refresh unpublished research-demo draft (one-time)
 
-# Creates a DRAFT prerelease only. It does not publish a stable version.
-# Initial installation triggers this once; reruns never overwrite releases.
+# One-time refresh of an existing DRAFT prerelease only.
+# Never publishes a release, creates a stable tag, or promotes a model.
 on:
   push:
     branches: [main]
@@ -13,130 +13,125 @@ permissions:
   actions: read
 
 jobs:
-  prepare-draft:
+  refresh-draft:
     if: github.repository == 'daniel-jpg/fourth-down-ai'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
       TAG: research-demo-2026-10-12
-      CANDIDATE_SHA: 9ca973c458b488225f4072679a57d1c0cddba367
-      LIVE_SMOKE_SHA: 8239a8f7666b2cf00bf792c5977119c67127693a
+      CANDIDATE_SHA: 7414e7f60ea9cf2f4eafc26e86aadedb86408181
+      LIVE_SHA: 053e4a5b7c16c88ef129fd39e6b780b8d965dda2
     steps:
-      - name: Check out source and full history
+      - name: Check out full history
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Verify pinned CI, live smoke and source scope
+      - name: Check pinned CI, hosted smoke, and unchanged engine
         shell: bash
         run: |
           set -euo pipefail
           git cat-file -e "$CANDIDATE_SHA^{commit}"
           git merge-base --is-ancestor "$CANDIDATE_SHA" HEAD
 
-          ci_sha="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/38192204676" --jq '.head_sha')"
-          ci_result="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/38192204676" --jq '.conclusion')"
-          test "$ci_sha" = "$CANDIDATE_SHA"
-          test "$ci_result" = "success"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/38193570917" --jq '.head_sha')" = "$CANDIDATE_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/38193570917" --jq '.conclusion')" = "success"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/38193289281" --jq '.head_sha')" = "$LIVE_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/38193289281" --jq '.conclusion')" = "success"
 
-          live_sha="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/38191887243" --jq '.head_sha')"
-          live_result="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/38191887243" --jq '.conclusion')"
-          test "$live_sha" = "$LIVE_SMOKE_SHA"
-          test "$live_result" = "success"
-
-          # Difference from the hosted browser-tested app is docs-only.
-          while IFS= read -r path; do
-            case "$path" in
-              README.md|CHANGELOG.md|reports/88_research_demo_release_readiness.md|reports/90_release_candidate_checklist.md) ;;
-              *) echo "Non-documentation change since live smoke: $path" >&2; exit 1 ;;
+          # Since the live no-panel smoke, changes must be source-level
+          # tests or release docs only. The deployed app and model are
+          # byte-for-byte the same across these two tested commits.
+          while IFS= read -r changed; do
+            case "$changed" in
+              tests/test_kickoff_q4_reliability_guard.py|tests/test_native_kickoff_streamlit_preview.py|README.md|CHANGELOG.md|reports/88_research_demo_release_readiness.md|reports/90_release_candidate_checklist.md) ;;
+              *) echo "Unexpected non-doc/test change: $changed" >&2; exit 1 ;;
             esac
-          done < <(git diff --name-only "$LIVE_SMOKE_SHA" "$CANDIDATE_SHA")
+          done < <(git diff --name-only "$LIVE_SHA" "$CANDIDATE_SHA")
 
-          # Protect the already published stable release.
-          stable_tag="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v1.1.0" --jq '.tag_name')"
-          test "$stable_tag" = "v1.1.0"
-          echo "Release-draft gates passed for $CANDIDATE_SHA."
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v1.1.0" --jq '.tag_name')" = "v1.1.0"
+          echo "Gates passed. Candidate $CANDIDATE_SHA preserves live-tested app."
 
-      - name: Prepare research-only release notes
+      - name: Prepare updated draft-only notes
         shell: bash
         run: |
-          cat > "$RUNNER_TEMP/research-demo-notes.md" <<'NOTES'
-          # Verified research-demo snapshot — October 12, 2026
+          cat > "$RUNNER_TEMP/draft-notes.md" <<'NOTES'
+          # Fourth Down AI — research-demo snapshot (October 12, 2026)
 
-          **Status: DRAFT prerelease; NOT a new stable release, validated coaching
-          policy or production model upgrade.** The last stable version remains
-          [v1.1.0](https://github.com/daniel-jpg/fourth-down-ai/releases/tag/v1.1.0).
+          **Unpublished DRAFT prerelease. Not a stable model release.**
+          [v1.1.0](https://github.com/daniel-jpg/fourth-down-ai/releases/tag/v1.1.0)
+          remains the stable version and its frozen prediction engine is unchanged.
 
-          **Pinned candidate source:** 9ca973c458b488225f4072679a57d1c0cddba367.
-          This snapshot packages the qualified public research demo. It does
-          not retrain or promote the frozen prediction engine.
+          **Pinned source:** 7414e7f60ea9cf2f4eafc26e86aadedb86408181
 
-          ## What's included
-          - Streamlit fourth-down decision support for regulation and NFL
-            regular-season/postseason overtime.
-          - Official GO (run/pass), FIELD GOAL and PUNT comparisons, with
-            modeled game-winning probabilities and action-outcome explanations.
-          - One optional Q4 2025 kickoff comparison, using 538 verified
-            historical nonscoring first-possession transitions (488 ordinary
-            and 50 clean penalty-affected); official recommendations unchanged.
-          - Unsupported fake punts/FGs excluded from public rankings; no
-            unsupported advanced options in the public UI.
+          ## Public app
+          - Simple regulation/regular-season OT/playoff OT decision tool:
+            official GO (pass/run), FIELD GOAL and PUNT estimated outcomes.
+          - Explains immediate conversion, kick outcomes, Monte Carlo
+            simulation noise, and modeled game WP or OT game value.
+          - **No 2025 kickoff comparison section, toggle, or separate
+            experimental strategy output in the public app.** All of these
+            controls were removed following user review.
+          - Unsupported fake punts and fake field goals are not ranked.
+            The independent automatic Q4 model-reliability warning remains.
+
+          ## Research retained separately
+          - The repository preserves 538 verified 2025 Q4 nonscoring
+            kickoff transitions and related 2024/2025 onside and native
+            kickoff-input analyses. They are NOT live app features.
+          - These retrospective estimates are not calibrated 2026+
+            forecasts or evidence of a causal win-probability improvement.
+          - The future Step 66/83 precommitted validation gates remain
+            unchanged and are not permitted to run early or auto-promote models.
 
           ## Verification
-          - [Full CI Tests #230](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38192204676)
-            passed on this exact candidate commit, including frozen Git-blob
-            preflight, regression tests and Streamlit AppTest.
-          - [Hosted Chromium smoke #8](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887243)
-            passed on commit 8239a8f: opened public Streamlit, enabled the
-            optional kickoff scenario, clicked Analyze Fourth Down and
-            observed the official decision and completed scenario metric.
-            The change to the candidate commit is documentation-only.
-          - [Live QA issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5)
-            is closed, with mobile presentation accepted by the project owner.
+          - [GitHub Actions Tests #234](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193570917)
+            passed on this pinned source, covering frozen artifacts,
+            regression tests, and Streamlit AppTest.
+          - [Hosted browser smoke #9](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193289281)
+            passed against the revised app source: no kickoff panel was
+            visible, and the official fourth-down recommendation rendered.
+            Commits since the live smoke touch only docs/tests, not app code.
+          - Mobile layout was accepted by the project owner; QA issue #5 closed.
 
-          ## Important research limitations
-          - Win probabilities and percentage-point edges are model estimates,
-            not measured causal improvements in football wins. Monte Carlo
-            standard error covers simulation noise, not total uncertainty.
-          - The 2025 historical kickoff scenario is not a calibrated forecast
-            for 2026+. Onside kicks, scoring returns, re-kicks and unmatched
-            outcomes are not treated as ordinary nonscoring transitions.
-          - Exploratory 2025 studies have already inspected historical outcomes
-            and are not a fresh untouched holdout. The precommitted 2026
-            Step 66/83 once-only evaluation gates are still pending and
-            do not authorize model promotion.
-          - The hosted browser flow passed, but the exact Streamlit Cloud
-            deployed Git SHA was not independently attested. No user-facing
-            build-info display was reintroduced.
+          ## Limits and provenance
+          - Decisions and estimated edges are model-based, not causal
+            coaching recommendations or independently validated 2026+
+            performance. Monte Carlo SE is only simulation uncertainty.
+          - Later 2025 exploratory research is no longer an untouched
+            future holdout.
+          - The hosted application's exact Git SHA was not independently
+            attested; no unwanted public build-info panel was reintroduced.
 
-          See the [README](https://github.com/daniel-jpg/fourth-down-ai/blob/9ca973c458b488225f4072679a57d1c0cddba367/README.md),
-          [research-demo readiness report](https://github.com/daniel-jpg/fourth-down-ai/blob/9ca973c458b488225f4072679a57d1c0cddba367/reports/88_research_demo_release_readiness.md),
-          [release checklist](https://github.com/daniel-jpg/fourth-down-ai/blob/9ca973c458b488225f4072679a57d1c0cddba367/reports/90_release_candidate_checklist.md)
-          and [live demo](https://fourth-down-ai.streamlit.app/).
+          [Live demo](https://fourth-down-ai.streamlit.app/) ·
+          [README](https://github.com/daniel-jpg/fourth-down-ai/blob/7414e7f60ea9cf2f4eafc26e86aadedb86408181/README.md) ·
+          [Release checklist](https://github.com/daniel-jpg/fourth-down-ai/blob/7414e7f60ea9cf2f4eafc26e86aadedb86408181/reports/90_release_candidate_checklist.md)
           NOTES
 
-      - name: Create draft prerelease (never publish)
+      - name: Refresh existing draft without publishing
         shell: bash
         run: |
           set -euo pipefail
-          if existing="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '.draft' 2>/dev/null)"; then
-            test "$existing" = "true" || {
-              echo "Already-published release at this tag; refusing to alter." >&2
-              exit 1
-            }
-            echo "Draft already exists. Leaving it unchanged."
-            exit 0
-          fi
-          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null 2>&1; then
-            echo "Tag already exists without a draft; refusing to overwrite." >&2
+          draft_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '.id')"
+          test -n "$draft_id"
+          old_target="$(gh api "repos/$GITHUB_REPOSITORY/releases/$draft_id" --jq '.target_commitish')"
+          draft_status="$(gh api "repos/$GITHUB_REPOSITORY/releases/$draft_id" --jq '.draft')"
+          test "$draft_status" = "true" || {
+            echo "Refusing to alter a published release." >&2
             exit 1
-          fi
-          gh release create "$TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$CANDIDATE_SHA" \
-            --title "Fourth Down AI — Verified research demo (Oct 2026)" \
-            --notes-file "$RUNNER_TEMP/research-demo-notes.md" \
-            --draft \
-            --prerelease
-          echo "Created draft prerelease; did not publish stable version."
+          }
+          case "$old_target" in
+            9ca973c458b488225f4072679a57d1c0cddba367|"$CANDIDATE_SHA") ;;
+            *) echo "Unexpected draft target; refusing to overwrite." >&2; exit 1 ;;
+          esac
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$draft_id" \
+            -f target_commitish="$CANDIDATE_SHA" \
+            -f name="Fourth Down AI — Verified official-only research demo" \
+            -f "body=$(cat "$RUNNER_TEMP/draft-notes.md")" \
+            -F draft=true \
+            -F prerelease=true >/dev/null
+
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/$draft_id" --jq '.draft')" = "true"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/$draft_id" --jq '.target_commitish')" = "$CANDIDATE_SHA"
+          echo "Updated existing draft at $CANDIDATE_SHA. Nothing was published."
