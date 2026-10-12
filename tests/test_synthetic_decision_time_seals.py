@@ -221,7 +221,7 @@ def test_post_signature_mutation_never_passes_signature_verification(signed,cred
 
 def test_modifying_non_predictive_signed_audit_is_still_detected(signed,credentials):
     changed=deepcopy(signed)
-    changed["bundle"]["forecast"]["audit"]["default_kicker_context"]="TAMPERED"
+    changed["bundle"]["forecast"]["audit"]["close_call_rule"]="TAMPERED"
     with pytest.raises(ValueError,match="commit|authentic"):
         verify(changed,credentials)
 
@@ -319,6 +319,34 @@ def test_pseudo_source_reference_cannot_claim_live_espn(evidence):
     changed=deepcopy(evidence)
     changed["source_events"][0]["source_ref"]="https://site.api.espn.com/pretend"
     with pytest.raises(ValueError,match="fabricated"):
+        validate_source_bundle(changed)
+
+
+
+@pytest.mark.parametrize("forbidden_audit_key", [
+    "observed_action", "offense_win", "final_home_score", "yards_gained",
+    "converted", "result", "next_play_type", "post_snap_epa",
+])
+def test_post_snap_labels_cannot_hide_in_forecast_audit_metadata(
+    evidence, forbidden_audit_key,
+):
+    changed=deepcopy(evidence)
+    changed["forecast"]["audit"][forbidden_audit_key]=1
+    with pytest.raises(ValueError,match="EXACT"):
+        validate_source_bundle(changed)
+
+
+def test_individual_kicker_context_cannot_be_invented_before_snap(evidence):
+    changed=deepcopy(evidence)
+    changed["forecast"]["audit"]["default_kicker_context"]="KNOWN_STAR_KICKER"
+    with pytest.raises(ValueError,match="unsafe"):
+        validate_source_bundle(changed)
+
+
+def test_unregistered_model_artifact_cannot_be_falsely_claimed(evidence):
+    changed=deepcopy(evidence)
+    changed["forecast"]["audit"]["engine_blob_sha1"]="0"*40
+    with pytest.raises(ValueError,match="unsafe"):
         validate_source_bundle(changed)
 
 
