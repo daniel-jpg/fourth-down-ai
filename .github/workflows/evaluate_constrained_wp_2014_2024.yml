@@ -1,0 +1,51 @@
+name: Chronological constrained WP challenger (development only)
+
+# Separately fit a frozen-spec football-monotonic WP challenger on 2014-22.
+# Evaluate only 2023-24 previously seen development PBP. 2025+ forbidden.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/wp_constrained_development_eval.py"
+      - "scripts/evaluate_constrained_wp_2014_2024.py"
+      - "tests/test_wp_constrained_development_eval.py"
+      - ".github/workflows/evaluate_constrained_wp_2014_2024.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  development-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+      - name: Python environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install pinned project dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Assert chronology, probabilistic validity, and no future outcomes
+        run: |
+          PYTHONPATH=. python -m pytest -v tests/test_wp_constrained_development_eval.py tests/test_wp_monotonic_development.py
+      - name: Fit and score fixed candidate on development seasons only
+        run: |
+          set -o pipefail
+          PYTHONPATH=. python scripts/evaluate_constrained_wp_2014_2024.py 2>&1 | tee wp-chronological-development.txt
+      - name: Archive report and unpromoted WP candidate, never overwrite frozen weights
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: constrained-WP-chronological-development-only
+          path: |
+            wp-chronological-development.txt
+            artifacts/wp_constrained_2014_2024_development.json
+            artifacts/wp_monotonic_candidate_2014_2022.joblib
+          retention-days: 21
+          if-no-files-found: ignore
