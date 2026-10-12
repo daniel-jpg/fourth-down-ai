@@ -8,3 +8,4 @@ pyarrow==25.0.1
 scikit-learn==1.9.1
 streamlit==1.65.0
 xgboost==3.4.1
+# Streamlit Community Cloud rebuild trigger (2026-10-12): versions unchanged.
