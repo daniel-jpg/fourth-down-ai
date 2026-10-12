@@ -16,7 +16,7 @@ synthetic forecast. They are not a real 2027 football data connector.
 from __future__ import annotations
 
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta
 import hashlib
 import json
 import math
@@ -55,7 +55,7 @@ POSTPLAY_FORBIDDEN = frozenset({
     "final_home_score", "final_away_score", "snap_at_utc",
     "touchdown", "fumble", "interception",
 })
-CLOCK = re.compile(r"^(?:[0-9]|1[0-5]):[0-5][0-9]$")
+CLOCK = re.compile(r"^(?:[0-9]|0[0-9]|1[0-5]):[0-5][0-9]$")
 ALIAS = re.compile(r"^[A-Z]{2,3}$")
 MAX_MESSAGE = 75_000
 
@@ -191,7 +191,7 @@ def replay_fabricated_pulse(envelope: Mapping[str, Any], *,
     created = _provider_time(pulse.get("created_at"), "Pulse created_at")
     if created > received:
         raise ValueError("Pulse provider created_at AFTER collector receipt")
-    if captured-created > __import__("datetime").timedelta(seconds=40):
+    if captured-created > timedelta(seconds=40):
         raise ValueError("Stale Pulse lineup update: cannot presume current fourth down")
     game_id = _id(game.get("id"), "provider game id")
     pulse_id = _id(pulse.get("id"), "provider pulse id")
@@ -299,14 +299,16 @@ def replay_fabricated_pulse(envelope: Mapping[str, Any], *,
     if set(state) != SNAPSHOT_KEYS:
         raise RuntimeError("Translated Pulse state diverged from frozen input contract")
     validate_synthetic_snapshot(state)
-    def _time_for_source(source: dict, label: str) -> tuple[str, str]:
-        observed = _timestamp(source["observed_at_utc"],f"{label} observed")
-        landed = _timestamp(source["received_at_utc"],f"{label} received")
+    def _time_for_source(source: dict, kind: str) -> tuple[str, str]:
+        observed = _timestamp(source["observed_at_utc"],f"{kind} observed")
+        landed = _timestamp(source["received_at_utc"],f"{kind} received")
         if not observed <= landed <= captured:
-            raise ValueError(f"{label} observed/received after capture")
+            raise ValueError(f"{kind} observed/received after capture")
+        if captured-observed > timedelta(seconds=FEEDS[kind][2]):
+            raise ValueError(f"Stale {kind} evidence cannot be used as pre-snap")
         return source["observed_at_utc"], source["received_at_utc"]
-    v_obs,v_rec = _time_for_source(venue, "physical venue")
-    t_obs,t_rec = _time_for_source(toss, "pregame coin toss")
+    v_obs,v_rec = _time_for_source(venue, "physical_venue")
+    t_obs,t_rec = _time_for_source(toss, "halftime_receiver")
     # Must pass exact disjoint field owners to existing synthetic seal.
     play_state = {k:state[k] for k in STATE_KEYS}
     physical_venue = {
@@ -318,7 +320,7 @@ def replay_fabricated_pulse(envelope: Mapping[str, Any], *,
     source_events=[
         _event(
             "play_state",play_state,
-            created.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            created.isoformat().replace("+00:00","Z"),
             envelope["collector_received_at_utc"],
             f"synthetic://play_state/pulse-{pulse_id}-{wire_digest}",
         ),
@@ -332,7 +334,7 @@ def replay_fabricated_pulse(envelope: Mapping[str, Any], *,
     return {
         "snapshot":state, "source_events":source_events,
         "source_wire_sha256":wire_digest,
-        "provider_created_at_utc":created.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "provider_created_at_utc":created.isoformat().replace("+00:00","Z"),
         "collector_received_at_utc":envelope["collector_received_at_utc"],
         "captured_at_utc":envelope["captured_at_utc"],
         "simulated_snap_at_utc":simulated_snap_at_utc,
