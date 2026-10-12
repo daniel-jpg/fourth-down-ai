@@ -60,13 +60,13 @@ def deployed_git_revision() -> str | None:
         return revision
     return None
 
-with st.expander("Deployment revision"):
+with st.sidebar.expander("Build info", expanded=False):
     deployed_sha = deployed_git_revision()
     if deployed_sha:
-        st.code(deployed_sha)
-        st.caption("Git revision reported by the running application.")
+        st.code(deployed_sha[:12])
+        st.caption("Running Git commit (short SHA).")
     else:
-        st.caption("Git revision unavailable on this hosting environment.")
+        st.caption("Git revision unavailable on this host.")
 
 # =========================================================
 # Interactive football field component
