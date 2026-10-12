@@ -39,8 +39,8 @@ def invented_weather_plays(action: str, *, with_weather_text: bool) -> pd.DataFr
             "posteam_timeouts_remaining": float(i % 4),
             "defteam_timeouts_remaining": float((i+2) % 4),
             "converted": int((i * 17) % 100 <= 51 - (i % 8)),
-            "state_yardline_100": float(
-                min(99, max(1, 59.0 - (i % 70) * .3 + wind * .13))
+            "kick_distance": float(
+                min(90, max(15, 39.0 + (i % 25) * .3 + wind * .13))
             ),
         }
         records.append(record)
@@ -81,7 +81,7 @@ def test_punt_target_has_distinct_error_metrics_and_no_policy_promotion():
     )
     result = study._compare("PUNT", punt, audit)
     assert result["target"] == (
-        "NEXT_OPPONENT_OFFENSE_YARDLINE_100_ON_REGULAR_PUNT"
+        "SAME_PLAY_RECORDED_GROSS_PUNT_KICK_DISTANCE_YARDS"
     )
     assert "mae_yards" in result["model_validation"]["preplay_baseline"]
     assert "rmse_yards" in result["model_validation"]["weather_temperature_wind"]
