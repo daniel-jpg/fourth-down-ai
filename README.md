@@ -300,6 +300,17 @@ using seasons no later than 2025, and recorded model/source provenance.
 No 2027 outcomes are available yet, and **no causal fourth-down coaching
 advantage has been established**.
 
+A [historical-only coach/reward nuisance fit](reports/2027_historical_nuisance_development.md)
+and a [synthetic frozen-policy bridge](reports/2027_frozen_policy_bridge_rehearsal.md)
+now exist. Importantly, the registered policy is **not** a bare frozen
+engine call: Q1–Q3 uses the app's adaptive 300/1,200-trial scheme, and
+Q4 uses the isolated native standard-35 kickoff correction at 1,200
+trials with seed 43. The bridge verifies the pinned source/assets and
+joins policy action probabilities with e(policy|X), mu(policy,X) without
+using the actual coach decision or final game result as pre-snap inputs.
+Only fabricated scenarios have been replayed; real decision-time roof,
+halftime-receiver, and outcome provenance still need independent review.
+
 Passing the original once-only 2026 native-kickoff test may eventually
 allow narrowing the phrase *"kickoff inputs not yet validated on future
 games"*; even a positive 2027 observational result would not by itself
