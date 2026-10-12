@@ -2171,6 +2171,16 @@ if situation_valid:
                 f"above {second['strategy']}."
             )
 
+    # A narrow, evidence-backed caution for an extreme location with
+    # almost no comparable 2014-2022 normal-GO training examples.
+    # This does NOT change the frozen recommendation or action WPs.
+    from src.situational_support import deep_own_short_go_notice
+    go_support_notice = deep_own_short_go_notice(
+        state, best["strategy"],
+    )
+    if go_support_notice:
+        st.info(go_support_notice)
+
     if qtr != 5:
 
         st.caption(

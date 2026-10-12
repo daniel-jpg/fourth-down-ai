@@ -543,6 +543,8 @@ or causal coaching impact. See the
 - Monte Carlo standard error reflects simulation noise, not total model uncertainty.
 - The model cannot capture every relevant football factor, including exact personnel, injuries, play design, coaching tendencies, wind, and other unobserved context.
 - Normal-run recommendations are intentionally restricted to the development-supported short-yardage range.
+- **Deep own territory:** in 2014–2022 training data, there was only one normal GO attempt on fourth-and-2/3 inside a team's own 10, and none inside the own 5. The demo now gives a **narrow historical-support notice** if it recommends GO in that area; it does **not** silently change the probability or substitute a PUNT decision. See [Issue #9 empirical audit](reports/issue9_deep_territory_site_audit.md).
+- **Q4 site sensitivity:** switching HOME/AWAY can change GO-vs-FG rankings even with the same immediate conversion odds because the model's post-play continuation values differ. The [mirrored-axis and branch audit](reports/issue9_deep_territory_site_audit.md) traces this effect, but its magnitude remains prospectively unvalidated.
 - Very long field goals are data-sparse. Attempts from 61-67 yards use a sparse-data tail; 68-70 yard attempts are explicitly marked outside observed development support.
 - Attempts beyond 70 yards are outside the model range.
 - Kicker-specific context defaults to the development-data median unless supplied programmatically.

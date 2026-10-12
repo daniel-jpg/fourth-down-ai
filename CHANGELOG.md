@@ -34,6 +34,14 @@ native kickoff-input correction without model retraining.
   public rankings and removed intrusive deployment revision UI.
 - Clarified overtime tie valuation, regulation clock validation and
   Monte Carlo uncertainty limitations.
+- Added a narrowly scoped **limited historical GO support** notice
+  inside a team's own 10 on fourth-and-2/3 when GO is recommended.
+  [Issue #9's frozen-data audit](reports/issue9_deep_territory_site_audit.md)
+  found one comparable training GO in the own 1–10 and none in 1–5.
+  Verified the Q4 site effect originates in learned continuation WP,
+  and added a neutral HOME/AWAY mirror invariant. No frozen model
+  weights, action probabilities, eligibility, or precommitted future
+  validation criteria are changed.
 - Persisted completed fourth-down results across harmless Streamlit
   component reruns; the result is invalidated when the game inputs change.
   Isolated the Q4 feature correction without reloading a second copy

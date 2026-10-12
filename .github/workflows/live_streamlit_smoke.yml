@@ -5,6 +5,8 @@ name: Live Streamlit browser smoke (corrected Q4 demo)
 # Critical hosted regression: Q4 corrections reuse cached heavy model files
 # through an isolated per-request function namespace instead of reloading
 # a second full model + parquet data bundle into Streamlit Cloud memory.
+# Recheck the hosted Q4 decision after the display-only deep-own-territory
+# GO support warning (that warning is covered by headless AppTest).
 on:
   push:
     paths:

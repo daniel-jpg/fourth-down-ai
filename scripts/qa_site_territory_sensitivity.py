@@ -121,6 +121,34 @@ def main():
     assert len(own_results) == 8
     assert len(site_results) == 6
     assert site_results[("AWAY",43)][0] == "FIELD GOAL"
+
+    # The neutral-site WP evaluation is explicitly the average of the
+    # mirrored HOME/AWAY axes. Same frozen RNG and action outcomes must
+    # make this identity hold for GO and FG to numerical precision.
+    for seed in (43, 101):
+        by_site = {}
+        for site in ("AWAY", "NEUTRAL", "HOME"):
+            row = site_results[(site, seed)]
+            by_site[site] = {row[0]: row[1], row[2]: row[3]}
+            assert set(by_site[site]) == {"GO FOR IT", "FIELD GOAL"}
+        for strategy in ("GO FOR IT", "FIELD GOAL"):
+            expected = (
+                by_site["HOME"][strategy]
+                + by_site["AWAY"][strategy]
+            ) / 2.
+            assert math.isclose(
+                by_site["NEUTRAL"][strategy], expected,
+                rel_tol=0., abs_tol=1e-8,
+            ), (
+                seed, strategy, expected,
+                by_site["NEUTRAL"][strategy],
+            )
+    print(
+        "SITE SYMMETRY PASS: NEUTRAL is the exact mean of the "
+        "HOME/AWAY WP axes for GO and FG with both frozen seeds.",
+        flush=True,
+    )
+
     # Detect, rather than explain away, large site/field-situation effects.
     own5_choices = {own_results[(5, s)][0] for s in (43,101)}
     site_home_choices = {site_results[("HOME",s)][0] for s in (43,101)}

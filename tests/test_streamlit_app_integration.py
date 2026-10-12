@@ -186,6 +186,28 @@ def test_result_persists_across_same_state_rerun_and_invalidates_on_change(ui):
     assert len(ui.engine.calls) == call_count + 1
 
 
+def test_deep_own_five_short_go_displays_sparse_support_notice(ui):
+    # AppTest cannot drive the field component's browser JavaScript.
+    # Seed the true ball location before the component registers.
+    at = AppTest.from_file(str(ROOT / "app.py"), default_timeout=15)
+    at.session_state["football_field"] = {"yardline_100": 95}
+    run(at)
+    widget(at, "radio", "Quarter").set_value(1)
+    widget(at, "number_input", "Yards to go").set_value(3)
+    run(at)
+    analyze(at)
+    assert metrics(at)["Recommendation"] == "GO FOR IT"
+    assert "Limited historical GO support" in values(at, "info")
+    assert "one normal GO attempt" in values(at, "info")
+    assert ui.engine.calls[0][0]["yardline_100"] == 95
+    assert not any("experimental" in c.label.lower() for c in at.checkbox)
+
+
+def test_q4_supported_position_does_not_show_deep_own_notice(ui):
+    analyze(ui.at)
+    assert "Limited historical GO support" not in values(ui.at, "info")
+
+
 def test_initial_page_is_idle_and_has_no_kickoff_research_panel(ui):
     at = ui.at
     assert not any("kickoff comparison" in e.label.lower() for e in at.expander)
