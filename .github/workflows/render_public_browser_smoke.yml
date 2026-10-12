@@ -1,7 +1,7 @@
 name: Verify public Render Q4 and weather in Chromium
 
-# Current Render Free public trial: test the already-deployed hostname.
-# Keep workflow_dispatch for the provider-assigned URL after any migration.
+# Run against the owner's requested, Render-assigned Free hostname.
+# Manual dispatch remains available for later verification.
 on:
   push:
     branches: [main]
@@ -34,7 +34,7 @@ jobs:
       - name: Reject non-public or non-Render URLs
         id: target
         env:
-          PUBLIC_URL: ${{ inputs.public_base_url || 'https://fourth-down-ai-verified.onrender.com' }}
+          PUBLIC_URL: ${{ inputs.public_base_url || 'https://fourth-down-ai-nfl.onrender.com' }}
         run: |
           python - <<'PY'
           import os

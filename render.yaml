@@ -4,7 +4,7 @@
 # method exists, and their 750 hours/month are shared with other services.
 services:
   - type: web
-    name: fourth-down-ai
+    name: fourth-down-ai-nfl
     runtime: docker
     repo: https://github.com/daniel-jpg/fourth-down-ai
     branch: main
