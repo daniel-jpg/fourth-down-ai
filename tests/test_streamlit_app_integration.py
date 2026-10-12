@@ -903,3 +903,106 @@ def test_nine_official_2026_international_fixtures_never_use_us_home_axes(ui):
     assert "domestic" not in values(ui.at, "caption").lower() or (
         "domestic-venue command rejects" in values(ui.at, "caption")
     )
+
+
+
+def test_buffalo_north_south_is_documented_but_not_numeric_forecast(ui):
+    """Architect/AP stadium axis and unverified snap claim remain UI-only."""
+    widget(
+        ui.at, "checkbox", "Enter observed temperature and wind",
+    ).set_value(True)
+    run(ui.at)
+    widget(
+        ui.at, "checkbox",
+        "Show 2026 stadium compass lookup (research only)",
+    ).set_value(True)
+    run(ui.at)
+    widget(ui.at, "selectbox", "2026 venue to inspect").set_value("BUF")
+    run(ui.at)
+    caption = values(ui.at, "caption")
+    assert "NORTH–SOUTH" in caption
+    assert "Populous" in caption
+    assert "Associated Press" in caption
+    assert "Exact azimuth remains unknown" in caption
+    assert "capture_buffalo_snap_direction_claim" in values(ui.at, "code")
+    widget(
+        ui.at, "selectbox",
+        "Buffalo offense attack-end claim (research only)",
+    ).set_value("Toward south end zone")
+    run(ui.at)
+    assert "Unverified user claim" in values(ui.at, "info")
+    analyze(ui.at)
+    assert metrics(ui.at)["Recommendation"] == "GO FOR IT"
+    for state, _, _ in ui.engine.calls:
+        assert "buffalo_attack_claim" not in state
+        assert "claimed_attack_end" not in state
+        assert "heading_true_deg" not in state
+        assert "headwind_mph_signed" not in state
+
+
+def test_unsigned_buffalo_direction_receipt_viewer_rejects_invented_trust(ui):
+    from src.nfl_2026_snap_direction_evidence import (
+        assess_2026_buffalo_snap_direction,
+    )
+    import json
+    raw = {
+        "source_id": "fictionalvideo01",
+        "witness_id": "observer01",
+        "source_type": "BROADCAST_FRAME",
+        "artifact_observed_at_utc": "2026-10-12T20:29:38Z",
+        "artifact_available_at_utc": "2026-10-12T20:35:00Z",
+        "attack_end_claim": "NORTH",
+        "location_landmark_observed": (
+            "user saw player run toward the north end zone"
+        ),
+        "source_url": "https://example.org/fictional-video",
+    }
+    result = assess_2026_buffalo_snap_direction(
+        season=2026, venue_team="BUF", opponent_team="NE",
+        offense_team="BUF", game_date_et="2026-10-12",
+        play_key="fictionalplay459", quarter=4,
+        game_clock_mmss="04:59",
+        decision_at_utc="2026-10-12T20:30:00Z",
+        witness_metadata=[raw],
+        original_artifacts={"fictionalvideo01": b"fake local artifact bytes"},
+    )
+    widget(
+        ui.at, "checkbox", "Enter observed temperature and wind",
+    ).set_value(True)
+    run(ui.at)
+    widget(
+        ui.at, "checkbox",
+        "Show 2026 stadium compass lookup (research only)",
+    ).set_value(True)
+    run(ui.at)
+    widget(ui.at, "selectbox", "2026 venue to inspect").set_value("BUF")
+    run(ui.at)
+    widget(
+        ui.at, "checkbox",
+        "Inspect Buffalo snap-direction evidence receipt",
+    ).set_value(True)
+    run(ui.at)
+    widget(
+        ui.at, "text_area", "Buffalo snap-direction receipt JSON"
+    ).set_value(json.dumps(result))
+    run(ui.at)
+    assert "Source-hashed user claim" in values(ui.at, "caption")
+    assert "NORTH end zone" in values(ui.at, "caption")
+    assert "retrospective research" in values(ui.at, "info")
+    assert "Numeric attack bearing unavailable" in values(ui.at, "caption")
+    assert len(ui.engine.calls) == 0
+    analyze(ui.at)
+    assert metrics(ui.at)["Recommendation"] == "GO FOR IT"
+    assert all(
+        "claimed_attack_end" not in state and
+        "north_south" not in state and
+        "source_sha256" not in state
+        for state, _, _ in ui.engine.calls
+    )
+    result["numeric_headwind_crosswind_permitted"] = True
+    widget(
+        ui.at, "text_area", "Buffalo snap-direction receipt JSON"
+    ).set_value(json.dumps(result))
+    run(ui.at)
+    assert "Invalid, inconsistent or unapproved" in values(ui.at, "warning")
+    assert "Source-hashed user claim" not in values(ui.at, "caption")
