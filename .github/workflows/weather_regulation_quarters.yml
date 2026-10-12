@@ -1,0 +1,70 @@
+name: Frozen weather research Q1-Q4 isolation matrix
+
+# Purely synthetic pre-decision situations and historical development artifacts.
+# No future outcomes, NOAA API calls, model updates or hosted deploy.
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/qa_weather_regulation_quarters.py
+      - src/weather_fg_sensitivity.py
+      - src/streamlit_kickoff_preview.py
+      - src/42_build_decision_engine.py
+      - data/fg_weather_2014_2024_research_only.json
+      - .github/workflows/weather_regulation_quarters.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quarters:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install pinned frozen engine dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Test frozen Q1 Q2 Q3 Q4 action invariance before versus after weather
+        run: |
+          PYTHONPATH=. python -m scripts.qa_weather_regulation_quarters
+
+      - name: Audit report classification and isolation flags
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          obj = json.loads(Path("artifacts/qa_weather_regulation_quarters.json").read_text())
+          assert obj["status"] == "PASS_WEATHER_FROZEN_MODEL_CROSS_QUARTER_ISOLATION"
+          assert obj["quarters"] == [1, 2, 3, 4]
+          assert len(obj["cases"]) == 5
+          assert obj["seed"] == 43
+          assert obj["simulations_per_action"] == 1200
+          assert not obj["official_model_mutated"]
+          assert not obj["model_weights_retrained"]
+          assert not obj["future_2026_or_2027_outcomes_accessed"]
+          assert not obj["validates_weather_coaching_policy"]
+          assert not obj["weather_brier_improved"]
+          assert all(x["official_output_unchanged"] for x in obj["cases"])
+          assert any(x["roof"] == "open" for x in obj["cases"])
+          print("PASS: independent research remains separate from official policy")
+          PY
+
+      - name: Preserve frozen model and prospective data source
+        run: |
+          git diff --exit-code -- app.py src/42_build_decision_engine.py models/ data/
+
+      - name: Save audit JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weather-q1-q4-frozen-invariance
+          path: artifacts/qa_weather_regulation_quarters.json
+          if-no-files-found: ignore
+          retention-days: 21
