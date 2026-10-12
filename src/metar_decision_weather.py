@@ -240,6 +240,12 @@ def build_metar_decision_evidence(
         raise ValueError("Original bounded source JSON bytes and source type required")
     if not isinstance(observations, list) or not 1 <= len(observations) <= 400:
         raise ValueError("NOAA AWC weather result must be a small nonempty list")
+    try:
+        decoded_original = json.loads(source_bytes.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise ValueError("Original NOAA JSON bytes cannot be decoded") from exc
+    if decoded_original != observations:
+        raise ValueError("Parsed observations do not match hashed source bytes")
     decision = utc_time(decision_at_utc)
     fetched = utc_time(captured_at_utc)
     field = _position(field_lat, field_lon, "football field")
