@@ -1,0 +1,95 @@
+name: Live Streamlit browser smoke (one-time/manual)
+
+# This runs when first added (or deliberately edited) and can also be
+# dispatched manually. It never blocks the regular offline regression suite.
+on:
+  push:
+    paths:
+      - .github/workflows/live_streamlit_smoke.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install Playwright Chromium
+        run: |
+          python -m pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+
+      - name: Exercise public Streamlit app without changing model state
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright
+
+          url = "https://fourth-down-ai.streamlit.app/"
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              page = browser.new_page(
+                  viewport={"width": 1440, "height": 900},
+                  device_scale_factor=1,
+              )
+              try:
+                  for attempt in range(3):
+                      try:
+                          page.goto(url, wait_until="domcontentloaded", timeout=90000)
+                          page.get_by_role(
+                              "heading", name="NFL Fourth-Down Decision AI"
+                          ).wait_for(timeout=120000)
+                          break
+                      except Exception as exc:
+                          print(f"Live app wake attempt {attempt + 1}: {exc}", flush=True)
+                          if attempt == 2:
+                              raise
+                          page.wait_for_timeout(5000)
+
+                  assert page.get_by_text("Build info", exact=True).count() == 0, (
+                      "Old build-info sidebar is still displayed"
+                  )
+                  page.get_by_text("2025 kickoff comparison", exact=True).click()
+                  option = page.get_by_role(
+                      "checkbox",
+                      name="Show the experimental kickoff-adjusted comparison",
+                  )
+                  assert not option.is_checked(), "Scenario should be opt-in"
+                  option.check()
+                  page.get_by_role("button", name="Analyze Fourth Down").click()
+                  page.get_by_role("heading", name="Decision", exact=True).wait_for(
+                      timeout=120000
+                  )
+                  page.get_by_role(
+                      "heading", name="2025 kickoff scenario results", exact=True
+                  ).wait_for(timeout=180000)
+                  assert page.get_by_text("Recommendation", exact=True).count() > 0
+                  assert page.get_by_text(
+                      "Experimental strategy (not official)", exact=True
+                  ).count() > 0
+                  assert page.get_by_text(
+                      "optional kickoff scenario was unavailable", exact=False
+                  ).count() == 0
+                  print(
+                      "LIVE PASS: current simplified kickoff panel, "
+                      "official decision and opt-in scenario output rendered.",
+                      flush=True,
+                  )
+              finally:
+                  try:
+                      page.screenshot(path="live-streamlit-smoke.png", full_page=True)
+                  except Exception as exc:
+                      print(f"Screenshot unavailable: {exc}", flush=True)
+                  browser.close()
+          PY
+
+      - name: Attach live browser screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-streamlit-smoke
+          path: live-streamlit-smoke.png
+          if-no-files-found: ignore
+          retention-days: 7
