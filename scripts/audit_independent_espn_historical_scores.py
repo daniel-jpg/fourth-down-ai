@@ -140,12 +140,34 @@ def run(seasons: list[int], output: Path) -> dict:
     out = verify_independent_margins(
         census, games, expected_seasons=years
     )
+    archived_replay = "NOT_APPLICABLE_SUBSET"
+    if years == list(range(FIRST, LAST+1)):
+        # A changed or incomplete historical ESPN feed must not silently
+        # rewrite or supersede the separately versioned baseline.
+        from src.independent_espn_margin_archive import load_archived_margins
+        frozen, original_margins = load_archived_margins()
+        live_keys = [[g["season"],g["week"],g["home"],g["away"]] for g in games]
+        key_hash = hashlib.sha256(json.dumps(
+            live_keys, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")).hexdigest()
+        if key_hash != frozen["ordered_matchup_key_sha256"]:
+            raise RuntimeError(
+                "Live ESPN historical matchup identities/order drifted from "
+                "versioned independent game-score archive."
+            )
+        if tuple(g["margin"] for g in games) != tuple(original_margins):
+            raise RuntimeError(
+                "Live ESPN historical final margins drifted from the "
+                "versioned independent score archive; human investigation required."
+            )
+        archived_replay = "MATCHES_VERSIONED_3151_GAME_SCORE_ARCHIVE"
     report = {
         **out,
         "source_parquet_git_blob_sha1": SOURCE_GIT_BLOB,
         "source_parquet_sha256": hashlib.sha256(PBP.read_bytes()).hexdigest(),
         "provider": "ESPN historical final NFL REG scoreboard Site API",
         "retrieval_type": "LIVE_HISTORICAL_POSTGAME_AUDIT_NOT_REALTIME",
+        "permanent_score_archive_replay_status": archived_replay,
         "source_response_provenance": week_provenance,
         "source_week_requests": len(tasks),
         "source_completed_games": len(games),
@@ -174,6 +196,7 @@ def run(seasons: list[int], output: Path) -> dict:
                                   allow_nan=False)+"\n")
     print(json.dumps({
         "status":report["status"],"years":years,
+        "permanent_score_archive_replay_status":archived_replay,
         "source_week_requests":len(tasks),"espn_final_games":len(games),
         "pbp_game_count":report["pbp_games"],
         "matched_games":report["matched_final_scores"],
