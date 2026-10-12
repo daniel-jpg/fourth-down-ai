@@ -389,6 +389,7 @@ def test_q4_459_trailing_four_fg_sensitivity_is_not_a_confident_pick(ui):
 
 def test_q4_nonmaterial_fg_leader_retains_original_recommendation(ui):
     ui.engine.wp_overrides = {"NORMAL_GO_PASS": .35, "FIELD_GOAL": .41}
+    ui.engine.unavailable = {"NORMAL_GO_RUN"}
     ui.probe.return_value = {"applicable": True, "material": False}
     analyze(ui.at)
     assert metrics(ui.at)["Recommendation"] == "FIELD GOAL"
@@ -400,6 +401,7 @@ def test_q4_nonmaterial_fg_leader_retains_original_recommendation(ui):
 
 def test_q4_fg_leader_probe_failure_fails_closed_without_changing_wp(ui):
     ui.engine.wp_overrides = {"NORMAL_GO_PASS": .35, "FIELD_GOAL": .41}
+    ui.engine.unavailable = {"NORMAL_GO_RUN"}
     ui.probe.side_effect = RuntimeError("probe unavailable")
     analyze(ui.at)
     assert metrics(ui.at)["Recommendation"] == "INCONCLUSIVE"
