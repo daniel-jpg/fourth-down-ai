@@ -1,7 +1,9 @@
 """Issue 9: warn about sparse GO support, without modifying eligibility."""
 import pytest
 
-from src.situational_support import deep_own_short_go_notice
+from src.situational_support import (
+    deep_own_short_go_notice, supported_recommendation_display,
+)
 
 
 @pytest.mark.parametrize("quarter,yardline,togo", [
@@ -43,3 +45,17 @@ def test_nonfinite_fields_skip_notice():
     assert deep_own_short_go_notice({
         "qtr": 1, "yardline_100": 95, "ydstogo": float("inf"),
     }, "GO FOR IT") is None
+
+
+@pytest.mark.parametrize("quarter,field,togo,selected,display", [
+    (1, 95, 3, "GO FOR IT", "INSUFFICIENT DATA"),
+    (2, 90, 2, "GO FOR IT", "INSUFFICIENT DATA"),
+    (4, 6, 4, "GO FOR IT", "GO FOR IT"),
+    (1, 95, 3, "PUNT", "PUNT"),
+    (5, 95, 3, "GO FOR IT", "GO FOR IT"),
+])
+def test_supported_recommendation_only_abstains_in_extreme_sparse_go_region(
+    quarter, field, togo, selected, display,
+):
+    state = {"qtr": quarter, "yardline_100": field, "ydstogo": togo}
+    assert supported_recommendation_display(state, selected) == display
