@@ -312,7 +312,7 @@ def check_baseline_and_weather(frame, page) -> dict:
 
     # A pasted unsupported JSON receipt must be rejected and never change
     # the official or experimental outcome. No NOAA network request.
-    click_text(frame, "Inspect timestamped airport METAR evidence")
+    click_text(frame, "Review a saved airport weather report (advanced)")
     textarea = frame.get_by_role(
         "textbox", name="METAR research receipt JSON"
     )
@@ -333,7 +333,7 @@ def check_baseline_and_weather(frame, page) -> dict:
     )
     print("WEATHER_INVALID_METAR_REJECTED_NO_POLICY_CHANGE", flush=True)
 
-    click_text(frame, "Show 2026 stadium compass lookup (research only)")
+    click_text(frame, "See stadium locations and field directions")
     frame.get_by_text("2026 venue context", exact=True).wait_for(
         state="visible", timeout=50000
     )

@@ -1867,19 +1867,30 @@ with st.expander(
                     "no unvalidated rain/snow/fog probability penalty is applied."
                 )
 
+            st.caption(
+                "Optional background tools below: leave them unchecked "
+                "for normal use. Neither changes the predicted odds."
+            )
             # Venue metadata are research context ONLY: not a team-to-site
             # inference, a physical-roof determination or a signed bearing.
             # In particular, Buffalo's new 2026 stadium has no defensible
             # location/axis in the pinned older community dataset.
             show_stadium_geometry = st.checkbox(
-                "Show 2026 stadium compass lookup (research only)",
+                "See stadium locations and field directions",
                 value=False,
                 help=(
-                    "32 approximate team home-venue centers; 31 community "
-                    "field axes. New 2026 Buffalo center mapped separately "
-                    "but its field direction is UNKNOWN. Also lists all "
-                    "nine NFL-official scheduled international games."
+                    "Explore approximate NFL home-stadium locations and "
+                    "field orientations, plus scheduled 2026 international "
+                    "game venues. A field's axis does not establish which "
+                    "end zone the offense is attacking or the wind at the "
+                    "stadium; Buffalo's new field direction is unknown. "
+                    "This lookup never changes the prediction."
                 ),
+            )
+            st.caption(
+                "Shows where NFL stadiums are and approximately which way "
+                "the field runs, including 2026 international venues. "
+                "It cannot determine the wind or the offense's direction."
             )
             if show_stadium_geometry:
                 from src.nfl_stadium_weather_geometry import (
@@ -2169,13 +2180,21 @@ with st.expander(
                             )
 
             inspect_metar = st.checkbox(
-                "Inspect timestamped airport METAR evidence",
+                "Review a saved airport weather report (advanced)",
                 value=False,
                 help=(
-                    "Paste a research receipt from the repository's "
-                    "capture_awc_decision_weather script. Nearby airport "
-                    "weather is not an independently verified stadium reading."
+                    "METAR means an airport weather observation. This "
+                    "viewer requires a saved JSON research receipt made "
+                    "with scripts/capture_awc_decision_weather.py. "
+                    "It does not retrieve live weather or change any "
+                    "official or experimental prediction."
                 ),
+            )
+            st.caption(
+                "For researchers with a saved airport report (METAR): "
+                "shows its time, location, and wind. You must paste a "
+                "special JSON receipt; no live weather is fetched. "
+                "Airport conditions may differ from the field."
             )
             if inspect_metar:
                 st.caption(

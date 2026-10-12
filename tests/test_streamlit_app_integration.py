@@ -745,6 +745,39 @@ def test_closed_roof_never_promises_outdoor_weather_adjustment(ui):
 
 
 
+def test_advanced_weather_research_labels_are_plain_english_and_opt_in(ui):
+    """Research checkboxes should explain why ordinary users can skip them."""
+    at = ui.at
+    assert not [
+        item for item in at.checkbox
+        if item.label in (
+            "See stadium locations and field directions",
+            "Review a saved airport weather report (advanced)",
+        )
+    ], "Research tools should not appear before weather is enabled"
+
+    widget(at, "checkbox", "Enter observed temperature and wind").set_value(True)
+    run(at)
+
+    stadium = widget(
+        at, "checkbox", "See stadium locations and field directions"
+    )
+    airport = widget(
+        at, "checkbox", "Review a saved airport weather report (advanced)"
+    )
+    assert stadium.value is False and airport.value is False
+
+    captions = values(at, "caption")
+    assert "leave them unchecked for normal use" in captions
+    assert "Neither changes the predicted odds" in captions
+    assert "which way the field runs" in captions
+    assert "cannot determine the wind" in captions
+    assert "saved airport report (METAR)" in captions
+    assert "no live weather is fetched" in captions
+    assert "Airport conditions may differ from the field" in captions
+    assert len(ui.engine.calls) == 0
+
+
 def test_metar_receipt_is_off_field_context_only_not_model_state(ui):
     """Typed research receipt is interpreted, but NEVER sent to frozen engine."""
     import json
@@ -779,7 +812,7 @@ def test_metar_receipt_is_off_field_context_only_not_model_state(ui):
     ).set_value(True)
     run(ui.at)
     widget(
-        ui.at, "checkbox", "Inspect timestamped airport METAR evidence"
+        ui.at, "checkbox", "Review a saved airport weather report (advanced)"
     ).set_value(True)
     run(ui.at)
     widget(
@@ -824,7 +857,7 @@ def test_venue_geometry_lookup_requires_explicit_attack_direction(ui):
     run(ui.at)
     widget(
         ui.at, "checkbox",
-        "Show 2026 stadium compass lookup (research only)",
+        "See stadium locations and field directions",
     ).set_value(True)
     run(ui.at)
     # No stadium is inferred from HOME/AWAY or the football field graphic.
@@ -872,7 +905,7 @@ def test_stale_buf_venue_never_exposes_retired_stadium_coordinates(ui):
     run(ui.at)
     widget(
         ui.at, "checkbox",
-        "Show 2026 stadium compass lookup (research only)",
+        "See stadium locations and field directions",
     ).set_value(True)
     run(ui.at)
     widget(ui.at, "selectbox", "2026 venue to inspect").set_value("BUF")
@@ -899,7 +932,7 @@ def test_nine_official_2026_international_fixtures_never_use_us_home_axes(ui):
     run(ui.at)
     widget(
         ui.at, "checkbox",
-        "Show 2026 stadium compass lookup (research only)",
+        "See stadium locations and field directions",
     ).set_value(True)
     run(ui.at)
     widget(
@@ -943,7 +976,7 @@ def test_buffalo_north_south_is_documented_but_not_numeric_forecast(ui):
     run(ui.at)
     widget(
         ui.at, "checkbox",
-        "Show 2026 stadium compass lookup (research only)",
+        "See stadium locations and field directions",
     ).set_value(True)
     run(ui.at)
     widget(ui.at, "selectbox", "2026 venue to inspect").set_value("BUF")
@@ -1003,7 +1036,7 @@ def test_unsigned_buffalo_direction_receipt_viewer_rejects_invented_trust(ui):
     run(ui.at)
     widget(
         ui.at, "checkbox",
-        "Show 2026 stadium compass lookup (research only)",
+        "See stadium locations and field directions",
     ).set_value(True)
     run(ui.at)
     widget(ui.at, "selectbox", "2026 venue to inspect").set_value("BUF")
