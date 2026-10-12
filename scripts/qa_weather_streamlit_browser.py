@@ -227,11 +227,22 @@ def check_baseline_and_weather(frame, page) -> dict:
     set_number(frame, page, "Temperature (°F)", 32)
     set_number(frame, page, "Wind speed (mph)", 25)
     select_choice(frame, page, "Weather conditions", "Snow")
+    # Remote 0.15-CPU Streamlit may take several seconds to rerun after a
+    # widget change. Complete the precipitation rerun before changing wind
+    # direction; otherwise an overlapping update can show stale choices.
+    precipitation_note = frame.get_by_text(
+        "no unvalidated rain/snow/fog probability penalty", exact=False,
+    )
+    precipitation_note.wait_for(state="visible", timeout=45000)
     select_choice(
         frame, page, "Wind direction relative to offense", "Headwind"
     )
+    precipitation_note.wait_for(state="visible", timeout=45000)
     b = body_text(frame)
-    assert "no unvalidated rain/snow/fog probability penalty" in b
+    assert "no unvalidated rain/snow/fog probability penalty" in b, (
+        "Precipitation selection did not persist after wind-direction rerun: "
+        + b[-600:]
+    )
     cold_snow = analyze(frame, page, weather=True)
     assert cold_snow["Recommendation"] == default["Recommendation"], (
         "Weather research changed the official recommended action"
