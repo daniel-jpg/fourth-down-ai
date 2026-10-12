@@ -12,14 +12,31 @@ name: Live Streamlit browser smoke (corrected Q4 demo)
 # Current deployment QA ALSO checks opt-in temperature/wind/conditions,
 # the manual METAR viewer and distinct international stadium lookup.
 # Research metadata must never automatically alter official recommendations.
+# Verify the real public app when deployed source/dependencies change, and
+# twice weekly even if no one manually checks the hosted page. A green local
+# test suite alone cannot prove Streamlit Cloud is synchronized with main.
 on:
   push:
+    branches:
+      - main
     paths:
+      - app.py
+      - src/**
+      - requirements.txt
+      - requirements-dev.txt
       - .github/workflows/live_streamlit_smoke.yml
+  schedule:
+    - cron: "17 19 * * 1,4"  # Monday/Thursday at 19:17 UTC
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# Rapid successive source commits should only leave the newest hosted check
+# running. A failed scheduled check is diagnostic, not a model release gate.
+concurrency:
+  group: live-streamlit-smoke-public-demo
+  cancel-in-progress: true
 
 jobs:
   live-smoke:
