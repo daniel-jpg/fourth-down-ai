@@ -232,6 +232,8 @@ def build_synthetic_cohort(payload: Mapping[str, Any]) -> dict[str, Any]:
             "propensity_policy": context["propensity"],
             "feature_asof": "pre_snap",
             "site": context["site"], "close_call": row["close_call"],
+            "yardline_100": row["yardline_100"],
+            "ydstogo": row["ydstogo"],
         })
     # An observed fourth-down play with no reconstructed pre-snap decision
     # must NOT vanish from the cohort denominator. This is a different
