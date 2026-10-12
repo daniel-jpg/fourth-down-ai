@@ -1836,6 +1836,111 @@ with st.expander(
                     "no unvalidated rain/snow/fog probability penalty is applied."
                 )
 
+            # Venue metadata are research context ONLY: not a team-to-site
+            # inference, a physical-roof determination or a signed bearing.
+            # In particular, Buffalo's new 2026 stadium has no defensible
+            # location/axis in the pinned older community dataset.
+            show_stadium_geometry = st.checkbox(
+                "Show 2026 stadium compass lookup (research only)",
+                value=False,
+                help=(
+                    "32 NFL team home-venue entries; 31 have approximate "
+                    "coordinates/field axes from a community mapping. "
+                    "No automatic team, snap direction or roof inference."
+                ),
+            )
+            if show_stadium_geometry:
+                from src.nfl_stadium_weather_geometry import (
+                    ATTACK_ENDS,
+                    load_stadium_reference,
+                    resolve_stadium_geometry,
+                    stadium_menu,
+                )
+                venue_menu = stadium_menu(season=2026)
+                venue_choice = st.selectbox(
+                    "2026 venue to inspect",
+                    ["Not selected", *venue_menu],
+                    format_func=lambda team: (
+                        "Choose actual 2026 game venue" if team == "Not selected"
+                        else venue_menu[team]
+                    ),
+                    help=(
+                        "Pick where THIS game is actually played. "
+                        "Do not infer from offense's home/away label: "
+                        "neutral and relocated games can use other venues."
+                    ),
+                )
+                if venue_choice == "BUF":
+                    st.warning(
+                        "Blocked: Buffalo moved into a new Highmark Stadium "
+                        "in 2026. The older community source points to the "
+                        "retired stadium. No coordinates or axis are used "
+                        "until the replacement is independently mapped."
+                    )
+                elif venue_choice != "Not selected":
+                    selected_venue = load_stadium_reference(
+                        season=2026
+                    )["venues"][venue_choice]
+                    axis_a = selected_venue[
+                        "field_axis_bearing_degrees_approx"
+                    ]
+                    axis_b = (axis_a + 180.0) % 360.0
+                    st.caption(
+                        f"{selected_venue['venue_name']} — community-estimated "
+                        f"position {selected_venue['lat']:.5f}°, "
+                        f"{selected_venue['lon']:.5f}°. "
+                        "Two opposite approximate compass attack bearings: "
+                        f"{axis_a:.0f}° / {axis_b:.0f}° true north."
+                    )
+                    st.caption(
+                        "These are NOT independently surveyed field bearings; "
+                        "roof state and actual game location are NOT verified. "
+                        "Do not guess the offense's end zone from quarter, "
+                        "HOME/AWAY, or the left-facing field diagram."
+                    )
+                    attack_choice = st.selectbox(
+                        "Offense's verified attacking end (research only)",
+                        ["Unknown", "A", "B"],
+                        format_func=lambda end: (
+                            "Unknown — select a direction only if verified"
+                            if end == "Unknown" else
+                            f"Toward approximate {axis_a:.0f}° true (end A)"
+                            if end == "A" else
+                            f"Toward approximate {axis_b:.0f}° true (end B)"
+                        ),
+                    )
+                    if attack_choice != "Unknown":
+                        context = resolve_stadium_geometry(
+                            team=venue_choice, season=2026,
+                            offense_attack_end=ATTACK_ENDS[
+                                0 if attack_choice == "A" else 1
+                            ],
+                        )
+                        st.caption(
+                            "Approximate selected attack bearing: "
+                            f"{context['offense_attack_heading_true_deg_approx']:.0f}° "
+                            "clockwise from true north; YOUR independent "
+                            "on-field direction confirmation is required."
+                        )
+                        st.code(
+                            "PYTHONPATH=. python -m "
+                            "scripts.capture_nfl_venue_awc_context "
+                            f"--venue-team {venue_choice} --season 2026 "
+                            f"--attack-end {attack_choice} "
+                            "--station ICAO_CODE "
+                            "--decision-utc YYYY-MM-DDTHH:MM:SSZ "
+                            f"--roof {roof} --live-noaa-awc "
+                            "--out artifacts/research_venue_weather.json",
+                            language="bash",
+                        )
+                        st.caption(
+                            "This command is for a verified recent decision "
+                            "and an actual nearby airport station only. "
+                            "It may fail if METAR is unavailable or distant. "
+                            "Even a successful receipt CANNOT change official "
+                            "or research FG/GO/PUNT probabilities."
+                        )
+
             inspect_metar = st.checkbox(
                 "Inspect timestamped airport METAR evidence",
                 value=False,
