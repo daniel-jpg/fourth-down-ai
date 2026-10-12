@@ -72,14 +72,19 @@ def test_research_candidate_requires_q4_and_real_simulation_count():
         preview_native_kickoff_feature_candidate(HOME,simulations=199)
 
 
-def test_deployed_streamlit_keeps_native_research_out_of_public_ui():
+def test_deployed_streamlit_uses_native_q4_inputs_without_extra_public_controls():
     app=(ROOT/"app.py").read_text()
     ast.parse(app)
-    # The native candidate remains tested in this module's research API,
-    # but its opt-in Streamlit controls were intentionally removed.
+    # Q4 research-demo estimates now use the candidate in a private model,
+    # never as an opt-in second panel or a frozen-stable model refit.
+    assert "preview_native_kickoff_feature_candidate(" in app
+    assert "simulations=ADAPTIVE_HIGH_SIMULATIONS" in app
     assert "experimental_native_candidate_enabled" not in app
-    assert "preview_native_kickoff_feature_candidate(" not in app
     assert "Additional model-input comparison (research-only)" not in app
-    # The independent automatic Q4 reliability guard must stay in place.
+    assert "2025 kickoff comparison" not in app
+    assert "INCONCLUSIVE" not in app
+    assert "Close call" in app
+    # Automatic post-FG sensitivity diagnostic is still preserved.
     assert "inspect_made_fg_kickoff_encoding(" in app
-    assert "st.warning(fg_encoding_warning)" in app
+    assert "fg_input_sensitive" in app
+    assert "st.warning(fg_encoding_warning)" not in app
