@@ -117,7 +117,7 @@ jobs:
                           "Experimental strategy (not official)", exact=True
                       )
                       if result_metric.count():
-                          result_metric.first.scroll_into_view_if_needed()
+                          print("Live scenario strategy metric rendered", flush=True)
                           break
                       page.wait_for_timeout(1500)
                   else:
