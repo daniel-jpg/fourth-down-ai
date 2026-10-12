@@ -45,11 +45,20 @@ jobs:
           obj=json.loads(Path("same-source-historical-census.json").read_text())
           assert obj["source"] == "PINNED_2014_2025_NFLVERSE_RAW_PBP_ONLY"
           assert obj["source_blob_sha1"] == "41ae23de12913f0bf06ac608ad4716ae48d75df8"
-          assert obj["source_fourth_down_candidates"] >= 40000
-          assert obj["source_fourth_down_candidates"] == (
-              obj["reconstructed_core_states"] + obj["excluded_states"]
-          )
-          assert obj["context_fields_present"] <= obj["reconstructed_core_states"]
+          # Measured from the original SHA-pinned 2014-2025 PBP on CI
+          # run 38283359016. Freeze exact counts to detect future drift.
+          assert obj["source_fourth_down_candidates"] == 50095
+          assert obj["reconstructed_core_states"] == 47625
+          assert obj["excluded_states"] == 2470
+          assert obj["exclusion_counts"] == {
+              "IMPOSSIBLE_YARDS_TO_GO": 1,
+              "NOT_REGULAR_SEASON": 2153,
+              "OVERTIME": 316,
+          }
+          assert obj["context_fields_present"] == 34424
+          assert obj["missing_model_context_counts"] == {
+              "Q2_SECOND_HALF_RECEIVER_UNAVAILABLE": 13201
+          }
           assert obj["source_labels_accessed"] is False
           assert obj["preplay_independently_timestamped"] is False
           assert obj["real_2027_outcomes_accessed"] is False
