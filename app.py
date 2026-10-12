@@ -2349,7 +2349,7 @@ if run_model:
 
         st.divider()
         st.subheader(
-            "2025+ kickoff-adjusted comparison (experimental)"
+            "2025 kickoff scenario results"
         )
 
         if experimental_use_2024_assumptions:
@@ -3262,8 +3262,11 @@ if run_model:
                 "a dependable win-probability ranking. They are excluded "
                 "from the official recommendation."
             )
-            for _, row in experimental.iterrows():
-                st.write(f"**{row['decision']}**: {row['detail']}")
+            st.write(
+                "Fake punt (run/pass) and fake field goal (run/pass) "
+                "are excluded from the ranked actions. The model has "
+                "no defensible basis to assign them win probabilities."
+            )
 
 
     # =====================================================
