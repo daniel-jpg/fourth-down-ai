@@ -4,25 +4,47 @@ Notable changes to Fourth Down AI are documented here.
 
 ## Unreleased — Research-demo candidate (post-v1.1.0)
 
-**Status: documentation and test-backed candidate on `main`; not a tagged, published, or production-calibrated v1.2.0 release.** The existing v1.1.0 tag and frozen model remain unchanged.
+**Status:** Research demo verified on `main`, not tagged or published as
+v1.2.0. The stable `v1.1.0` release and frozen production model remain intact.
 
 ### Interface and interpretation
 
-- Added optional 2025 Q4 kickoff-transition comparison, explicitly isolated from official action rankings. The current 538 matched nonscoring historical kickoff first possessions are a selected retrospective sample, not a 2026 forecast.
-- Added immediate fourth-down outcome explanations (GO conversion, FG make/miss/block, punt regular/block/broken) alongside estimated whole-game win probability or overtime game value. These represent different events and must not be equated.
-- Made Q4 post-score kickoff-input reliability sensitivity visible while retaining original official calculations; native encoding remains a research-only challenger.
-- Clarified overtime tie-weighted game value and rejected regulation quarter clocks exceeding 15:00.
+- Added a single optional Q4 **2025 kickoff comparison**, based on 538 verified
+  historical first possessions. Removed advanced scenario inputs from the
+  public UI while preserving their independent research sources.
+- Added immediate modeled GO-conversion, FG and punt outcome explanations
+  alongside whole-game win probability (or overtime game value).
+- Clarified overtime ties, regulation quarter clock validation and
+  Monte Carlo versus model uncertainty.
+- Removed unsupported fake punt / fake FG rows from public action rankings
+  and removed the temporary on-screen deployment revision/build sidebar.
 
-### Testing and research safeguards
+### Verification and research safeguards
 
-- GitHub Actions run [38182568146](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38182568146) passed **293 regression + 46 Streamlit integration = 339 tests** for the Step 85 implementation. Later documentation-only changes do not constitute a fresh run.
-- Live screenshots subsequently confirmed the immediate-odds table, overtime value language, Q4 15:01 rejection and 15:00 acceptance. Exact deployed revision and mobile/narrow layout were not signed off.
-- The 2023–2025 kickoff audits were retrospective and previously examined; do not describe them as independent untouched prospective validation.
-- Precommitted Step 66 and Step 83 prospective 2026 Weeks 6–18 checks remain automatically gated, research-only, and do not authorize model promotion.
+- **[Tests #229](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887196)
+  passed** on commit `8239a8f7666b2cf00bf792c5977119c67127693a`:
+  syntax checks, release preflight/frozen hashes, regression tests and
+  Streamlit AppTest.
+- **[Live browser smoke #8](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887243)
+  passed** on that commit, exercising the deployed Streamlit site, opt-in
+  kickoff toggle, official recommendation and completed scenario output.
+- User accepted responsive/mobile presentation; the functional
+  [release-QA Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5)
+  is closed. Exact hosted deployment SHA is **not independently attested**.
+- A previous [Step 85 run](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38182568146)
+  passed 339 tests at an earlier commit; its count is not misrepresented as
+  the current suite's fixed size.
+- Exploratory 2023–2025 outcome analyses do not provide fresh untouched
+  future evidence. Frozen 2026 Step 66/83 once-only prospective gates have
+  not been run early or modified.
 
 ### Release readiness
 
-See [research-demo readiness](reports/88_research_demo_release_readiness.md), [reproducibility and release checklist](reports/90_release_candidate_checklist.md), and [open live layout/deployment signoff](https://github.com/daniel-jpg/fourth-down-ai/issues/5). Do not publish a new stable release tag until the final gates are explicitly resolved or accepted.
+[Readiness report](reports/88_research_demo_release_readiness.md) and
+[release checklist](reports/90_release_candidate_checklist.md) document
+scope, verification evidence and the remaining exact-deployed-SHA provenance
+limitation. Any new stable tag requires separate version/claims signoff;
+nothing here authorizes promotion of an experimental kickoff model.
 
 ## v1.1.0 — 2026-10-06
 

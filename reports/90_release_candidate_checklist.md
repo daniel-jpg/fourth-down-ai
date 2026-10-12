@@ -29,28 +29,39 @@ All runtime dependencies and pytest are pinned in `requirements.txt` and `requir
 
 For the specific Step 85 implementation, [GitHub Actions run 38182568146](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38182568146) passed 339 tests (293 regression + 46 UI AppTest). That result is evidence for the tested revision, **not** proof that every later commit has independently passed CI.
 
+## Verified release-QA baseline (2026-10-12)
+
+**Evidence-pinned application revision:** `8239a8f7666b2cf00bf792c5977119c67127693a`.
+This SHA was the head for *both* successful GitHub Actions runs:
+
+- [Tests #229](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887196) — passed Python syntax, frozen-artifact release preflight,
+  regression tests and Streamlit AppTest.
+- [Hosted browser smoke #8](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887243) — passed in Chromium against the public
+  Streamlit URL. Expanded the Q4 kickoff panel, enabled its only comparison
+  toggle, clicked **Analyze Fourth Down**, and observed both the official
+  decision and the completed historical scenario result.
+- [Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5) — closed
+  after the functional live QA and user acceptance of responsive layout.
+
 ## Pre-release gates
 
-| Gate | Status as of 2026-10-11 | Evidence or remaining action |
+| Gate | Status (2026-10-12) | Evidence or qualification |
 | --- | --- | --- |
-| Frozen decision artifacts | Protected | No model, decision-engine, or simulation algorithm changes made for Steps 85–90; Step 85 report lists model/spec hashes |
-| Regression and UI tests | Latest user-confirmed CI green | User confirmed the GitHub Actions run for `9a0427028d0fb4adb62204f32ffba96ce9c92204` passed; the suite covers the opt-in 2025 kickoff comparison through Streamlit AppTest. GitHub connector cannot independently read push-triggered run conclusions |
-| Live immediate-odds UI | Observed working | User-supplied current hosted screenshot |
-| Live overtime game-value wording | Observed working | User-supplied current hosted OT output |
-| Clock max | Observed working | Q4 15:01 rejected and 15:00 accepted |
-| Live mobile/narrow layout | User accepted | User explicitly confirmed the mobile layout is fine; no independent device-farm testing claimed |
-| Hosted deployed commit identity | Not verified for latest `9a04270` | Earlier user screenshot showed a deployed Git SHA, but the diagnostic UI was intentionally removed. The hosted URL is inaccessible to available browser tooling; do not infer current deployed SHA from CI |
-| Independent 2026 kickoff reliability | Pending future gate | Do not run Step 66 or Step 83 early; do not promote any challenger |
-| New stable tag/GitHub Release | **Not created** | Must be separately reviewed after gates |
+| Frozen official artifacts and research protocols | Passed | Preflight in Tests #229 verified locked Git blobs; no model refit or early Step 66/83 execution |
+| Regression and UI AppTest | Passed | [Tests #229](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887196) on `8239a8f` |
+| Hosted kickoff comparison | Passed | [Live browser #8](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887243) on `8239a8f`, including official and experimental output |
+| Immediate outcome explainer and OT game-value wording | Previously observed working | User-supplied hosted evidence; AppTest also exercises these flows |
+| Regulation clock boundary | Previously observed working | Q4 15:01 rejected; 15:00 accepted |
+| Live mobile/narrow layout | User accepted | Not claimed to be an independent multi-device visual test |
+| Exact Streamlit Cloud deployed Git SHA | **Not verified** | Hosted functional behavior passed, but platform deployment SHA was not independently attested; no user-visible build-info panel |
+| Independent 2026 kickoff reliability | Future prospective gate pending | Keep frozen Step 66/83 protocols and thresholds unchanged; never run early or auto-promote |
+| New stable tag / GitHub Release | **Not created** | Separate version-number and research-only claim review required |
 
-## Stabilization verification — 2026-10-11
-
-- Latest candidate source: `9a0427028d0fb4adb62204f32ffba96ce9c92204`. User reports its GitHub Actions tests are **green**.
-- Streamlit AppTest exercises the single opt-in 2025 observed-kickoff comparison and verifies that the official recommended action and probability metrics are not replaced by scenario results. This is headless app integration evidence, **not** a separately verified hosted click-through.
-- The hosted Streamlit page cannot be accessed by the available browser tools. Live behavior after this exact commit, including the rendered kickoff result, therefore remains **unverified**. Do not claim otherwise.
-- The unwanted deployment-revision sidebar was removed and the user confirmed the clean full-width app in a prior deployment screenshot; mobile layout was explicitly accepted.
-- Experimental kickoff donor results are research scenarios, not calibrated 2026+ forecasts. Advanced toggles have been removed from the public app, not from the frozen research code.
-- Release remains untagged. No reason to alter weights, prospective evaluation gates, or the interface solely to close a verification item.
+**Interpretation:** Passed end-to-end *functionality* supports a qualified public
+research demo, but does not prove byte-for-byte deployed revision identity,
+real-world calibration or causal coaching benefit. Later changes to the app
+or model would require a new evidence-pinned QA run. Documentation-only edits
+do not turn the historical browser result into a new experiment.
 
 ## Model limitations that must remain visible
 

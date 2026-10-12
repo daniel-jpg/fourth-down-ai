@@ -134,80 +134,46 @@ It displays:
 - Long-field-goal support warnings
 - Detailed model output and comparison charts
 
-## Experimental 2025+ Kickoff Comparison
+## 2025 Kickoff Comparison (Optional Research Scenario)
 
-For Q4 situations, the Streamlit app offers a clearly labeled, optional
-**kickoff-adjusted scenario** alongside the unchanged production recommendation.
+In Q4 the public Streamlit app has **one optional control**, under the
+collapsed **2025 kickoff comparison** section. When enabled, it runs a separate
+historical scenario alongside the unchanged official GO/FG/PUNT recommendation.
+No advanced research settings or assumed probabilities need to be entered.
 
-- The **current experimental default** samples whole kickoff-to-first-snap
-  outcomes from **538 observed 2025 regular-season Q4 standard-35 kickoffs**:
-  488 ordinary kicks plus 50 penalty-affected kicks with independently
-  verified, score-neutral receiving-team first snaps. The fields (touchback,
-  receiving position, clock consumed) are sampled together from actual plays.
-- The frozen [2025 Q4 kickoff coverage census](data/kickoff_2025_q4_coverage.json)
-  includes **584** eligible kickoffs, so the improved experimental resolver
-  represents **538/584 (92.1%)** of Q4 kickoffs, versus **488/584 (83.6%)**
-  in the original ordinary-only preview. In the final five minutes and with
-  more than 40 seconds remaining, coverage rises from **171/218 (78.4%)**
-  to **185/218 (84.9%)**. Neither fraction is a validated 2026 forecast.
-- The remaining **46 unsupported kickoff outcomes** are 41 declared onside
-  attempts, two actual re-kicks, one kickoff return TD and two unmatched
-  outcomes. The [penalty/re-kick and TD audit](data/kickoff_2025_penalty_return_coverage.json)
-  and [reconstructed historical first snaps](data/kickoff_2025_penalty_first_snaps.csv)
-  are frozen and checked. We never replace a re-kick or scoring return with
-  an ordinary return.
-- The original **488-only** empirical comparison is preserved under
-  Advanced for reproducibility. Its historical touchback share is **31.97%**;
-  this descriptive rate is not an assumed future 2026 touchback probability.
-- In the selected last-five-minute **receiver-leading-by-1-to-3** group
-  relevant after a Rams-style made FG, **15 of 20** observed 2025 kicks
-  were ordinary and five were onside attempts. **Twenty kicks is not
-  enough to calibrate a future game-specific onside strategy.** The
-  Streamlit experimental section explicitly shows these limitations.
-- All underlying historical data are versioned: the
-  [488 frozen ordinary kicks](data/kickoff_2025_reg_q4_ordinary.csv),
-  the [penalty-affected kickoff observations](data/kickoff_2025_penalty_first_snaps.csv),
-  and the [2025 onside transition samples](data/kickoff_2025_onside_first_snaps.csv).
-  Visitors do **not** download live NFL play-by-play to use Streamlit.
-- An Advanced option preserves the earlier 2024-return sensitivity study with
-  an explicitly assumed touchback rate.
-- A separate, **opt-in 2025 onside what-if** tests two *user-chosen*
-  parameters: chance of choosing an onside kick after a made Q4 field goal
-  while still trailing, and chance of the kicking team recovering if attempted.
-  This does not estimate a real team's policy.
-- The 2025 REG Q4 coverage census has **41** eligible declared onside kicks
-  across 39 games. The official `own_kickoff_recovery` field identifies **four**
-  kicking-team recoveries (4/41, 9.8% observed); **37** onside kicks were
-  matched to a verified subsequent scrimmage snap, with **four** penalty
-  cases excluded from the transition donor pool.
-- Field position and elapsed clock in either what-if onside outcome are
-  sampled together from these 37 actual possessions. A recovered kick
-  correctly transfers possession **back to the kicking team**; a failed
-  attempt leaves the receiver in possession. **Only four verified
-  success donors** means substantial unmodeled uncertainty.
-- The 2026 NFL rules allow declaring an onside kick regardless of score,
-  but this particular prototype is intentionally scoped to a made Q4 FG
-  leaving the original kicking team trailing (the Rams-style case). It does
-  not attempt to simulate all legally permitted onside choices.
-  See [the official 2026 NFL rulebook](https://operations.nfl.com/rules-officiating/2026-nfl-rulebook).
-- The [Rams sensitivity script](src/75_rams_onside_sensitivity_audit.py)
-  and [2025 onside recovery audit](src/74_freeze_2025_onside_outcomes.py)
-  run automatically in GitHub Actions. No local data downloads are
-  required for Streamlit visitors.
-- The scenario runs in an isolated engine instance and never overwrites the
-  official recommendation, models, or shared Streamlit cache.
-- The expanded preview still cannot establish a causal FG/GO
-  **counterfactual** or model return touchdowns, actual re-kicks and
-  ambiguous kickoffs. A single 2025 Q4 return touchdown at 7:18 remaining
-  cannot estimate a 2026 late-game risk; [Step 77](src/77_compare_penalty_resolved_wp.py)
-  reports explicit, hypothetical worst-case probability bounds rather than
-  inventing a scoring-return probability. An experimental winner separated
-  by less than Monte Carlo noise is reported as **too close to call**.
+The scenario uses **538 matched 2025 regular-season Q4 nonscoring kickoff
+transitions**: 488 ordinary kicks plus 50 verified penalty-affected receiving
+first possessions. It samples observed receiving field position and clock
+elapsed **together**. Those 538 transitions cover **92.1% of 584** eligible
+standard-35 Q4 kickoffs in the frozen
+[coverage census](data/kickoff_2025_q4_coverage.json). The **46 excluded**
+outcomes comprise 41 onside attempts, two actual re-kicks, one return
+touchdown, and two unmatched plays. The scenario does not invent ordinary
+next states for those excluded events.
 
-The original 2025 evaluation was held out for the v1.1.0 release. Subsequent
-exploratory studies have **examined 2025**; those results must not be described
-as an untouched independent holdout for future model selection. 2026 Week 6+
-is reserved for a future prospective benchmark.
+**How to read it:** the historical comparison is a *scenario estimate*, not
+a calibrated 2026+ forecast or evidence that an unchosen play would have
+won. It runs in an isolated engine instance and does not replace the
+official recommendation. Run/pass differences below approximate Monte
+Carlo noise are described as too close to call. Fake punts and fake field
+goals are excluded from the public ranking because reliable outcome
+estimates are not available.
+
+For research reproducibility, the repository still contains historical
+488-only, 2024 touchback-assumption, 2025 onside-what-if and native-input
+correction analyses. **These are not controls in the public app.** See the
+[frozen ordinary-kick data](data/kickoff_2025_reg_q4_ordinary.csv),
+[penalty-affected first snaps](data/kickoff_2025_penalty_first_snaps.csv),
+[onside first snaps](data/kickoff_2025_onside_first_snaps.csv),
+[return/penalty audit](data/kickoff_2025_penalty_return_coverage.json),
+[2025 Q4 feature-encoding audit](reports/2025_q4_kickoff_site_model_defect.md)
+and [broader retrospective calibration](reports/2023_2025_broad_q4_native_kickoff_calibration.md).
+
+The original v1.1.0 evaluation used 2025 as a holdout, but subsequent
+exploratory studies **examined those 2025 outcomes**. They are no longer an
+untouched future holdout for choosing new models. The precommitted 2026
+prospective checks remain gated; they have **not** been used to promote
+a kickoff challenger.
 
 ## Readable explanation of the fourth-down recommendation
 
@@ -259,13 +225,11 @@ estimates, but individual-year CIs included zero. Crucially, the
 These seasons were already examined and this does not validate the
 counterfactual fourth-down play selection.
 
-The candidate remains **research-only**, without a production promotion
-or 2026 outcome access. In the Q4 Streamlit experimental panel, you can
-now optionally enable **Advanced: also show native kickoff-input
-correction (research-only)**, which compares its strategy/action WPs
-against the untouched official model and the separate 538-kickoff
-scenario. The candidate is off by default, runs in a private engine,
-and never changes the official recommendation.
+The native-input candidate remains **research-only**, without production
+promotion or 2026 outcome access. Its historical comparisons are preserved
+in the source code and audit reports; the advanced candidate toggle was
+removed from the public app to keep its interface focused. The official
+decision engine is unchanged.
 
 **Automatic Q4 reliability warning:** Because the original official WP
 engine retains a demonstrated post-score kickoff input mismatch, the main
@@ -497,7 +461,7 @@ The deployed `app.py` is exercised through `streamlit.testing.v1.AppTest`:
 - Unavailable actions, experimental fake exclusion and malformed explanation fallback
 - Adaptive simulation budgets and Q4 reliability warnings, including unavailable checks
 - Regular-season/playoff overtime controls, possession validation and game-value labels
-- Opt-in kickoff/onside/native-input comparisons, disagreements and failure isolation
+- Opt-in 2025 kickoff comparison, scenario isolation, disagreement handling and failure fallback
 - Three smoke cases using the real frozen engine: regulation, Q4 and overtime
 
 The UI cases block network connections and use frozen local artifacts. Most
@@ -510,9 +474,14 @@ python -m pytest -v tests/test_streamlit_app_integration.py
 ```
 
 CI runs this as a separately named step and retains its JUnit report for
-14 days. AppTest verifies Python-side field initialization but does not execute
-the custom field's browser JavaScript or validate drag gestures, visual layout
-or the hosted deployment. See the [Step 85 readiness review](reports/85_streamlit_ui_release_readiness.md).
+14 days. AppTest tests Python-side UI logic; it does not execute custom field
+JavaScript or certify responsive layout. Separately, a one-time
+[Playwright live-browser check](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887243)
+**passed on October 12, 2026**: it opened the hosted Streamlit app, enabled
+the single Q4 kickoff scenario, ran Analyze Fourth Down and observed both the
+official decision and the completed scenario result. This is a real hosted
+interaction check, not independent validation of model calibration. See the
+[Step 85 readiness review](reports/85_streamlit_ui_release_readiness.md).
 
 ## Tech Stack
 
@@ -539,13 +508,30 @@ or the hosted deployment. See the [Step 85 readiness review](reports/85_streamli
 - Attempts beyond 70 yards are outside the model range.
 - Kicker-specific context defaults to the development-data median unless supplied programmatically.
 - Fake punt and fake field-goal actions are experimental and are not eligible for production recommendations.
-- The 2025 season is held out for evaluation and should not be used to retroactively tune v1.1.0.
+- The v1.1.0 evaluation originally held out 2025. Later 2025 exploratory research means it is no longer untouched evidence for selecting a future challenger.
 
-## Research-demo readiness (Step 88)
+## Research-demo readiness
 
-The current `main` app is suitable for a **qualified research demonstration**, not validated real-world coaching advice or a newly tagged stable release. [Step 88 readiness and interpretation notes](reports/88_research_demo_release_readiness.md) summarize the passing 339-test CI run, the later verified live explanation/OT/clock checks, the known Q4 kickoff reliability limitation, and the remaining responsive-layout/deployed-revision signoff tracked in [Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5). Frozen Step 66/83 prospective evaluation remains gated and research-only.
+The working `main` app is suitable for a **qualified technical research demo**,
+not a validated real-world coaching policy or a new stable release. The
+[full CI run #229](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887196)
+passed all regression, UI AppTest and frozen-artifact preflight checks on
+commit `8239a8f`. The separate
+[live-browser run #8](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887243)
+successfully exercised the actual hosted kickoff comparison at that revision.
 
-Release candidate reproducibility checks: [Step 90 checklist](reports/90_release_candidate_checklist.md). The automated preflight verifies required documents and frozen Git blobs, but does not replace visual, deployment, or independent model-validation review.
+[Live QA Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5)
+is **closed**: the user accepted mobile layout, and functional browser
+verification passed. The host's exact deployed commit SHA was *not*
+independently attested; the user-facing build display was deliberately
+removed. This is a documented provenance limitation, not a reason to
+reintroduce UI clutter. The frozen 2026 Step 66/83 research gates remain
+untouched.
+
+See the [interpretation and release-readiness review](reports/88_research_demo_release_readiness.md)
+and [release candidate checklist](reports/90_release_candidate_checklist.md).
+A passing test suite and live smoke check do not establish causal policy
+value or independently calibrated future-game probabilities.
 
 ## Release
 
