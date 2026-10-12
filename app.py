@@ -1884,13 +1884,19 @@ if run_model:
             # model namespace: weights and future-data gates unchanged.
             # No empirical donor assumptions or visible opt-in switch.
             from src.streamlit_kickoff_preview import (
+                isolated_engine_from_loaded_engine,
                 preview_native_kickoff_feature_candidate,
             )
             try:
+                # Copy function globals per request, NOT the loaded
+                # heavyweight estimators or transition parquet pools.
+                # Concurrent Streamlit users remain isolated.
+                q4_private_engine = isolated_engine_from_loaded_engine(engine)
                 result = preview_native_kickoff_feature_candidate(
                     state,
                     simulations=ADAPTIVE_HIGH_SIMULATIONS,
                     action_seed=ADAPTIVE_HIGH_SEED,
+                    isolated_engine=q4_private_engine,
                 )
             except Exception:
                 st.error(
@@ -2038,6 +2044,7 @@ if run_model:
 
                 fg_encoding_probe = inspect_made_fg_kickoff_encoding(
                     state,
+                    isolated_engine=q4_private_engine,
                 )
             except Exception:
                 fg_guard_unavailable = True

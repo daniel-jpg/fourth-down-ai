@@ -145,7 +145,7 @@ def ui(monkeypatch):
         monkeypatch.setattr(preview, name, fn)
         previews[name] = fn
 
-    def native_q4_estimate(state, *, simulations, action_seed):
+    def native_q4_estimate(state, *, simulations, action_seed, isolated_engine=None):
         # Private Q4 preview boundary; only Q4 receives updated results.
         result = engine.recommend(
             state, n_simulations=simulations, seed=action_seed,
@@ -159,6 +159,10 @@ def ui(monkeypatch):
     native = Mock(side_effect=native_q4_estimate)
     monkeypatch.setattr(preview, "preview_native_kickoff_feature_candidate", native)
     previews["preview_native_kickoff_feature_candidate"] = native
+
+    private = {"fake_private_engine": True}
+    clone = Mock(return_value=private)
+    monkeypatch.setattr(preview, "isolated_engine_from_loaded_engine", clone)
     at = run(AppTest.from_file(str(ROOT / "app.py"), default_timeout=15))
     yield SimpleNamespace(at=at, engine=engine, probe=probe, previews=previews)
     # Do not leak the fake cached module to real-engine tests or another session.
@@ -341,7 +345,9 @@ def test_q4_material_sensitivity_shows_close_call_and_new_estimates(ui):
     assert metrics(ui.at)["Win probability if chosen"] == "64.00%"
     assert "Q4 estimates use corrected standard-35" in values(ui.at, "caption")
     assert not any("experimental" in c.label.lower() for c in ui.at.checkbox)
-    ui.probe.assert_called_once_with(ui.engine.calls[0][0])
+    assert ui.probe.call_count == 1
+    assert ui.probe.call_args.args[0] == ui.engine.calls[0][0]
+    assert ui.probe.call_args.kwargs["isolated_engine"] == {"fake_private_engine": True}
     ui.previews["preview_native_kickoff_feature_candidate"].assert_called_once()
     assert not any(fn.called for name, fn in ui.previews.items()
                    if name != "preview_native_kickoff_feature_candidate")

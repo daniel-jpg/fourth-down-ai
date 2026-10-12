@@ -186,7 +186,9 @@ and [its tests](tests/test_fourth_down_action_explainer.py).
 **Updated Q4 calculations (research demo):** The public Streamlit app now
 uses the existing native standard-35 kickoff-input correction automatically
 for regulation Q4, with the *same frozen model weights* and a fixed
-1,200-simulation/action budget. The app recomputes the **action win
+1,200-simulation/action budget. Per-request Python function namespaces
+share the cached model/transition artifacts read-only, avoiding a second
+large engine load while keeping Streamlit sessions isolated. The app recomputes the **action win
 probabilities and recommended play**; it does not merely replace a
 disclaimer while leaving the older Q4 scores unchanged. No separate
 kickoff checkbox or research panel is presented.

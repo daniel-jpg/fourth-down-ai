@@ -23,6 +23,7 @@ import io
 import json
 from pathlib import Path
 from collections.abc import Mapping
+from types import FunctionType
 
 import numpy as np
 import pandas as pd
@@ -90,6 +91,45 @@ def isolated_engine_for_preview(engine_path: Path = ENGINE_PATH) -> dict:
     if not callable(getattr(module, "recommend", None)):
         raise RuntimeError("Private experimental engine lacks recommend().")
     return vars(module)
+
+
+def isolated_engine_from_loaded_engine(live_engine) -> dict:
+    """Clone only callable namespaces, not heavy model/pool resources.
+
+    Streamlit caches an engine module containing large joblib estimators
+    and parquet data. Re-importing it for Q4 reloads all of them and can
+    exhaust hosted-memory limits. Instead create a per-request globals
+    dictionary, clone the engine's Python functions so their global
+    references resolve only inside this dictionary, and share the
+    original model artifacts READ-ONLY. This leaves every global
+    callback on the cached engine unchanged across sessions.
+    """
+    source = (
+        live_engine if isinstance(live_engine, Mapping)
+        else vars(live_engine)
+    )
+    recommend = source.get("recommend")
+    if not isinstance(recommend, FunctionType):
+        raise TypeError("Loaded engine must expose its Python recommend().")
+    source_globals = recommend.__globals__
+    isolated = dict(source)
+    for name, func in source.items():
+        if not isinstance(func, FunctionType) or func.__globals__ is not source_globals:
+            continue
+        clone = FunctionType(
+            func.__code__, isolated, func.__name__,
+            func.__defaults__, func.__closure__,
+        )
+        clone.__kwdefaults__ = func.__kwdefaults__
+        clone.__annotations__ = dict(func.__annotations__)
+        clone.__dict__.update(func.__dict__)
+        clone.__qualname__ = func.__qualname__
+        isolated[name] = clone
+    for essential in ("recommend", "evaluate_post_play_states"):
+        fn = isolated.get(essential)
+        if not isinstance(fn, FunctionType) or fn.__globals__ is not isolated:
+            raise RuntimeError("Per-request engine function isolation failed.")
+    return isolated
 
 
 def preview_recommendation(
@@ -167,6 +207,7 @@ def preview_native_kickoff_feature_candidate(
     state: Mapping, *,
     simulations: int = EXPERIMENTAL_SIMULATIONS,
     action_seed: int = EXPERIMENTAL_ACTION_SEED,
+    isolated_engine: Mapping | None = None,
 ) -> dict:
     """Private, opt-in, native kickoff WP inputs with frozen production weights.
 
@@ -185,7 +226,10 @@ def preview_native_kickoff_feature_candidate(
         raise ValueError("The native kickoff candidate is Q4 regulation only.")
     if simulations < 200:
         raise ValueError("At least 200 simulations are required.")
-    private = isolated_engine_for_preview()
+    private = (
+        isolated_engine_for_preview()
+        if isolated_engine is None else isolated_engine
+    )
     with use_q4_native_kickoff_candidate(private):
         return private["recommend"](
             dict(state), n_simulations=simulations, seed=action_seed,

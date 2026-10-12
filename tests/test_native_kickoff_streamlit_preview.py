@@ -8,6 +8,7 @@ import pytest
 
 from src.streamlit_kickoff_preview import (
     isolated_engine_for_preview,
+    isolated_engine_from_loaded_engine,
     preview_native_kickoff_feature_candidate,
     preview_observed_2025_resolved_recommendation,
     preview_strategy_rank_with_uncertainty,
@@ -72,12 +73,36 @@ def test_research_candidate_requires_q4_and_real_simulation_count():
         preview_native_kickoff_feature_candidate(HOME,simulations=199)
 
 
+def test_lightweight_engine_namespace_reuses_heavy_artifacts_without_mutating_live():
+    original = isolated_engine_for_preview()
+    original_eval = original["evaluate_post_play_states"]
+    original_recommend = original["recommend"]
+    private = isolated_engine_from_loaded_engine(original)
+    assert private is not original
+    assert private["recommend"] is not original_recommend
+    assert private["recommend"].__globals__ is private
+    assert private["evaluate_post_play_states"].__globals__ is private
+    assert private["wp_model"] is original["wp_model"]
+    assert private["go_model"] is original["go_model"]
+    assert private["go_pool"] is original["go_pool"]
+    result = preview_native_kickoff_feature_candidate(
+        HOME, simulations=240, action_seed=42, isolated_engine=private,
+    )
+    assert len(result["results"]) > 0
+    assert private["evaluate_post_play_states"].__globals__ is private
+    assert original["evaluate_post_play_states"] is original_eval
+    assert original["recommend"] is original_recommend
+    assert private["evaluate_post_play_states"] is not original_eval
+
+
 def test_deployed_streamlit_uses_native_q4_inputs_without_extra_public_controls():
     app=(ROOT/"app.py").read_text()
     ast.parse(app)
     # Q4 research-demo estimates now use the candidate in a private model,
     # never as an opt-in second panel or a frozen-stable model refit.
     assert "preview_native_kickoff_feature_candidate(" in app
+    assert "isolated_engine_from_loaded_engine(engine)" in app
+    assert "isolated_engine=q4_private_engine" in app
     assert "simulations=ADAPTIVE_HIGH_SIMULATIONS" in app
     assert "experimental_native_candidate_enabled" not in app
     assert "Additional model-input comparison (research-only)" not in app

@@ -9,6 +9,7 @@ import math
 
 from src.streamlit_kickoff_preview import (
     isolated_engine_for_preview,
+    isolated_engine_from_loaded_engine,
     preview_native_kickoff_feature_candidate,
 )
 
@@ -31,8 +32,9 @@ ACTIONS = ["NORMAL_GO_PASS", "NORMAL_GO_RUN", "FIELD_GOAL", "PUNT"]
 def main() -> None:
     private = isolated_engine_for_preview()
     legacy = private["recommend"](STATE, n_simulations=N, seed=SEED)
+    lightweight = isolated_engine_from_loaded_engine(private)
     updated = preview_native_kickoff_feature_candidate(
-        STATE, simulations=N, action_seed=SEED,
+        STATE, simulations=N, action_seed=SEED, isolated_engine=lightweight,
     )
     old = legacy["results"].set_index("action")
     new = updated["results"].set_index("action")
