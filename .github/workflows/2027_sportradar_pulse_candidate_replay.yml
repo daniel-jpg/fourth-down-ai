@@ -1,0 +1,42 @@
+name: Documented Pulse provider candidate: fabricated-only pre-snap replay
+
+# Offline v7-shaped provider messages only. NO live NFL endpoint, no access
+# to reserved 2026 outcomes, no protected 2026 kickoff evaluation, no real
+# 2027 data, no production app changes, no model retraining or promotion.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/sportradar_pulse_synthetic_adapter.py"
+      - "tests/test_sportradar_pulse_synthetic_adapter.py"
+      - ".github/workflows/2027_sportradar_pulse_candidate_replay.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-provider-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install pinned test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Replay ONLY fabricated pre-snap Pulse v7 and signed-policy candidate
+        run: |
+          set -o pipefail
+          PYTHONPATH=. python -m pytest -v tests/test_sportradar_pulse_synthetic_adapter.py 2>&1 | tee pulse-candidate-offline-replay.log
+      - name: Save source-gap and omission-log validation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 2027-offline-pulse-provider-candidate-tests
+          path: pulse-candidate-offline-replay.log
+          retention-days: 14
