@@ -89,13 +89,17 @@ separation, and **real pinned engine** replay:
   actual adaptive path with 32-trial synthetic smoke budget.
 - Q1 at neutral site: actual adaptive path with 32-trial budget.
 - Separate own-5 4th-and-3 synthetic pass/run/FG/PUNT eligibility case.
+- Two additional full-budget **FABRICATED** parity tests: native Q4
+  exactly 1,200 trials/seed43, and Q1 pilot exactly 300/seed42 with the
+  preregistered escalation rule to 1,200/seed43 as needed.
 - No empirical kickoff 2026 results, 2027 outcomes, model training,
   release tag, public app mutation or protected prospective gate run.
 
-**Smoke-test budgets are intentionally lower than registered app
-precision**, and are labeled as such. They verify code-path/source parity
-and seeded structural behavior; their WP percentages are NOT official
-1,200-trial policy forecasts or new validation evidence.
+The quick multi-scenario smoke cases intentionally use lower Monte Carlo
+budgets, and are labeled as such. The full-budget synthetic replay tests
+prove deterministic numerical policy orchestration at the registered
+simulation count, **not that the resulting WP percentages are empirically
+valid or that any unchosen action wins more actual NFL games**.
 
 ## Remaining freeze blockers before 2027 Week 1
 
