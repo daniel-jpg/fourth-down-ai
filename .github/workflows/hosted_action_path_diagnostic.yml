@@ -1,4 +1,4 @@
-name: Diagnose hosted Q1 versus Q4 decision execution
+name: Diagnose hosted Q4 HOME input and analysis handoff
 
 # One-time, read-only browser diagnostic for the actual public app.
 # Runs on its own creation/update and can be dispatched manually.
@@ -23,7 +23,7 @@ jobs:
           python -m pip install playwright==1.55.0
           python -m playwright install --with-deps chromium
 
-      - name: Contrast Q1 and Q4 hosted analysis without editing data
+      - name: Verify HOME radio change and hosted Q4 calculation
         run: |
           python - <<'PY'
           import time
@@ -83,8 +83,17 @@ jobs:
               attach_diagnostics(page, name)
               phase = "not started"
               try:
-                  page.goto(URL, wait_until="domcontentloaded", timeout=60000)
-                  app = find_frame(page)
+                  app = None
+                  for attempt in range(2):
+                      page.goto(URL, wait_until="domcontentloaded", timeout=60000)
+                      try:
+                          app = find_frame(page, max_seconds=65)
+                          break
+                      except AssertionError:
+                          if attempt == 1:
+                              raise
+                          print(name, "STARTUP_RETRY", flush=True)
+                  assert app is not None
                   assert app.get_by_text(
                       "Weather observations (optional)", exact=True
                   ).count(), "Hosted app is not serving the current weather interface"
@@ -96,26 +105,44 @@ jobs:
                       )
                       page.wait_for_timeout(2500)
 
-                  # Reproduce the site's exact interaction sequence from
-                  # the main hosted smoke: select HOME, allow a rerun, click
-                  # Analyze. The default Q4 state already passed remotely.
+                  # Use radio semantics instead of a generic text click;
+                  # this prevents a false diagnosis if the label receives
+                  # the click without committing the Streamlit input value.
                   if site is not None:
-                      app.get_by_text(site, exact=True).first.click(
-                          timeout=15000
-                      )
-                      page.wait_for_timeout(3500)
                       selected = app.get_by_role("radio", name=site)
-                      if selected.count():
-                          assert selected.first.is_checked(), (
-                              f"Site {site} did not remain selected after rerun"
-                          )
-                      print(name, "site selected and rerun settled", flush=True)
+                      print(
+                          name, "RADIO_PRECHANGE", {
+                              "role_count": selected.count(),
+                              "body_contains_home": (
+                                  app.get_by_text(site, exact=True).count() > 0
+                              ),
+                          }, flush=True,
+                      )
+                      assert selected.count() == 1, (
+                          f"Cannot uniquely resolve the {site} site radio"
+                      )
+                      selected.check(timeout=15000)
+                      page.wait_for_timeout(4500)
+                      assert selected.is_checked(), (
+                          f"Site {site} not checked after Streamlit rerun"
+                      )
+                      print(
+                          name, "RADIO_SELECTED", {
+                              "checked": selected.is_checked(),
+                              "weather_visible": app.get_by_text(
+                                  "Weather observations (optional)", exact=True
+                              ).count() > 0,
+                          }, flush=True,
+                      )
 
                   analyze = app.get_by_role("button", name="Analyze Fourth Down")
-                  assert analyze.is_enabled(), "Analyze disabled for default valid state"
+                  assert analyze.count() == 1 and analyze.is_enabled(), (
+                      "Analyze button unavailable after situation rerun"
+                  )
                   start = time.monotonic()
                   analyze.click(timeout=15000)
                   phase = "clicked"
+                  print(name, "ANALYZE_CLICKED", flush=True)
                   spinner_seen = False
                   last_excerpt = ""
                   while time.monotonic() - start < wait_seconds:
@@ -173,30 +200,21 @@ jobs:
                   # Sequential sessions avoid two heavy simulations at once.
                   # Q1 tests ordinary model invocation without Q4's private
                   # native-kickoff code. Run Q4 only if that simpler path works.
-                  q1_passed = run_case(browser, quarter=1, wait_seconds=100)
-                  if not q1_passed:
-                      raise AssertionError(
-                          "HOSTED_GENERAL_ANALYZE_FAILURE: Q1 did not finish. "
-                          "Check browser websocket and Streamlit Cloud runtime logs."
-                      )
-                  q4_passed = run_case(browser, quarter=4, wait_seconds=150)
-                  if not q4_passed:
-                      raise AssertionError(
-                          "HOSTED_Q4_SPECIFIC_OR_SESSION_FAILURE: Q1 completed "
-                          "but Q4 did not. Inspect private Q4 preview/runtime logs."
-                      )
+                  # Isolate HOME in the FIRST hosted session. A previous
+                  # three-session diagnostic failed during Q1 startup and
+                  # provided no information about the HOME interaction.
                   home_passed = run_case(
                       browser, quarter=4, site="Home", wait_seconds=150
                   )
                   if not home_passed:
                       raise AssertionError(
-                          "HOSTED_HOME_SITE_INTERACTION_FAILURE: Q1 and "
-                          "default Q4 returned results, but Q4 HOME did not. "
-                          "Inspect home-site rerun and browser runtime logs."
+                          "HOSTED_Q4_HOME_INTERACTION_FAILURE: the tested "
+                          "HOME radio selection or ensuing Q4 calculation "
+                          "did not finish. See RADIO_/ANALYZE_ stage logs."
                       )
                   print(
-                      "DIAGNOSTIC_PASS: Q1, Q4 default and Q4 HOME "
-                      "all completed on public Cloud",
+                      "DIAGNOSTIC_PASS: Q4 HOME site radio was committed "
+                      "and live recommendation completed",
                       flush=True,
                   )
               finally:
