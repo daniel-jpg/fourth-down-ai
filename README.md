@@ -191,8 +191,9 @@ or snow is an airport present-weather observation, not measured rainfall
 at the football field. A late download is labeled retrospective, never
 an independently witnessed live-game forecast.
 
-The app's **Inspect timestamped airport METAR evidence** option, inside
-manual weather entry, lets a user paste a research receipt to inspect its
+The app's **Open saved airport report (JSON required)** option, inside
+**Advanced reference: stadiums and saved airport data**, lets a user
+paste a research receipt to inspect its
 provenance and directional context. It **does not supply official model
 features or alter the experimental FG what-if**, and pasted JSON is
 unsigned and not independently authenticated. The [complete capture
@@ -230,8 +231,9 @@ community source still contains the retired stadium location. Tennessee's
 2026 stadium map does not carry forward to its planned 2027 replacement.
 [Full source provenance and venue-year caveats](reports/2026_nfl_stadium_weather_geometry.md).
 
-To use the lookup, enable **Enter observed temperature and wind**, then
-**Show 2026 stadium compass lookup (research only)**. Choose the actual
+To use the lookup, open **Advanced reference: stadiums and saved airport
+data** and choose **Show stadium information (reference only)**. No
+weather inputs are needed for the lookup. Choose the actual
 game venue and independently check whether the offense is attacking
 toward approximate compass bearing **A** or **B** (180 degrees apart).
 Never infer orientation from the quarter, field position, left/right
