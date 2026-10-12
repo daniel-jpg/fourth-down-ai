@@ -315,9 +315,14 @@ score mismatches**, covering 47,942 historical fourth-down source rows.
 Every verified score margin is preserved in a
 [permanent compact archive](data/independent_espn_2014_2025_margin_archive.json)
 and can be [replayed offline](src/independent_espn_margin_archive.py).
-This verifies **final outcomes only**; real decision-time roof,
-halftime-receiver, action intent, kicker and forecast-timestamp
-provenance still need independent review.
+A separate [official-stadium-reviewed venue audit](reports/historical_relocated_neutral_site_provider_disagreements.md)
+finds four ESPN/non-neutral versus nflverse/neutral flag differences;
+all four are documented **relocated home-designated games**, not wrong
+scores. The source flags remain unchanged and unexpected differences
+now fail the audit. These checks verify retrospective outcomes and
+physical stadiums only; real decision-time roof, halftime-receiver,
+action intent, kicker and forecast-timestamp provenance still need
+independent review.
 
 Passing the original once-only 2026 native-kickoff test may eventually
 allow narrowing the phrase *"kickoff inputs not yet validated on future
