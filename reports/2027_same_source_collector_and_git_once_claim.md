@@ -22,6 +22,12 @@
 
 This option performs HTTP requests only for historical 2025 ESPN final-score events. The ESPN score source is never used in any model forecast features.
 
+## Verified test result
+
+The [focused GitHub Actions CI run #38287180054](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38287180054) succeeded. It ran **22 tests**, read the original 2025 season PBP from the pre-pinned archive, verified **272 actual completed historical 2025 regular-season games**, and independently rechecked the **3,151-game archived ESPN final-score comparison**. The manifest records original data SHA256 and the exact feature whitelist SHA256; all 2027 access and pre-snap certification flags remain false. Two independent local Git clients, including a simultaneous race, never both acquired the same fixed synthetic tag ref.
+
+The first focused CI run failed **only** on integer week keys serializing as strings in JSON. The collector now emits stable string keys, and the corrected CI succeeded. No production model or 2026 protected workflow was changed.
+
 ## What is NOT authorized yet
 
 **No real 2027 collector has been activated** and no real 2027 tag was created. The fake source test and fabricated lock cannot certify actual future games, real independent ESPN 2027 scores or external pre-snap timestamps.
