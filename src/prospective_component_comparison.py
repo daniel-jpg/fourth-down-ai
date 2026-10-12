@@ -36,10 +36,10 @@ WP_KEYS = frozenset({
     "offense_score_margin", "feature_asof", "frozen_wp", "candidate_wp",
 })
 GO_KEYS = WP_KEYS.difference({"frozen_wp", "candidate_wp"}) | {
-    "observed_go_action", "frozen_conversion", "candidate_conversion",
+    "predicted_go_action", "frozen_conversion", "candidate_conversion",
 }
 WP_LABEL_KEYS = frozenset({"game_id", "play_id", "offense_win"})
-GO_LABEL_KEYS = frozenset({"game_id", "play_id", "converted"})
+GO_LABEL_KEYS = frozenset({"game_id", "play_id", "observed_go_action", "converted"})
 BOOTSTRAP_DRAWS = 2000
 BOOTSTRAP_SEED = 2027
 MIN_MEANINGFUL_GAMES = 20
@@ -86,9 +86,15 @@ def _predictor_rows(rows: Any, name: str, keys: frozenset) -> dict:
     result = {}
     for row in rows:
         _schema(row, keys, name)
-        key = _key(row)
+        # GO predicts a HYPOTHETICAL action before the snap, even when
+        # the coach ultimately calls FG/PUNT. Never use observed play type
+        # as an input predictor; actual action is joined from outcome log.
+        if name == "go" and row["predicted_go_action"] not in GO_ACTIONS:
+            raise ValueError("Pre-snap candidate GO action must be RUN or PASS")
+        key = (_key(row) + (row["predicted_go_action"],)
+               if name == "go" else _key(row))
         if key in result:
-            raise ValueError(f"Duplicate {name} play identifier {key}")
+            raise ValueError(f"Duplicate {name} play/action identifier {key}")
         _integer(row["season"], "season", HOLDOUT_SEASON, HOLDOUT_SEASON)
         _integer(row["quarter"], "quarter", 1, 4)
         if row["feature_asof"] != "pre_snap":
@@ -109,8 +115,6 @@ def _predictor_rows(rows: Any, name: str, keys: frozenset) -> dict:
             else ("frozen_conversion", "candidate_conversion")
         ):
             _number(row[p], p, 0, 1)
-        if name == "go" and row["observed_go_action"] not in GO_ACTIONS:
-            raise ValueError("Factual GO cohort must contain only normal RUN/PASS GO")
         result[key] = dict(row)
     return result
 
@@ -126,6 +130,8 @@ def _label_rows(rows: Any, keys: frozenset, name: str) -> dict:
             raise ValueError("Duplicate factual outcome identifier")
         label_key = "offense_win" if name == "wp" else "converted"
         _integer(row[label_key], label_key, 0, 1)
+        if name == "go" and row["observed_go_action"] not in GO_ACTIONS:
+            raise ValueError("Logged factual GO outcome must be normal RUN or PASS")
         result[key] = dict(row)
     return result
 
@@ -189,6 +195,28 @@ def _match(predictions: Mapping, observations: Mapping, label: str) -> list:
             f"missing outcomes={len(set(predictions)-set(observations))}"
         )
     return [{**predictions[k], **observations[k]} for k in sorted(predictions)]
+
+
+def _match_go(predictions: Mapping, observations: Mapping) -> tuple[list, int]:
+    """Join realized GO play type only AFTER forecast archive was sealed.
+
+    The archive is allowed to contain unchosen GO hypotheses; including
+    predictions for all fourth downs ahead of time avoids look-ahead
+    selection of the actual RUN/PASS decision.
+    """
+    results = []
+    consumed = set()
+    for key in sorted(observations):
+        obs = observations[key]
+        chosen_key = key + (obs["observed_go_action"],)
+        if chosen_key not in predictions:
+            raise ValueError(
+                f"Unmatched GO factual action: missing pre-snap "
+                f"forecast for {chosen_key!r}"
+            )
+        results.append({**predictions[chosen_key], **obs})
+        consumed.add(chosen_key)
+    return results, len(predictions) - len(consumed)
 
 
 def _ci(gains: Sequence[float], games: Sequence[str], draws: int, seed: int) -> list | None:
@@ -302,12 +330,12 @@ def evaluate(
             _label_rows(outcomes["wp"], WP_LABEL_KEYS, "wp"),
             "WP",
         ),
-        "go": _match(
-            _predictor_rows(predictions["go"], "go", GO_KEYS),
-            _label_rows(outcomes["go"], GO_LABEL_KEYS, "go"),
-            "GO",
-        ),
     }
+    matched_go, unused_go = _match_go(
+        _predictor_rows(predictions["go"], "go", GO_KEYS),
+        _label_rows(outcomes["go"], GO_LABEL_KEYS, "go"),
+    )
+    matched["go"] = matched_go
     wp_games = len({r["game_id"] for r in matched["wp"]})
     go_games = len({r["game_id"] for r in matched["go"]})
     if mode == "prospective" and (wp_games < 100 or go_games < 100):
@@ -354,6 +382,7 @@ def evaluate(
         "forecasts_sha256": forecast_sha256(predictions),
         "n_wp_states": len(matched["wp"]),
         "n_go_attempts": len(matched["go"]),
+        "unselected_presnap_go_forecasts": unused_go,
         "wp_calibration": result["wp"],
         "go_conversion_calibration": result["go"],
         "model_review_gate": {
