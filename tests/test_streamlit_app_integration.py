@@ -193,12 +193,14 @@ def test_kickoff_scenario_and_fake_play_ui_remain_truthful(ui):
     assert widget(ui.at, "checkbox", EXPERIMENT).value is False
     analyze(ui.at)
     assert metrics(ui.at)["Recommendation"] == "GO FOR IT"
-    excluded = widget(ui.at, "expander", "Why fake plays are not ranked")
-    text = values(excluded, "markdown") + values(excluded, "caption")
-    assert "excluded from the ranked actions" in text
-    assert "insufficient historical support" in text
-    assert "FAKE PUNT — RUN" not in text
-    assert not excluded.metric
+    assert widget(ui.at, "expander", "Why fake plays are not ranked")
+    # Inspect the AppTest's flattened text collections: nested expander
+    # containers do not expose every rendered element identically across
+    # Streamlit versions.
+    rendered = values(ui.at, "markdown") + values(ui.at, "caption")
+    assert "excluded from the ranked actions" in rendered
+    assert "insufficient historical support" in rendered
+    assert "FAKE PUNT — RUN" not in rendered
     assert all("FAKE" not in k for k in metrics(ui.at))
 
 
