@@ -4,6 +4,12 @@
 
 **Chosen source:** existing nflreadpy/nflverse play-by-play format; **no Sportradar subscription, vendor inquiry, live timestamp authority or paid service is required** for this retrospective out-of-time evaluation path.
 
+## Verified CI evidence (October 12, 2026)
+
+The [synthetic-only nflverse-to-frozen-engine workflow #38284784223](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38284784223) completed **successfully** using commit [515d9173](https://github.com/daniel-jpg/fourth-down-ai/commit/515d9173ecab17470b78a15a98130d530387df9f). It passed **19 dedicated regression tests**, then exercised a single **invented Q4 fourth down at the opponent 6** through the actual verified frozen model using full 1,200-trial native-kickoff logic. Its fictional sample selected NORMAL_GO_PASS; that is an **illustration only**, not an observed coaching advantage or a real NFL 2027 recommendation. The logged machine-readable audit confirmed frozen engine provenance, one fake forecast, zero missing decisions, no label access and all future/prospective certification flags false. The dedicated run archived only a fabricated-source audit artifact for 14 days.
+
+This result tests **software integration**, not forecasting accuracy, actual before-snap timing or 2027 historical extrapolation.
+
 ## Implementation
 
 - [Nflverse field projector](../src/nflverse_2027_reconstruction.py): accepts supplied pandas/Polars frames, selects source-reported fourth downs on the **down field alone**, projects only approved pre-play-looking state columns and records exclusions. It separately exposes observed-action and final-score *claims*, but this forecast integration **never invokes that label projection**.
@@ -19,7 +25,7 @@ The engine's accepted feature_asof=pre_snap contract is used **only inside synth
 Run these from the repository root after installing requirements-dev.txt:
 
     PYTHONPATH=. python -m pytest -q tests/test_nflverse_2027_frozen_policy_replay.py
-    PYTHONPATH=. python -m src.nflverse_2027_frozen_policy_replay --fabricated-demo-only --audit-json-out artifacts/fake_policy_preview.json
+    PYTHONPATH=. python -m src.nflverse_2027_frozen_policy_replay --fabricated-demo-only --audit-json-out fake_policy_preview.json
 
 The CLI invents one 2027-shaped Q4 fourth down and loads the verified frozen hashes/models. Console output can include simulator diagnostic lines; the optional --audit-json-out argument writes a new, clean JSON audit file using exclusive creation (it refuses to overwrite an existing file). It has no URL, real game-ID input or bypass of the synthetic gate. A fake engine can be injected only for fabricated testing and is labeled separately.
 
