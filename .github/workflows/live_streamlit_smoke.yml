@@ -79,7 +79,21 @@ jobs:
                       name="Show the experimental kickoff-adjusted comparison",
                   )
                   assert not option.is_checked(), "Scenario should be opt-in"
-                  option.check()
+                  # Streamlit's React-Aria label overlays the native input.
+                  # Click the visible text a real user would click, rather
+                  # than Playwright's input.check() (which the label intercepts).
+                  app.get_by_text(
+                      "Show the experimental kickoff-adjusted comparison",
+                      exact=True,
+                  ).click()
+                  app.get_by_role(
+                      "checkbox",
+                      name="Show the experimental kickoff-adjusted comparison",
+                  ).wait_for(timeout=30000)
+                  assert app.get_by_role(
+                      "checkbox",
+                      name="Show the experimental kickoff-adjusted comparison",
+                  ).is_checked(), "Visible checkbox label did not enable scenario"
                   app.get_by_role("button", name="Analyze Fourth Down").click()
                   app.get_by_text("Decision", exact=True).first.wait_for(
                       timeout=120000
