@@ -303,3 +303,41 @@ def test_module_has_no_live_2026_data_loader_or_network_side_effects():
     assert "requests.get" not in content.lower()
     assert "urllib.request" not in content.lower()
     assert "import nfl_data_py" not in content.lower()
+
+
+def test_prospective_underpowered_policy_contrast_is_suppressed():
+    # Fabricated completed-season metadata, not real 2027 observations.
+    manifest = {
+        **MANIFEST, "mode": "prospective",
+        "final_2027_regular_season_complete": True,
+        "nuisance_provenance": "synthetic-only test artifact",
+    }
+    rows = [
+        record(f"synthetic-{i}", "1", observed="FIELD_GOAL",
+               policy="FIELD_GOAL", e=.5, mu=.5)
+        for i in range(100)
+    ]
+    for row in rows:
+        row.update(site="HOME", close_call=False,
+                   yardline_100=40., ydstogo=3.)
+    out = evaluate(rows, manifest, bootstrap_draws=20)
+    policy = out["observational_one_step_policy_comparison"]
+    assert not policy["sufficient_overlap_to_report_exploratory_comparison"]
+    assert policy["prospective_contrast_suppressed"]
+    assert "FEWER_THAN_200_SUPPORTED_DECISIONS" in policy["overlap_failures"]
+    assert "FEWER_THAN_40_COACH_POLICY_DISAGREEMENTS" in policy["overlap_failures"]
+    assert policy["dr_one_step_policy_value"] is None
+    assert policy["dr_minus_observed_coaches_value"] is None
+    assert policy["dr_difference_95pct_game_cluster_ci"] is None
+    assert policy["coaches_observed_win_rate_on_supported"] == 1.0
+    assert out["factual_action_calibration"]["factual_supported_decisions"] == 100
+
+
+def test_synthetic_underpowered_case_keeps_explicit_math_diagnostics():
+    result = evaluate([record()], MANIFEST, bootstrap_draws=20)
+    policy = result["observational_one_step_policy_comparison"]
+    assert policy["prospective_contrast_suppressed"] is False
+    assert policy["dr_one_step_policy_value"] is not None
+    assert policy["dr_minus_observed_coaches_value"] is not None
+    assert policy["dr_difference_95pct_game_cluster_ci"] is None
+    assert "SYNTHETIC FIXTURE ONLY" in policy["interpretation"]
