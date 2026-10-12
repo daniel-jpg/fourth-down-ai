@@ -94,8 +94,11 @@ jobs:
                                       "data-source-sha256"
                                   )
                                   weather_ui = (
-                                      frame.get_by_text(
-                                          "Weather (optional)", exact=True,
+                                      frame.get_by_role(
+                                          "spinbutton", name="Temperature (°F)",
+                                      ).count() == 1
+                                      and frame.get_by_role(
+                                          "spinbutton", name="Wind speed (mph)",
                                       ).count() == 1
                                       and frame.get_by_text(
                                           "Weather observations (optional)",
