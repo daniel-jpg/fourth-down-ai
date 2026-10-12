@@ -82,15 +82,12 @@ def run_browser() -> None:
             # The default Q4 state is 7:38, 4th-and-3 at opponent 30,
             # down 24-27. Change the site as real users do.
             home = frame.get_by_role("radio", name="Home")
-            if home.count() != 1:
-                raise AssertionError(
-                    "Exactly one accessible HOME radio expected; "
-                    f"found {home.count()}"
-                )
-            # Streamlit styles a visible label over the actual radio input.
-            # Clicking the input directly gets intercepted by that label.
-            frame.get_by_text("Home", exact=True).first.click(timeout=15000)
+            # The input may register one render tick after the page header.
+            # Clicking the visible label auto-waits for a stable control;
+            # don't assert a transient .count() before it has mounted.
+            frame.get_by_text("Home", exact=True).first.click(timeout=20000)
             page.wait_for_timeout(3000)
+            home.wait_for(state="attached", timeout=15000)
             assert home.is_checked(), "HOME radio failed to persist after rerun"
             print("LOCAL_HOME_CONFIRMED", flush=True)
 
