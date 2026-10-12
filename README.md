@@ -157,10 +157,13 @@ on-field weather. [See exact timing and evidence limits](reports/weather_decisio
 
 The optional weather panel can now show **2026 stadium geometry by physical
 venue**, from a pinned community Google-Earth geographic reference:
-**32 team entries, 31 usable approximate stadium coordinates and unoriented
-field axes**. The new 2026 Buffalo stadium is deliberately unmapped because
-the older source still identifies the retired building; the 2026 Tennessee
-location is not assumed valid for its planned 2027 replacement stadium.
+**32 approximate team-venue centers, 31 community-estimated field
+axes**. The replacement 2026 Buffalo stadium center is mapped from
+OpenStreetMap-derived evidence at approximately **42.77304, -78.79219**
+and crosschecked to another map reference; the NEW field axis remains
+**unverified** and cannot generate headwind/crosswind values. The original
+community source still contains the retired stadium location. Tennessee's
+2026 stadium map does not carry forward to its planned 2027 replacement.
 [Full source provenance and venue-year caveats](reports/2026_nfl_stadium_weather_geometry.md).
 
 To use the lookup, enable **Enter observed temperature and wind**, then
@@ -173,6 +176,16 @@ field graphic or home/away classification. The app provides a copyable
 it makes **no automatic NOAA request** and no changes to official action
 probabilities. Venue estimates and actual roof/attack direction remain
 **unverified**, even for real NOAA airport weather.
+
+The research controls also show the NFL's [nine officially
+scheduled 2026 international fixtures](src/2026_nfl_international_venue_schedule.json)
+across eight foreign stadiums. They **block automatically treating a
+team's normal U.S. home venue as the overseas game location**. The
+[venue-aware NOAA collector](scripts/capture_nfl_venue_awc_context.py)
+now requires an explicit game date and opponent in live mode and
+refuses a known international matchup **before making HTTP requests**.
+Other nonmatching games remain unverified, rather than presumed
+domestic. [Read the venue exception study](reports/2026_nfl_stadium_weather_geometry.md).
 
 The [stadium geometry tests](tests/test_nfl_stadium_weather_geometry.py)
 and [dedicated synthetic 2026 GitHub workflow](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38293909282)
