@@ -1938,6 +1938,122 @@ with st.expander(
                             "Offense-relative wind calculation remains "
                             "blocked; no attack-end selector is offered."
                         )
+                        st.caption(
+                            "New Highmark field orientation: approximately "
+                            "NORTH–SOUTH, documented by stadium architect "
+                            "Populous and independently by the Associated "
+                            "Press in August 2026. This is a qualitative "
+                            "stadium fact, NOT a surveyed true-north azimuth."
+                        )
+                        st.caption(
+                            "Source: populous.com/highmarkstadium · "
+                            "AP / Washington Post, August 7, 2026. "
+                            "Exact azimuth remains unknown, so numerical "
+                            "headwind/crosswind remains BLOCKED."
+                        )
+                        buffalo_attack_claim = st.selectbox(
+                            "Buffalo offense attack-end claim (research only)",
+                            [
+                                "Unknown — no witnessed direction",
+                                "Toward north end zone",
+                                "Toward south end zone",
+                            ],
+                            help=(
+                                "Choosing an end zone is a user assertion, "
+                                "not evidence of this play's orientation. "
+                                "Neither the live official model nor its "
+                                "separate weather what-if uses this choice."
+                            ),
+                        )
+                        if buffalo_attack_claim != (
+                            "Unknown — no witnessed direction"
+                        ):
+                            st.info(
+                                f"Unverified user claim: {buffalo_attack_claim}. "
+                                "Record the specific play's source evidence "
+                                "and observed/available UTC times separately. "
+                                "No numeric bearing or model adjustment."
+                            )
+                        st.code(
+                            "PYTHONPATH=. python -m "
+                            "scripts.capture_buffalo_snap_direction_claim "
+                            "--season 2026 --opponent-team OPPONENT_CODE "
+                            "--offense-team BUF --game-date-et YYYY-MM-DD "
+                            "--play-key SYNTHETIC_PLAY_ID "
+                            "--quarter 4 --game-clock 04:59 "
+                            "--decision-utc YYYY-MM-DDTHH:MM:SSZ "
+                            "--witness-manifest-json "
+                            "evidence/witness_metadata.json "
+                            "--out artifacts/buffalo_direction_claim.json",
+                            language="bash",
+                        )
+                        st.caption(
+                            "The local CLI hashes original observer/video "
+                            "files but never includes media in its receipt; "
+                            "two matching witnesses are still NOT proof of "
+                            "true snap direction, and evidence collected "
+                            "after a decision is retrospective only."
+                        )
+                        inspect_buffalo_direction = st.checkbox(
+                            "Inspect Buffalo snap-direction evidence receipt",
+                            value=False,
+                        )
+                        if inspect_buffalo_direction:
+                            raw_direction_receipt = st.text_area(
+                                "Buffalo snap-direction receipt JSON",
+                                value="",
+                                height=120,
+                                placeholder="Paste a source-hashed research receipt",
+                            )
+                            if raw_direction_receipt.strip():
+                                try:
+                                    import json as _snap_json
+                                    from src.nfl_2026_snap_direction_evidence import (
+                                        validate_buffalo_direction_receipt_for_display,
+                                    )
+                                    if len(raw_direction_receipt) > 24000:
+                                        raise ValueError(
+                                            "Snap-direction receipt is too large"
+                                        )
+                                    direction_receipt = (
+                                        validate_buffalo_direction_receipt_for_display(
+                                            _snap_json.loads(raw_direction_receipt)
+                                        )
+                                    )
+                                except (ValueError, TypeError, KeyError):
+                                    st.warning(
+                                        "Invalid, inconsistent or unapproved "
+                                        "Buffalo direction receipt. No "
+                                        "directional evidence was accepted "
+                                        "and the official model is unchanged."
+                                    )
+                                else:
+                                    st.caption(
+                                        "Source-hashed user claim: offense "
+                                        f"attacking toward the "
+                                        f"{direction_receipt['claimed_attack_end']} "
+                                        "end zone. "
+                                        f"{direction_receipt['source_count']} "
+                                        "local source(s); "
+                                        f"{direction_receipt['claim_consistency']}. "
+                                        "Neither source contents nor their "
+                                        "claimed attribution are independently verified."
+                                    )
+                                    if direction_receipt[
+                                        "retrospective_source_present"
+                                    ]:
+                                        st.info(
+                                            "At least one witness file was "
+                                            "asserted available AFTER the "
+                                            "decision: retrospective research, "
+                                            "NOT a live pre-snap forecast."
+                                        )
+                                    st.caption(
+                                        "Numeric attack bearing unavailable. "
+                                        "Never changes the frozen official "
+                                        "fourth-down recommendation or any "
+                                        "FG/GO/PUNT probability."
+                                    )
                     elif venue_choice != "Not selected":
                         selected_venue = load_stadium_reference(
                             season=2026
