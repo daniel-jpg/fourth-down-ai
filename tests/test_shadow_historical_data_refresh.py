@@ -179,6 +179,16 @@ def test_can_stage_only_separated_artifacts_with_hash_manifest(tmp_path):
         write_snapshot(dest,cohort,plan,mock)
 
 
+def test_shadow_writer_rejects_tracked_production_paths():
+    from src.shadow_historical_data_refresh import ROOT
+    cohort=extract_historical_cohort(historical_sample())
+    plan=plan_historical_snapshot(cohort)
+    for path in (ROOT/"models"/"not-for-production", ROOT/"data"/"unsafe",
+                 ROOT/"reports"/"unsafe"):
+        with pytest.raises(ValueError,match="tracked source/model/reports"):
+            write_snapshot(path,cohort,plan,{"research_only":True})
+
+
 def test_manifest_refuses_cherrypicked_historical_source_and_unverified_final():
     source=require_pinned_source()
     plan=plan_historical_snapshot(extract_historical_cohort(historical_sample()))
@@ -220,7 +230,7 @@ def test_changed_source_hash_blocks_run_before_any_parquet_read(monkeypatch):
 
 def test_no_read_latest_season_or_auto_model_promote():
     src=Path("src/shadow_historical_data_refresh.py").read_text()
-    assert "nflreadpy" in src  # negative safety discussion only
+    assert "nflverse" in src  # safety restriction described explicitly
     for bad in (
         "nfl.load_pbp(", "requests.get(", "urllib.request",
         "load_pbp([2026", "load_pbp([2027",
