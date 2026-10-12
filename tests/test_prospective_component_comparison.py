@@ -69,7 +69,10 @@ def test_schema_and_separate_factual_outcomes_score_without_promotion():
     assert len(r["forecasts_sha256"]) == 64
     assert r["wp_calibration"]["Q4"]["states"] == 3
     assert r["wp_calibration"]["Q4_FINAL_FIVE_OWN10_LEADING4"]["games"] == 3
+    assert r["wp_calibration"]["Q4_FINAL_FIVE_OWN10_LEADING4_HOME"]["states"] == 2
+    assert r["wp_calibration"]["Q4_FINAL_FIVE_OWN10_LEADING4_AWAY"]["states"] == 1
     assert r["go_conversion_calibration"]["OWN10_FOURTH_2_OR_3"]["states"] == 3
+    assert r["go_conversion_calibration"]["OWN5_FOURTH_2_OR_3"]["states"] == 3
     assert r["wp_calibration"]["AWAY"]["status"] == "SPARSE_DESCRIPTIVE_ONLY"
     assert r["model_review_gate"]["passes_prespecified_component_coverage_and_gain"] is False
     assert r["model_review_gate"]["automatic_promotion_allowed"] is False
