@@ -340,6 +340,64 @@ def test_real_pinned_engine_smoke_q4_site_and_q2_halftime(snapshot):
 
 
 
+def test_full_registered_q4_1200_trials_uses_native_patch_and_seed43(snapshot):
+    """Full (not low-budget) fabricated Q4 path, exactly as pinned app."""
+    engine = load_verified_engine(ROOT)
+    sample = fabricated(
+        game_id="synthetic_full_registered_q4",
+        quarter=4, game_seconds_remaining=299.,
+        yardline_100=6., ydstogo=4., goal_to_go=0.,
+    )
+    record = build_synthetic_policy_forecast(
+        MANIFEST, sample, engine=engine, nuisance_snapshot=snapshot,
+    )
+    from src.streamlit_kickoff_preview import (
+        isolated_engine_from_loaded_engine,
+        preview_native_kickoff_feature_candidate,
+    )
+    direct = preview_native_kickoff_feature_candidate(
+        engine_state(sample), simulations=1200, action_seed=43,
+        isolated_engine=isolated_engine_from_loaded_engine(engine),
+    )
+    assert record["audit"]["full_precision"] is True
+    assert record["audit"]["simulation_count"] == 1200
+    assert record["audit"]["seed"] == 43
+    assert record["audit"]["kickoff_input_mode"] == "Q4_NATIVE_STANDARD_35"
+    actual = direct["results"]
+    for action, score in record["pre_snap"]["q_wp_by_action"].items():
+        q = float(actual.loc[
+            actual["action"].eq(action), "expected_win_probability"
+        ].iloc[0])
+        assert score == pytest.approx(q, abs=1e-12)
+
+
+def test_full_registered_q1_adaptive_pilot_budget_is_300(snapshot):
+    engine = load_verified_engine(ROOT)
+    sample = fabricated(
+        game_id="synthetic_full_registered_q1",
+        quarter=1, game_seconds_remaining=3100.,
+        yardline_100=95., ydstogo=3., goal_to_go=0.,
+    )
+    result = build_synthetic_policy_forecast(
+        MANIFEST, sample, engine=engine, nuisance_snapshot=snapshot,
+    )
+    meta = result["audit"]
+    assert meta["pilot_simulations"] == 300
+    assert meta["full_precision"] is True
+    assert meta["seed"] in (42, 43)
+    assert meta["simulation_count"] in (300, 1200)
+    assert meta["adaptive_escalated"] == (meta["seed"] == 43)
+    # The app reruns from scratch with seed43 if pilot action gap is close.
+    pilot = engine.recommend(engine_state(sample), n_simulations=300, seed=42)
+    from src.frozen_2027_policy_bridge import _action_gap_z
+    z = _action_gap_z(pilot)
+    expected_escalation = not np.isfinite(z) or z < 1.96
+    assert expected_escalation == meta["adaptive_escalated"]
+    assert meta["pilot_action_gap_z"] == pytest.approx(z) if np.isfinite(z) else (
+        meta["pilot_action_gap_z"] is None
+    )
+
+
 def test_q4_cannot_silently_fall_back_to_unpatched_low_budget(snapshot):
     q4 = fabricated(quarter=4, game_seconds_remaining=299.)
     with pytest.raises(ValueError, match="Q4 native kickoff patch"):
