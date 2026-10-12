@@ -94,63 +94,76 @@ jobs:
                       exact=True
                   ).count() == 0, "Removed scenario checkbox is still visible"
 
-                  # The Q4 HOME default scenario is known to have a
-                  # material legacy-vs-native kickoff-input discrepancy.
-                  # Choose it BEFORE Analyze; Streamlit reruns on changes.
+                  # The Q4 HOME default state is known to be sensitive
+                  # to the old synthetic kickoff representation. Select
+                  # HOME before analyzing so Streamlit can finish its rerun.
                   app.get_by_text("Home", exact=True).first.click()
                   page.wait_for_timeout(3500)
-                  for attempt in range(2):
-                      app.get_by_role(
-                          "button", name="Analyze Fourth Down"
-                      ).click()
-                      print(f"Clicked Analyze for Q4 HOME attempt {attempt + 1}",
-                            flush=True)
-                      try:
-                          app.get_by_text(
-                              "Q4 estimates use corrected standard-35 kickoff inputs",
-                              exact=False
-                          ).first.wait_for(timeout=130000)
-                          break
-                      except PlaywrightTimeoutError:
-                          try:
-                              content = app.locator("body").inner_text(timeout=10000)
-                              print("Q4 live state:", repr(content[-900:]), flush=True)
-                          except Exception as exc:
-                              print("Cannot inspect rendered text:", str(exc), flush=True)
-                          if attempt == 1:
-                              raise
-                          page.wait_for_timeout(2500)
+                  app.get_by_role(
+                      "button", name="Analyze Fourth Down"
+                  ).click()
+                  print("Clicked Analyze Fourth Down for Q4 HOME", flush=True)
 
-                  assert app.get_by_text(
-                      "Recommendation", exact=True
-                  ).count() > 0
-                  assert app.get_by_text(
-                      "Win probability if chosen", exact=True
-                  ).count() > 0
-                  assert app.get_by_text(
-                      "Close call", exact=False
-                  ).count() > 0
-                  assert app.get_by_text(
-                      "INCONCLUSIVE", exact=True
-                  ).count() == 0
-                  assert app.get_by_text(
-                      "Frozen-model FG WP", exact=True
-                  ).count() == 0
-                  assert app.get_by_text(
-                      "Model reliability warning", exact=False
-                  ).count() == 0
-                  assert app.get_by_text(
-                      "2025 kickoff scenario results", exact=True
-                  ).count() == 0
-                  assert app.get_by_text(
+                  # Streamlit can transiently render a result during a
+                  # rerun, then clear it. Require the FULL result to be
+                  # visible in two consecutive snapshots, not just the
+                  # native-input caption or an ephemeral metric.
+                  required = (
+                      "Decision",
+                      "Recommendation",
+                      "Win probability if chosen",
+                      "Close call",
+                      "Q4 estimates use corrected standard-35 kickoff inputs",
+                  )
+                  forbidden = (
+                      "INCONCLUSIVE",
+                      "Frozen-model FG WP",
+                      "Model reliability warning",
+                      "2025 kickoff scenario results",
                       "Show the experimental kickoff-adjusted comparison",
-                      exact=True
-                  ).count() == 0
-
+                  )
+                  consecutive = 0
+                  deadline = time.monotonic() + 220
+                  last_content = ""
+                  while time.monotonic() < deadline:
+                      try:
+                          last_content = app.locator("body").inner_text(
+                              timeout=12000
+                          )
+                      except Exception as exc:
+                          print("Transient body read:", str(exc)[:180], flush=True)
+                          consecutive = 0
+                          page.wait_for_timeout(1500)
+                          continue
+                      if "Older percentages have NOT been silently substituted" in last_content:
+                          raise AssertionError(
+                              "Q4 corrected calculation failed on hosted app: "
+                              + last_content[-800:]
+                          )
+                      if all(phrase in last_content for phrase in required):
+                          consecutive += 1
+                          if consecutive >= 2:
+                              break
+                      else:
+                          consecutive = 0
+                      page.wait_for_timeout(1500)
+                  else:
+                      print(
+                          "Live Q4 body at timeout:",
+                          repr(last_content[-1600:]),
+                          flush=True,
+                      )
+                      raise AssertionError(
+                          "Hosted Q4 analysis never completed a stable "
+                          "Recommendation + WP + Close call result"
+                      )
+                  assert all(
+                      phrase not in last_content for phrase in forbidden
+                  ), "The hosted Q4 result contains a removed control or old text"
                   print(
-                      "LIVE PASS: updated native Q4 estimate and concise "
-                      "Close call displayed; no INCONCLUSIVE label or "
-                      "historical kickoff checkbox.",
+                      "LIVE PASS: updated Q4 action estimates, normal "
+                      "Recommendation, and Close call are rendered "
+                      "together without the experimental checkbox.",
                       flush=True,
                   )
               finally:
