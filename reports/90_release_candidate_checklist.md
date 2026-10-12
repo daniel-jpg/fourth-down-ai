@@ -7,7 +7,7 @@ Prepared 2026-10-11. **This document is a release candidate checklist, not a dec
 - Streamlit interactive app for regulation and both overtime formats.
 - Official comparison of eligible normal fourth-down GO (pass/run), FG and PUNT using frozen production artifacts.
 - Presentation-only immediate modeled action odds and uncertainty statements.
-- Optional, isolated retrospective kickoff scenario tools, with explicit model limitations.
+- Historical kickoff simulations preserved as research code, not user-facing Streamlit controls.
 - No changes to production coefficients, no automatic candidate promotion, and no manual future-data validation execution.
 
 ## Reproducibility instructions
@@ -31,37 +31,40 @@ For the specific Step 85 implementation, [GitHub Actions run 38182568146](https:
 
 ## Verified release-QA baseline (2026-10-12)
 
-**Evidence-pinned application revision:** `8239a8f7666b2cf00bf792c5977119c67127693a`.
-This SHA was the head for *both* successful GitHub Actions runs:
+**Core public-app revision:** `053e4a5b7c16c88ef129fd39e6b780b8d965dda2`
+removes the comparison, toggle and experiment result branch without
+modifying the official engine, frozen data or future-data protocols.
+[Live browser smoke #9](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193289281)
+**passed** on that revision, confirming the hosted panel is gone and
+the ordinary Analyze Fourth Down recommendation renders.
 
-- [Tests #229](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887196) — passed Python syntax, frozen-artifact release preflight,
-  regression tests and Streamlit AppTest.
-- [Hosted browser smoke #8](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887243) — passed in Chromium against the public
-  Streamlit URL. Expanded the Q4 kickoff panel, enabled its only comparison
-  toggle, clicked **Analyze Fourth Down**, and observed both the official
-  decision and the completed historical scenario result.
-- [Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5) — closed
-  after the functional live QA and user acceptance of responsive layout.
+**Regression revision:** `85f08747ce737525e178cd0afa5d19ed87e32cf2`
+updates two older guard/native-input source tests to reflect the
+intentional removal, while retaining the automatic Q4 reliability
+warning and the independently tested research module. See
+[Tests #233](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193413685)
+for regression, Streamlit AppTest and frozen-artifact preflight
+evidence. There are no application changes between those commits.
 
 ## Pre-release gates
 
 | Gate | Status (2026-10-12) | Evidence or qualification |
 | --- | --- | --- |
-| Frozen official artifacts and research protocols | Passed | Preflight in Tests #229 verified locked Git blobs; no model refit or early Step 66/83 execution |
-| Regression and UI AppTest | Passed | [Tests #229](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887196) on `8239a8f` |
-| Hosted kickoff comparison | Passed | [Live browser #8](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887243) on `8239a8f`, including official and experimental output |
-| Immediate outcome explainer and OT game-value wording | Previously observed working | User-supplied hosted evidence; AppTest also exercises these flows |
-| Regulation clock boundary | Previously observed working | Q4 15:01 rejected; 15:00 accepted |
-| Live mobile/narrow layout | User accepted | Not claimed to be an independent multi-device visual test |
-| Exact Streamlit Cloud deployed Git SHA | **Not verified** | Hosted functional behavior passed, but platform deployment SHA was not independently attested; no user-visible build-info panel |
-| Independent 2026 kickoff reliability | Future prospective gate pending | Keep frozen Step 66/83 protocols and thresholds unchanged; never run early or auto-promote |
-| New stable tag / GitHub Release | **Not created** | Separate version-number and research-only claim review required |
+| Frozen production model and prospective protocols | Protected | Preflight locks files and source hashes; Step 66/83 not run early |
+| Regression and UI AppTest | See Tests #233 | [Full suite](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193413685) on `85f0874` after tests were updated |
+| Hosted official-only app (kickoff controls removed) | **Passed** | [Live smoke #9](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193289281): no panel and official recommendation rendered |
+| Immediate action odds and OT game value | Previously verified | User-supplied hosted evidence and Streamlit AppTest cases |
+| Regulation clock validation | Previously verified | 15:01 rejected in Q4 and 15:00 accepted |
+| Live mobile/narrow layout | User accepted | Not independent multi-device visual certification |
+| Exact Streamlit Cloud deployed SHA | **Not verified** | Hosted UI behavior verified; never reintroduce a large build-info panel |
+| Independent future 2026 validation | Pending once-only gate | Step 66/83 rules unchanged, no automatic model promotion |
+| New stable tag/GitHub release | **Not published** | Keep `v1.1.0` stable, refresh old draft notes before public release |
 
-**Interpretation:** Passed end-to-end *functionality* supports a qualified public
-research demo, but does not prove byte-for-byte deployed revision identity,
-real-world calibration or causal coaching benefit. Later changes to the app
-or model would require a new evidence-pinned QA run. Documentation-only edits
-do not turn the historical browser result into a new experiment.
+**Scope:** The preceding live-browser #8 test verified the former
+public option; it is *not* evidence that the removed panel remains
+available. The new #9 test checks the final user-facing scope.
+Passing functionality does not establish causal coaching advantage,
+total model uncertainty or a byte-for-byte hosted revision attestation.
 
 ## Model limitations that must remain visible
 

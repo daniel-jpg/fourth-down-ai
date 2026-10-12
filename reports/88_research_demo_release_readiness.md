@@ -1,18 +1,27 @@
 # Step 88 — Research-demo release readiness (2026-10-11)
 
-**Updated 2026-10-12:** The technical research demo has completed functional release QA. [Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5) is closed; [CI #229](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887196) and [live-browser smoke #8](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887243) passed on `8239a8f7666b2cf00bf792c5977119c67127693a`. The exact deployed SHA is not independently attested. This remains a **qualified research demonstration**, **not** a new stable release or a validated real-world coaching policy; stable tagged release remains **v1.1.0**.
+**Updated 2026-10-12:** The public Streamlit demo is now the
+official-only interface, with its historical 2025 kickoff comparison
+removed. [Live browser smoke #9](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193289281)
+passed on app commit `053e4a5`, and the
+[full regression/AppTest run #233](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193413685)
+covers source revision `85f0874`. The mobile layout has been accepted
+and [Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5)
+is closed. Exact hosted revision identity is not independently attested.
+This is a **qualified research demo**, NOT a new stable model or validated
+coaching policy; `v1.1.0` remains the stable release.
 
 ## Evidence and what it does not establish
 
 - [GitHub Actions run 38182568146](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38182568146) passed **339 automated tests**: 293 regression and 46 Streamlit AppTest integration cases. These verify program behavior, not statistical calibration or counterfactual decision value. See [Step 85 test review](85_streamlit_ui_release_readiness.md).
 - Subsequent **user-provided live-app output** verified the newly deployed immediate-action-odds section and proper overtime **game value** labeling, with win=1, tie=0.5, loss=0. A live screenshot verified Q4 **15:01 rejected**; a later live output verified Q4 **15:00 accepted**. The previous observable deployment mismatch was recorded and closed in [Issue #4](https://github.com/daniel-jpg/fourth-down-ai/issues/4). **The exact deployed commit hash was not independently observed.**
-- Custom field dragging was previously browser smoke-tested. The user accepted the narrow/mobile layout. A separate [Playwright hosted browser run #8](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887243) passed the simplified kickoff comparison end-to-end (user interaction and rendered result). This does **not** constitute independent device-farm coverage or a cryptographic deployment-SHA attestation.
+- Custom field dragging was previously browser smoke-tested. The user accepted the narrow/mobile layout. [Playwright live-browser run #9](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193289281) passed against the public hosted app after the historical kickoff UI was removed. This does **not** constitute independent device-farm coverage or a cryptographic deployment-SHA attestation.
 
 ## How to interpret a recommendation
 
 The official system compares normal GO (pass or run), FIELD GOAL and PUNT actions using frozen models and simulated transitions. Its displayed win probabilities are **model estimates**, and the advantage in percentage points is the difference between those estimates—not a measured increase in actual wins. Immediate conversion/FG/punt outcome odds describe short-run events and must not be substituted for overall win probability. Monte Carlo standard errors measure **sampling noise of the simulations only**, excluding model misspecification, dataset shift, and uncertainty about football decisions. In overtime the target is **game value**, not simply probability of winning, because a tie at expiration contributes 0.5.
 
-The public UI offers one optional 2025 observed-kickoff scenario, separate from the official recommendation. Additional onside and native-input studies remain **research-only in the repository**, not extra public app switches. The 538 matched ordinary/penalty-affected 2025 Q4 kickoff transitions describe a selected historical sample; they do not constitute a 2026+ calibrated forecast. Unmatched outcomes, onside policy, return TDs, and re-kicks limit extrapolation.
+The public UI offers **no historical kickoff scenario panel**. Observed-2025, onside, and native-input studies remain **research-only in the repository**, isolated from the official decision. The 538 matched ordinary/penalty-affected 2025 Q4 kickoff transitions describe a selected historical sample; they do not constitute a 2026+ calibrated forecast. Unmatched outcomes, onside policy, return TDs, and re-kicks limit extrapolation.
 
 ## Known calibration and causal limitations
 
@@ -25,7 +34,7 @@ The precommitted 2026 Weeks 6–18 **Step 66** one-time gate requires at least 1
 1. Enter a valid fourth-down game state and display official GO/FG/PUNT comparison and run/pass uncertainty.
 2. Expand **Why this recommendation? Immediate action odds** and explain short-run conversion or kick probabilities versus estimated full-game WP.
 3. In overtime, explain **game value** and its explicit tie treatment.
-4. Toggle the optional historical kickoff preview only with its experimental caveats, showing that it never replaces the official output.
+4. Verify no historical kickoff comparison controls appear in the public app; direct research questions to the versioned audit reports.
 5. State the known model/causal limits and the future one-time validation plan without treating research results as guarantees.
 
 ## Release gate and scope

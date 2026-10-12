@@ -23,7 +23,7 @@ Fourth Down AI asks a practical question: **given the score, clock, field positi
 
 **Try a representative scenario:** Q4, 7:38 remaining, trailing 24–27, fourth-and-3 at the opponent's 30-yard line, with three timeouts for each team. In a verified live-app run, the frozen official model displayed **GO FOR IT: 41.44%** (run), **PASS: 40.86%**, **FIELD GOAL: 34.08%**, and **PUNT: 22.05%**. That is a **+7.36 percentage-point *model-estimated* edge** for GO versus FG; run versus pass was too close to distinguish confidently. These are an illustrative snapshot for those exact settings, not observed game outcomes or guaranteed stable values under different inputs.
 
-**What makes the project distinctive:** action-specific GO/FG/punt outcome models, realistic sampled next-state transitions, adaptive Monte Carlo comparison, rule-aware overtime handling, and a separately labeled research sandbox for 2025 kickoff assumptions. Open **Why this recommendation? Immediate action odds** in the app to see conversion and kick-outcome assumptions separately from overall game value.
+**What makes the project distinctive:** action-specific GO/FG/punt outcome models, realistic sampled next-state transitions, adaptive Monte Carlo comparison, rule-aware overtime handling, and separate, reproducible 2025 kickoff research in the repository (not the public app). Open **Why this recommendation? Immediate action odds** in the app to see conversion and kick-outcome assumptions separately from overall game value.
 
 **Evidence at a glance:** The frozen v1.1.0 2025 benchmark includes WP AUC **0.81781**, GO conversion Brier **0.22817**, and FG Brier **0.10931** (see [full benchmark](#held-out-2025-snapshot)). [GitHub Actions CI](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38182568146) passed **339 tests** (293 regression + 46 Streamlit integration); test success is not a substitute for external calibration or causal policy evaluation. Later 2025 exploratory analyses are no longer untouched holdouts; a precommitted [2026 prospective check](reports/2026_native_kickoff_challenger_protocol.md) is still gated.
 
@@ -134,46 +134,34 @@ It displays:
 - Long-field-goal support warnings
 - Detailed model output and comparison charts
 
-## 2025 Kickoff Comparison (Optional Research Scenario)
+## 2025 Kickoff Research (repository only)
 
-In Q4 the public Streamlit app has **one optional control**, under the
-collapsed **2025 kickoff comparison** section. When enabled, it runs a separate
-historical scenario alongside the unchanged official GO/FG/PUNT recommendation.
-No advanced research settings or assumed probabilities need to be entered.
+The live Streamlit app deliberately has **no 2025 kickoff comparison
+panel, experimental strategy toggle, or separate historical-scenario
+results**. It focuses on the frozen official GO (pass/run), FIELD GOAL
+and PUNT choices. The automatic Q4 post-made-FG model-reliability warning
+remains available when warranted, because it flags uncertainty in the
+official model rather than promoting another strategy.
 
-The scenario uses **538 matched 2025 regular-season Q4 nonscoring kickoff
-transitions**: 488 ordinary kicks plus 50 verified penalty-affected receiving
-first possessions. It samples observed receiving field position and clock
-elapsed **together**. Those 538 transitions cover **92.1% of 584** eligible
-standard-35 Q4 kickoffs in the frozen
-[coverage census](data/kickoff_2025_q4_coverage.json). The **46 excluded**
-outcomes comprise 41 onside attempts, two actual re-kicks, one return
-touchdown, and two unmatched plays. The scenario does not invent ordinary
-next states for those excluded events.
+The independent historical 2025 research remains reproducible in the
+repository. Its selected 2025 regular-season Q4 nonscoring kickoff
+pool contains 538 verified first possessions (488 ordinary and 50 clean
+penalty-affected) out of 584 eligible standard-35 events (92.1%).
+The other 46 include 41 onside attempts, two actual re-kicks, one
+kickoff return touchdown and two unmatched plays; they are not
+silently treated as ordinary kickoffs. See the
+[coverage census](data/kickoff_2025_q4_coverage.json),
+[ordinary kickoff pool](data/kickoff_2025_reg_q4_ordinary.csv),
+[verified penalty-affected first possessions](data/kickoff_2025_penalty_first_snaps.csv)
+and [onside outcomes](data/kickoff_2025_onside_first_snaps.csv).
 
-**How to read it:** the historical comparison is a *scenario estimate*, not
-a calibrated 2026+ forecast or evidence that an unchosen play would have
-won. It runs in an isolated engine instance and does not replace the
-official recommendation. Run/pass differences below approximate Monte
-Carlo noise are described as too close to call. Fake punts and fake field
-goals are excluded from the public ranking because reliable outcome
-estimates are not available.
-
-For research reproducibility, the repository still contains historical
-488-only, 2024 touchback-assumption, 2025 onside-what-if and native-input
-correction analyses. **These are not controls in the public app.** See the
-[frozen ordinary-kick data](data/kickoff_2025_reg_q4_ordinary.csv),
-[penalty-affected first snaps](data/kickoff_2025_penalty_first_snaps.csv),
-[onside first snaps](data/kickoff_2025_onside_first_snaps.csv),
-[return/penalty audit](data/kickoff_2025_penalty_return_coverage.json),
-[2025 Q4 feature-encoding audit](reports/2025_q4_kickoff_site_model_defect.md)
-and [broader retrospective calibration](reports/2023_2025_broad_q4_native_kickoff_calibration.md).
-
-The original v1.1.0 evaluation used 2025 as a holdout, but subsequent
-exploratory studies **examined those 2025 outcomes**. They are no longer an
-untouched future holdout for choosing new models. The precommitted 2026
-prospective checks remain gated; they have **not** been used to promote
-a kickoff challenger.
+Research-only native kickoff-input, historical-2024, ordinary-only,
+onside what-if and calibration studies remain in the source and reports
+**without public UI controls**. Retrospective 2025 results are not a
+calibrated 2026+ forecast, causal coaching advantage, or fresh untouched
+holdout. The precommitted Step 66/83 future-data gates remain frozen;
+none of this promotes a challenger model. Fake punts and fake field
+goals are also excluded from public action rankings.
 
 ## Readable explanation of the fourth-down recommendation
 
@@ -461,7 +449,7 @@ The deployed `app.py` is exercised through `streamlit.testing.v1.AppTest`:
 - Unavailable actions, experimental fake exclusion and malformed explanation fallback
 - Adaptive simulation budgets and Q4 reliability warnings, including unavailable checks
 - Regular-season/playoff overtime controls, possession validation and game-value labels
-- Opt-in 2025 kickoff comparison, scenario isolation, disagreement handling and failure fallback
+- Removal of public kickoff-research controls without affecting official model output or the automatic Q4 reliability check
 - Three smoke cases using the real frozen engine: regulation, Q4 and overtime
 
 The UI cases block network connections and use frozen local artifacts. Most
@@ -475,12 +463,11 @@ python -m pytest -v tests/test_streamlit_app_integration.py
 
 CI runs this as a separately named step and retains its JUnit report for
 14 days. AppTest tests Python-side UI logic; it does not execute custom field
-JavaScript or certify responsive layout. Separately, a one-time
-[Playwright live-browser check](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887243)
-**passed on October 12, 2026**: it opened the hosted Streamlit app, enabled
-the single Q4 kickoff scenario, ran Analyze Fourth Down and observed both the
-official decision and the completed scenario result. This is a real hosted
-interaction check, not independent validation of model calibration. See the
+JavaScript or certify responsive layout. Separately, [Playwright live-browser check #9](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193289281)
+**passed** against the hosted Streamlit app after the kickoff-panel removal:
+the old panel and checkbox were absent, and **Analyze Fourth Down**
+rendered the official recommendation. This functional check does not
+independently validate predictive calibration or causal impact. See the
 [Step 85 readiness review](reports/85_streamlit_ui_release_readiness.md).
 
 ## Tech Stack
@@ -512,26 +499,25 @@ interaction check, not independent validation of model calibration. See the
 
 ## Research-demo readiness
 
-The working `main` app is suitable for a **qualified technical research demo**,
-not a validated real-world coaching policy or a new stable release. The
-[full CI run #229](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887196)
-passed all regression, UI AppTest and frozen-artifact preflight checks on
-commit `8239a8f`. The separate
-[live-browser run #8](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887243)
-successfully exercised the actual hosted kickoff comparison at that revision.
+The public app is suitable for a **qualified technical research demo**,
+not a validated real-world coaching policy or a new stable release.
+[GitHub Actions Tests #233](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193413685)
+on `85f0874` checks the complete regression suite, Streamlit AppTest,
+and frozen artifact preflight after removal of the experimental panel.
+[Live browser smoke #9](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193289281)
+passed on app commit `053e4a5`: the live panel was gone and the
+official Analyze Fourth Down result rendered. The only changes between
+these two commits are source-level test corrections, not application logic.
 
-[Live QA Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5)
-is **closed**: the user accepted mobile layout, and functional browser
-verification passed. The host's exact deployed commit SHA was *not*
-independently attested; the user-facing build display was deliberately
-removed. This is a documented provenance limitation, not a reason to
-reintroduce UI clutter. The frozen 2026 Step 66/83 research gates remain
-untouched.
+[Release-QA Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5)
+remains closed. The user accepted the mobile layout. The exact Streamlit
+Cloud deployed SHA has not been cryptographically attested, and the
+user-visible build-ID widget will **not** be reintroduced. The frozen
+2026 Step 66/83 prospective research gates remain untouched.
 
-See the [interpretation and release-readiness review](reports/88_research_demo_release_readiness.md)
+See the [research readiness report](reports/88_research_demo_release_readiness.md)
 and [release candidate checklist](reports/90_release_candidate_checklist.md).
-A passing test suite and live smoke check do not establish causal policy
-value or independently calibrated future-game probabilities.
+A passing smoke test and CI do not establish causal coaching impact.
 
 ## Release
 

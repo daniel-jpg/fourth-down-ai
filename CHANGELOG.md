@@ -4,47 +4,49 @@ Notable changes to Fourth Down AI are documented here.
 
 ## Unreleased — Research-demo candidate (post-v1.1.0)
 
-**Status:** Research demo verified on `main`, not tagged or published as
-v1.2.0. The stable `v1.1.0` release and frozen production model remain intact.
+**Status:** A qualified, tested research demo on `main`, NOT a new stable
+`v1.2.0` or production-calibrated coaching policy. Stable `v1.1.0`
+and the frozen official model remain unchanged.
 
 ### Interface and interpretation
 
-- Added a single optional Q4 **2025 kickoff comparison**, based on 538 verified
-  historical first possessions. Removed advanced scenario inputs from the
-  public UI while preserving their independent research sources.
-- Added immediate modeled GO-conversion, FG and punt outcome explanations
-  alongside whole-game win probability (or overtime game value).
-- Clarified overtime ties, regulation quarter clock validation and
-  Monte Carlo versus model uncertainty.
-- Removed unsupported fake punt / fake FG rows from public action rankings
-  and removed the temporary on-screen deployment revision/build sidebar.
+- Streamlit focuses on the **official** GO (pass/run), FIELD GOAL and
+  PUNT recommendations. Removed the public 2025 kickoff comparison
+  panel, toggle, and separate experimental-strategy results following
+  user feedback.
+- Retained the 538-transition 2025 kickoff study and other optional
+  historical/native-input evaluations in the research code and reports,
+  not as interactive public app features.
+- Added immediate modeled conversion, field-goal and punt outcome
+  explanations alongside win probability or overtime game value.
+- Preserved the **automatic Q4 post-FG model-reliability warning**, with
+  no experimental model promotion.
+- Excluded unsupported fake punt and fake field-goal probabilities from
+  public rankings and removed intrusive deployment revision UI.
+- Clarified overtime tie valuation, regulation clock validation and
+  Monte Carlo uncertainty limitations.
 
-### Verification and research safeguards
+### Verification
 
-- **[Tests #229](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887196)
-  passed** on commit `8239a8f7666b2cf00bf792c5977119c67127693a`:
-  syntax checks, release preflight/frozen hashes, regression tests and
-  Streamlit AppTest.
-- **[Live browser smoke #8](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38191887243)
-  passed** on that commit, exercising the deployed Streamlit site, opt-in
-  kickoff toggle, official recommendation and completed scenario output.
-- User accepted responsive/mobile presentation; the functional
-  [release-QA Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5)
-  is closed. Exact hosted deployment SHA is **not independently attested**.
-- A previous [Step 85 run](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38182568146)
-  passed 339 tests at an earlier commit; its count is not misrepresented as
-  the current suite's fixed size.
-- Exploratory 2023–2025 outcome analyses do not provide fresh untouched
-  future evidence. Frozen 2026 Step 66/83 once-only prospective gates have
-  not been run early or modified.
+- [GitHub Actions Tests #233](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193413685)
+  ran against commit `85f08747ce737525e178cd0afa5d19ed87e32cf2`
+  after the public UI removal and test updates.
+- [Live browser smoke #9](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38193289281)
+  **passed** against the public Streamlit site on app commit `053e4a5`,
+  confirming removal of the old panel and a working official decision.
+- User accepted responsive presentation. [Release-QA Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5)
+  is closed. Exact hosted Git SHA remains **not independently attested**.
+- Retrospective 2023–2025 research does not provide fresh untouched
+  prospective evidence. Once-only 2026 Step 66/83 checks are still
+  protected and never authorize automatic model promotion.
 
 ### Release readiness
 
-[Readiness report](reports/88_research_demo_release_readiness.md) and
-[release checklist](reports/90_release_candidate_checklist.md) document
-scope, verification evidence and the remaining exact-deployed-SHA provenance
-limitation. Any new stable tag requires separate version/claims signoff;
-nothing here authorizes promotion of an experimental kickoff model.
+See [research-demo readiness](reports/88_research_demo_release_readiness.md)
+and [release checklist](reports/90_release_candidate_checklist.md).
+A draft research-demo prerelease was prepared before the kickoff-panel
+removal and must be brought up to date before publication. Neither
+those draft materials nor any passing test makes this a stable release.
 
 ## v1.1.0 — 2026-10-06
 
