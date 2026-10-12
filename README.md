@@ -21,11 +21,11 @@ The project supports regulation, 2025+ NFL regular-season overtime, and postseas
 
 Fourth Down AI asks a practical question: **given the score, clock, field position and timeouts right now, which available fourth-down action has the highest *modeled* chance of winning?** It estimates each eligible action's immediate outcome, simulates the resulting game states, and compares their downstream win probabilities (or overtime game values). The model is decision-support research, **not a causal proof** that a coach should follow a particular play.
 
-**Try a representative scenario:** Q4, 7:38 remaining, trailing 24–27, fourth-and-3 at the opponent's 30-yard line, with three timeouts for each team. In a verified live-app run, the frozen official model displayed **GO FOR IT: 41.44%** (run), **PASS: 40.86%**, **FIELD GOAL: 34.08%**, and **PUNT: 22.05%**. That is a **+7.36 percentage-point *model-estimated* edge** for GO versus FG; run versus pass was too close to distinguish confidently. These are an illustrative snapshot for those exact settings, not observed game outcomes or guaranteed stable values under different inputs.
+**Try a representative scenario:** Q4, 7:38 remaining, trailing 24–27, fourth-and-3 at the opponent's 30-yard line, with three timeouts for each team. The current corrected-Q4 research demo estimates **GO FOR IT: 41.53%** (RUN), **PASS: 41.06%**, **FIELD GOAL: 35.20%**, and **PUNT: 22.11%**. Its **+6.33-percentage-point *model-estimated* advantage** for GO versus FG and the small RUN/PASS separation were reproduced in the [real-engine QA matrix](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38199827967). These are fixed-input illustrative estimates, not observed NFL outcomes, causal advice, or proof of prospective calibration.
 
 **What makes the project distinctive:** action-specific GO/FG/punt outcome models, realistic sampled next-state transitions, adaptive Monte Carlo comparison, rule-aware overtime handling, and separate, reproducible 2025 kickoff research in the repository (not the public app). Open **Why this recommendation? Immediate action odds** in the app to see conversion and kick-outcome assumptions separately from overall game value.
 
-**Evidence at a glance:** The frozen v1.1.0 2025 benchmark includes WP AUC **0.81781**, GO conversion Brier **0.22817**, and FG Brier **0.10931** (see [full benchmark](#held-out-2025-snapshot)). [GitHub Actions CI](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38182568146) passed **339 tests** (293 regression + 46 Streamlit integration); test success is not a substitute for external calibration or causal policy evaluation. Later 2025 exploratory analyses are no longer untouched holdouts; a precommitted [2026 prospective check](reports/2026_native_kickoff_challenger_protocol.md) is still gated.
+**Evidence at a glance:** The frozen v1.1.0 2025 benchmark includes WP AUC **0.81781**, GO conversion Brier **0.22817**, and FG Brier **0.10931** (see [full benchmark](#held-out-2025-snapshot)). [CI #252](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38199827967) passed **328 regression tests, 45 Streamlit integration tests, and 15 additional real-engine situation audits**, spanning regulation, endgame and regular/postseason overtime. The extra audits check mathematical consistency, model support and software operation, **not actual-game calibration or causal coaching effectiveness**. Later 2025 explorations are no longer untouched holdouts; the [precommitted 2026 test](reports/2026_native_kickoff_challenger_protocol.md) remains gated.
 
 **Explore:** [Live demo](https://fourth-down-ai.streamlit.app/) · [How it works](#how-it-works) · [Evaluation](#data-and-evaluation-design) · [Limitations](#limitations) · [Research-demo readiness](reports/88_research_demo_release_readiness.md)
 
@@ -75,8 +75,8 @@ For each fourth-down situation, the engine:
    - Overtime uses game value with rule-aware terminal handling
 
 6. **Compares actions with Monte Carlo simulation**
-   - Production begins with 300 simulations per eligible action
-   - If the top two actions are not clearly separated by the approximate Monte Carlo standard-error threshold, the app reruns from scratch with 1,200 simulations per action
+   - Non-Q4 periods begin with 300 simulations per eligible action and rerun from scratch with 1,200 if the estimated top-action gap is too close relative to simulation noise
+   - Regulation Q4 uses the isolated native standard-35 kickoff-input correction and 1,200 simulations per eligible action directly, without a second comparison panel
 
 The displayed Monte Carlo standard error measures simulation noise only. It does not represent total model uncertainty.
 

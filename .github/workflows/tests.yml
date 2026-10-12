@@ -47,6 +47,10 @@ jobs:
         run: |
           PYTHONPATH=. python scripts/qa_fourth_down_scenarios.py | tee qa-fourth-down-matrix.txt
 
+      - name: Audit location and game-site sensitivity
+        run: |
+          PYTHONPATH=. python scripts/qa_site_territory_sensitivity.py | tee qa-sensitivity-grid.txt
+
       - name: Exercise deployed Streamlit UI with AppTest
         run: |
           python -m pytest -v tests/test_streamlit_app_integration.py \
@@ -60,5 +64,6 @@ jobs:
           path: |
             streamlit-ui-results.xml
             qa-fourth-down-matrix.txt
+            qa-sensitivity-grid.txt
           if-no-files-found: ignore
           retention-days: 14
