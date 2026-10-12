@@ -52,3 +52,39 @@ def supported_recommendation_display(
     if deep_own_short_go_notice(state, selected_strategy):
         return "INSUFFICIENT DATA"
     return selected_strategy
+
+def late_q4_goal_line_site_notice(
+    state: Mapping, eligible_strategies: set[str]
+) -> str | None:
+    """Small, display-only warning in the empirically sparse Q4 GO/FG region.
+
+    The 2023-24 retrospective factual WP study observed 28 analogous
+    receiving-team own-10, leading-1..8, final-five-minute scrimmage
+    states in 13 games. They are NOT all necessarily after a failed GO.
+    In the even narrower leading-by-4 area: 7 states, 3 games, zero
+    HOME-offense examples. Never infer causal GO/FG superiority here.
+    """
+    if not {"GO FOR IT", "FIELD GOAL"}.issubset(eligible_strategies):
+        return None
+    try:
+        quarter = int(state["qtr"])
+        clock = float(state["game_seconds_remaining"])
+        yardline = float(state["yardline_100"])
+        margin = float(state["score_differential"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if not all(map(math.isfinite, (clock, yardline, margin))):
+        return None
+    if not (
+        quarter == 4 and 45 <= clock <= 300
+        and .5 <= yardline <= 10
+        and -8 <= margin <= -1
+    ):
+        return None
+    return (
+        "Q4 site caution: model WP after a failed goal-line GO can vary "
+        "substantially with HOME/AWAY assumptions. Analogous 2023–2024 "
+        "backed-up, leading 1–8 Q4 possessions covered only 28 play states "
+        "from 13 games (not all following GO failures). The GO-versus-FG "
+        "edge has substantial uncertainty beyond simulation error."
+    )
