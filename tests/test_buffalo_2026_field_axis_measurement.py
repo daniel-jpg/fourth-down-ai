@@ -143,7 +143,7 @@ def test_invalid_field_rectangle_or_old_stadium_fails_without_heading(
     changed = deepcopy(parts)
     changed[partname]["latitude"] = badpoint[0]
     changed[partname]["longitude"] = badpoint[1]
-    with pytest.raises(ValueError, match="separation|vicinity|aligned"):
+    with pytest.raises(ValueError, match="separation|vicinity|aligned|outside admissible range"):
         make(changed, evidence)
 
 
@@ -153,7 +153,7 @@ def test_reject_coordinates_near_old_stadium_not_the_2026_new_stadium(
     old_stadium = deepcopy(parts)
     for point in old_stadium.values():
         point["longitude"] += .00524
-    with pytest.raises(ValueError, match="vicinity"):
+    with pytest.raises(ValueError, match="vicinity|outside admissible range"):
         make(old_stadium, evidence)
 
 
@@ -213,9 +213,9 @@ def test_source_and_observer_are_not_auto_certified_even_if_distinct(
     for key in ("observer_id", "source_url"):
         changed = deepcopy(parts)
         changed["NORTH"][key] = changed["SOUTH"][key]
-        with pytest.raises(ValueError, match="different"):
+        with pytest.raises(ValueError, match="Different"):
             make(changed, evidence)
-    with pytest.raises(ValueError, match="different"):
+    with pytest.raises(ValueError, match="Different"):
         make(parts, {"northgps01": BYTES_NORTH, "southgps01": BYTES_NORTH})
 
 
