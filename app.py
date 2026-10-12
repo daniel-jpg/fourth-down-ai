@@ -1951,6 +1951,22 @@ with st.expander(
                             "Exact azimuth remains unknown, so numerical "
                             "headwind/crosswind remains BLOCKED."
                         )
+                        st.caption(
+                            "Optional measurement tool: with actual local "
+                            "north and south GOAL-LINE MIDPOINT survey evidence, "
+                            "compute a WGS84 candidate field azimuth and an "
+                            "uncertainty bound. Stadium center coordinates "
+                            "alone are NOT sufficient. The survey files "
+                            "must be independently verified before use."
+                        )
+                        st.code(
+                            "PYTHONPATH=. python -m "
+                            "scripts.measure_buffalo_field_axis "
+                            "--manifest-json evidence/buffalo_goal_lines.json "
+                            "--landmark-type GOAL_LINE_MIDPOINTS_100YDS "
+                            "--out artifacts/untrusted_field_axis_candidate.json",
+                            language="bash",
+                        )
                         buffalo_attack_claim = st.selectbox(
                             "Buffalo offense attack-end claim (research only)",
                             [
