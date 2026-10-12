@@ -39,22 +39,19 @@ or add a card for this project.
    memory/CPU metrics, and GitHub status; a 200 health check alone
    cannot prove that a fourth-down calculation works.
 
-## Delete duplicate Free services after this new URL is validated
+## Workspace cleanup verified
 
-Two older Render Free Fourth-Down AI services were present when the
-new exact-name instance was created. To avoid three services sharing
-the monthly free-instance allowance, open each old service's
-**Settings → Delete Service** after the new browser smoke passes:
+On October 12, 2026, a fresh Render workspace service listing returned
+**only** `fourth-down-ai-nfl` (service ID
+`srv-db6lj3ij9qps73ctut8g`). The two older Fourth-Down AI web
+services (`fourth-down-ai-old` and the extra `fourth-down-ai`) are
+no longer listed. There is no remaining duplicate-service deletion to
+perform. This does **not** delete or change the GitHub repository.
 
-- [fourth-down-ai-old](https://dashboard.render.com/web/srv-db6l6f7f3r2c73cqiq10)
-  — old URL `fourth-down-ai-verified.onrender.com`.
-- [fourth-down-ai](https://dashboard.render.com/web/srv-db6lhvjrjlhs73fb4bk0)
-  — old URL `fourth-down-ai-1la8.onrender.com`.
+For any future cleanup, delete a Render service only after confirming
+its exact service ID and destination. The deployed app currently uses
+`https://fourth-down-ai-nfl.onrender.com/`.
 
-Keep **fourth-down-ai-nfl** (service ID `srv-db6lj3ij9qps73ctut8g`).
-Deleting a Render web service does not delete its GitHub repository.
-This action is not available through the current Render connector,
-so the owner must confirm the deletions in the dashboard.
 
 ## Updating the public app
 

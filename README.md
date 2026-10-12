@@ -65,9 +65,9 @@ changes the official action recommendation; prospective 2026/2027
 validation has not been unlocked.
 
 The Free tier sleeps after inactivity and the workspace's 750 free
-instance-hours/month are shared across services. Avoid duplicate Free
-instances: two earlier Fourth-Down AI services should be deleted in Render
-once the new site is fully verified.
+instance-hours/month are shared across services. As of October 12, 2026,
+the connected Render workspace lists **only fourth-down-ai-nfl**; older
+Fourth-Down AI services are no longer present.
 
 [Free hosting operation and cleanup](docs/render_hosting.md) ·
 [Actual public Q4 and weather browser tests](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/render_public_browser_smoke.yml).
