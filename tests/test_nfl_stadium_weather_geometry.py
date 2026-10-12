@@ -44,7 +44,8 @@ def test_full_2026_team_list_not_fake_official_field_azimuth():
     assert data["schema_version"] == "2026_unofficial_field_axis_lookup_v1"
     assert set(data["venues"]) == venue.EXPECTED_TEAMS
     assert len(data["venues"]) == 32
-    assert len([x for x in data["venues"].values() if x["lat"] is not None]) == 31
+    assert len([x for x in data["venues"].values() if x["lat"] is not None]) == 32
+    assert len([x for x in data["venues"].values() if x["field_axis_bearing_degrees_approx"] is not None]) == 31
     assert data["source"]["blob_sha1"] == (
         "12b15041d31b181fe7a2ef06551e046042141158"
     )
@@ -63,8 +64,24 @@ def test_shared_stadiums_and_actual_2026_tennessee_site():
         assert rows[a]["venue_id"] == rows[b]["venue_id"]
     assert "Nissan Stadium" in rows["TEN"]["venue_name"]
     assert "2027" in rows["TEN"]["note"]
-    assert rows["BUF"]["lat"] is None
-    assert "new 2026 venue not yet mapped" in venue.stadium_menu()["BUF"]
+    assert rows["BUF"]["lat"] == pytest.approx(42.77304)
+    assert rows["BUF"]["lon"] == pytest.approx(-78.79219)
+    assert rows["BUF"]["field_axis_bearing_degrees_approx"] is None
+    assert "center mapped; field bearing unknown" in venue.stadium_menu()["BUF"]
+    assert rows["BUF"]["location_evidence"]["no_survey_or_field_axis"] is True
+    location = venue.resolve_stadium_location(team="BUF", season=2026)
+    assert location["field_lat_approx"] == pytest.approx(42.77304)
+    assert location["approximate_field_axis_available"] is False
+    assert location["stadium_center_independently_surveyed"] is False
+    from src.metar_decision_weather import distance_km
+    # The new venue is roughly 0.43 km WEST of the old upstream center.
+    assert 0.3 < distance_km(
+        (rows["BUF"]["lat"], rows["BUF"]["lon"]),
+        (42.7737531, -78.786954),
+    ) < 0.6
+    assert venue.resolve_stadium_location(team="SEA", season=2026)[
+        "approximate_field_axis_available"
+    ] is True
 
 
 @pytest.mark.parametrize("team", ["SEA", "GB", "LV", "NYJ", "LAC", "TEN"])
@@ -150,6 +167,16 @@ def test_modified_source_cannot_imply_known_roof_or_retired_buffalo_coords(
         venue.load_stadium_reference()
     changed["venues"]["ATL"]["physical_game_roof_known"] = False
     changed["venues"]["BUF"]["lat"] = 42.7
+    file.write_text(json.dumps(changed))
+    with pytest.raises(ValueError, match="Buffalo"):
+        venue.load_stadium_reference()
+    changed["venues"]["BUF"]["lat"] = 42.77304
+    changed["venues"]["BUF"]["lon"] = -78.786954  # old building!
+    file.write_text(json.dumps(changed))
+    with pytest.raises(ValueError, match="Buffalo"):
+        venue.load_stadium_reference()
+    changed["venues"]["BUF"]["lon"] = -78.79219
+    changed["venues"]["BUF"]["field_axis_bearing_degrees_approx"] = 115
     file.write_text(json.dumps(changed))
     with pytest.raises(ValueError, match="Buffalo"):
         venue.load_stadium_reference()
