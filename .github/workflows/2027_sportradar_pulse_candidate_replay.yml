@@ -1,4 +1,4 @@
-name: Documented Pulse provider candidate: fabricated-only pre-snap replay
+name: "Documented Pulse provider candidate - fabricated-only pre-snap replay"
 
 # Offline v7-shaped provider messages only. NO live NFL endpoint, no access
 # to reserved 2026 outcomes, no protected 2026 kickoff evaluation, no real
