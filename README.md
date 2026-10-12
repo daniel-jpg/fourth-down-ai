@@ -14,22 +14,24 @@ The project supports regulation, 2025+ NFL regular-season overtime, and postseas
 
 [Launch the NFL Fourth-Down Decision AI](https://fourth-down-ai.streamlit.app/)
 
-**Deployment notice (October 12, 2026):** The GitHub `main` branch
-contains the optional weather, NOAA METAR, 2026 stadium and Buffalo
-research controls, and source-level tests are passing. However, an
-[actual hosted-browser check](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38298774744)
-found that the public Streamlit Cloud app still serves an older UI
-without its `Weather observations (optional)` section, even after
-a comment-only requirements-file rebuild trigger. The current public
-demo's Q4 recommendation did render correctly, but **these newer
-weather/stadium UI controls must not be represented as publicly live**
-until a Streamlit Cloud app-owner reboot and a passing browser smoke.
-[Deployment issue, screenshots and owner steps](https://github.com/daniel-jpg/fourth-down-ai/issues/11).
-The separate **Hosted Streamlit browser smoke** badge above checks the actual public
-site, including a hidden SHA-256 source fingerprint against the tested GitHub
-revision. A green **Tests** badge alone does not certify hosted deployment;
-if the live badge is red or pending, do not assume newly merged controls
-are available to visitors.
+**Hosted app status (October 12, 2026):** The GitHub `main`
+code tests pass and a second
+[real Chromium browser attempt](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38302133517)
+at 20:11 UTC **verified the latest source fingerprint and the optional
+weather controls on the public Streamlit site**. The prior stale-UI
+deployment problem was therefore resolved in that attempt. However, when
+the browser clicked **Analyze Fourth Down** for a Q4 HOME scenario, no
+recommendation appeared within the next 220 seconds. A prior run also
+observed intermittent startup unavailability. **Do not describe the current
+hosted demo as end-to-end verified** until an actual calculation and its
+weather/stadium controls complete in the public browser.
+
+[Hosted reliability issue and evidence](https://github.com/daniel-jpg/fourth-down-ai/issues/11) ·
+[Q1 versus Q4 action-path diagnostic](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/hosted_action_path_diagnostic.yml).
+The **Hosted Streamlit browser smoke** badge above verifies the public
+site, including source fingerprint, weather UI and a Q4 recommendation.
+A green **Tests** badge verifies offline code only; it cannot establish
+hosted availability or calculation completion.
 
 ## Demo
 
