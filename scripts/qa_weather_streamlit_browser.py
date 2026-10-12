@@ -1,8 +1,7 @@
-"""Browser QA of the real research-only weather UI against Streamlit.
+"""Browser QA of optional weather fields and official decision isolation.
 
-Runs the actual official Q4 engine and weather what-if in the independently
-working Docker container. No remote NOAA requests, play outcomes, model
-updates, or prospective data access. Source snapshots remain in CI logs.
+Exercises the real frozen Q4 engine plus the separately unvalidated FG
+weather scenario. Research venue and receipt controls must remain absent.
 """
 from __future__ import annotations
 
@@ -231,142 +230,95 @@ def analyze(frame, page, *, weather: bool) -> dict:
 
 def check_baseline_and_weather(frame, page) -> dict:
     default = analyze(frame, page, weather=False)
-    assert metric(frame, "Weather what-if FG make") is None, (
-        "Weather analysis must be opt-in"
-    )
+    assert metric(frame, "Weather what-if FG make") is None
     print("WEATHER_BASELINE_OFFICIAL", default, flush=True)
 
     click_text(frame, "Weather observations (optional)")
-    click_text(frame, "Include temperature")
-    assert frame.get_by_text("Wind speed (mph)", exact=True).count() == 0
-    click_text(frame, "Include wind speed")
-    frame.get_by_text("Temperature (°F)", exact=True).wait_for(
-        state="visible", timeout=25000
+    temperature = frame.get_by_role("spinbutton", name="Temperature (°F)")
+    wind = frame.get_by_role("spinbutton", name="Wind speed (mph)")
+    temperature.wait_for(state="visible", timeout=25000)
+    wind.wait_for(state="visible", timeout=25000)
+    assert temperature.input_value() == "", (
+        "Temperature input must start blank, not assume 65 F"
     )
-    page.wait_for_timeout(1200)
-    assert metric(frame, "Recommendation") is None, (
-        "Enabling weather must invalidate a stale completed result"
+    assert wind.input_value() == "", (
+        "Wind input must start blank, not assume 5 mph"
     )
+    text_before = body_text(frame)
+    for removed in (
+        "Include temperature", "Include wind speed",
+        "Advanced reference: stadiums",
+        "Weather conditions", "Wind direction relative to offense",
+        "METAR research receipt JSON",
+    ):
+        assert removed not in text_before, f"Non-predictive control remains: {removed}"
+    print("WEATHER_BLANK_FIELDS_NO_EXTRA_CONTROLS_PASS", flush=True)
 
     set_number(frame, page, "Temperature (°F)", 32)
+    frame.get_by_text(
+        "Add the other weather value", exact=False
+    ).wait_for(state="visible", timeout=35000)
+    assert wind.input_value() == "", "Temperature entry filled wind unexpectedly"
+    only_temperature = analyze(frame, page, weather=False)
+    assert only_temperature == default
+    assert metric(frame, "Weather what-if FG make") is None
+    print("WEATHER_TEMPERATURE_ONLY_OFFICIAL_UNCHANGED", flush=True)
+
     set_number(frame, page, "Wind speed (mph)", 25)
-    select_choice(frame, page, "Weather conditions", "Snow")
-    # Remote 0.15-CPU Streamlit may take several seconds to rerun after a
-    # widget change. Complete the precipitation rerun before changing wind
-    # direction; otherwise an overlapping update can show stale choices.
-    precipitation_note = frame.get_by_text(
-        "no unvalidated rain/snow/fog probability penalty", exact=False,
-    )
-    precipitation_note.wait_for(state="visible", timeout=45000)
-    select_choice(
-        frame, page, "Wind direction relative to offense", "Headwind"
-    )
-    precipitation_note.wait_for(state="visible", timeout=45000)
-    b = body_text(frame)
-    assert "no unvalidated rain/snow/fog probability penalty" in b, (
-        "Precipitation selection did not persist after wind-direction rerun: "
-        + b[-600:]
-    )
-    cold_snow = analyze(frame, page, weather=True)
-    assert cold_snow["Recommendation"] == default["Recommendation"], (
-        "Weather research changed the official recommended action"
-    )
-    assert cold_snow["Win probability if chosen"] == (
-        default["Win probability if chosen"]
-    ), "Weather research changed the official win probability"
+    await_metric_cleared(frame, page, "Recommendation")
+    strong_wind = analyze(frame, page, weather=True)
+    assert strong_wind["Recommendation"] == default["Recommendation"]
+    assert strong_wind["Win probability if chosen"] == default["Win probability if chosen"]
     assert (
-        pct(cold_snow["Weather what-if FG make"]) <
-        pct(cold_snow["Frozen-model FG make estimate"])
-    ), "Windier/cooler conditions should lower the exploratory clean FG make"
+        pct(strong_wind["Weather what-if FG make"]) <
+        pct(strong_wind["Frozen-model FG make estimate"])
+    ), "Cooler/windier weather should reduce the research FG make estimate"
     assert "not improve held-out Brier score" in body_text(frame)
-    assert "Wind direction and precipitation effects are NOT modeled" in (
-        body_text(frame)
-    )
-    print("WEATHER_WIND_COLD_SNOW_PASS", cold_snow, flush=True)
+    assert "rain/snow and wind direction are not modeled" in body_text(frame)
+    print("WEATHER_BOTH_OPTIONAL_VALUES_PASS", strong_wind, flush=True)
 
-    # Precipitation was NOT fitted: with the same temp/wind/seed,
-    # changing Snow to Rain must not change the what-if numbers.
-    select_choice(frame, page, "Weather conditions", "Rain")
+    # Wind speed zero is present data, not a blank or missing measurement.
+    set_number(frame, page, "Wind speed (mph)", 0)
     await_metric_cleared(frame, page, "Weather what-if FG make")
-    rain = analyze(frame, page, weather=True)
-    for label in (
-        "Recommendation", "Win probability if chosen",
-        "Weather what-if FG make", "Weather what-if FG win probability",
-    ):
-        assert rain[label] == cold_snow[label], (
-            f"Unvalidated precipitation changed {label}"
-        )
-    print("WEATHER_RAIN_SNOW_DESCRIPTIVE_ONLY_PASS", flush=True)
+    calm_wind = analyze(frame, page, weather=True)
+    assert calm_wind["Recommendation"] == default["Recommendation"]
+    assert calm_wind["Win probability if chosen"] == default["Win probability if chosen"]
+    assert (
+        pct(calm_wind["Weather what-if FG make"]) >
+        pct(strong_wind["Weather what-if FG make"])
+    ), "The what-if must respond to a 25-to-0 mph wind change"
+    print("WEATHER_ZERO_WIND_VALID_VALUE_PASS", calm_wind, flush=True)
 
-    select_choice(
-        frame, page, "Wind direction relative to offense", "Tailwind"
-    )
+    # Clearing either weather box disables only the experimental comparison.
+    temperature.fill("", timeout=15000)
+    temperature.press("Tab")
+    frame.get_by_text(
+        "Add the other weather value", exact=False
+    ).wait_for(state="visible", timeout=35000)
     await_metric_cleared(frame, page, "Weather what-if FG make")
-    tailwind = analyze(frame, page, weather=True)
-    for label in (
-        "Recommendation", "Win probability if chosen",
-        "Weather what-if FG make", "Weather what-if FG win probability",
-    ):
-        assert tailwind[label] == rain[label], (
-            f"Unvalidated wind direction changed {label}"
-        )
-    print("WEATHER_WIND_DIRECTION_DESCRIPTIVE_ONLY_PASS", flush=True)
+    assert temperature.input_value() == ""
+    empty_temp = analyze(frame, page, weather=False)
+    assert empty_temp == default
+    assert metric(frame, "Weather what-if FG make") is None
+    print("WEATHER_CLEARED_FIELD_OFFICIAL_UNCHANGED", flush=True)
 
-    # A pasted unsupported JSON receipt must be rejected and never change
-    # the official or experimental outcome. No NOAA network request.
-    click_text(frame, "Advanced reference: stadiums and saved airport data (does not affect predictions)")
-    click_text(frame, "Open saved airport report (JSON required)")
-    textarea = frame.get_by_role(
-        "textbox", name="METAR research receipt JSON"
-    )
-    textarea.fill('{"unsupported": "made-up airport weather"}')
-    textarea.press("Tab")
-    # On the constrained public host, the Streamlit warning may only
-    # appear after a slow server rerun. Wait for the new warning rather
-    # than reading the old page immediately after Tab.
-    warning = frame.get_by_text(
-        "Invalid, inconsistent or unsupported METAR receipt", exact=False
-    )
-    warning.wait_for(state="visible", timeout=60000)
-    b = body_text(frame)
-    assert "Invalid, inconsistent or unsupported METAR receipt" in b
-    assert metric(frame, "Recommendation") == default["Recommendation"]
-    assert metric(frame, "Weather what-if FG make") == (
-        rain["Weather what-if FG make"]
-    )
-    print("WEATHER_INVALID_METAR_REJECTED_NO_POLICY_CHANGE", flush=True)
-
-    click_text(frame, "Show stadium information (reference only)")
-    frame.get_by_text("2026 venue context", exact=True).wait_for(
-        state="visible", timeout=50000
-    )
-    click_text(frame, "Official 2026 international game")
-    frame.get_by_text("2026 NFL international fixture", exact=True).wait_for(
-        state="visible", timeout=50000
-    )
-    assert frame.get_by_text("2026 venue to inspect", exact=True).count() == 0
-    assert metric(frame, "Recommendation") == default["Recommendation"]
-    print("WEATHER_INTERNATIONAL_VENUE_DOES_NOT_LEAK_HOME_GEOMETRY", flush=True)
-
-    # Covered-roof games must NOT show outdoor weather inputs or stale
-    # what-if metrics. Roof is an official input, so don't require the
-    # original outdoor prediction to remain the same after this change.
+    # A dome must hide the outdoor-only fields.
     select_choice(frame, page, "Stadium / roof", "Fixed dome")
     frame.get_by_text(
         "Covered stadium: outdoor temperature and wind do not apply",
         exact=False,
     ).wait_for(state="visible", timeout=50000)
-    for label in ("Include temperature", "Include wind speed"):
-        assert frame.get_by_text(label, exact=True).count() == 0, (
-            "Dome offered outdoor weather adjustment"
+    for label in ("Temperature (°F)", "Wind speed (mph)"):
+        assert frame.get_by_role("spinbutton", name=label).count() == 0, (
+            f"Covered roof still offered {label}"
         )
-    await_metric_cleared(frame, page, "Weather what-if FG make")
     await_metric_cleared(frame, page, "Recommendation")
     dome = analyze(frame, page, weather=False)
-    assert dome["Recommendation"], "Dome official result missing"
+    assert dome["Recommendation"], "Dome official recommendation missing"
     assert metric(frame, "Weather what-if FG make") is None
     print("WEATHER_COVERED_ROOF_POLICY_ONLY_PASS", dome, flush=True)
-    return {"baseline": default, "snow": cold_snow, "rain": rain, "dome": dome}
+    return {"baseline": default, "windy": strong_wind, "calm": calm_wind,
+            "dome": dome}
 
 
 def main() -> None:
