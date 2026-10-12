@@ -1,0 +1,116 @@
+name: Buffalo 2026 physical field bearing - offline untrusted calibration
+
+# CI uses SYNTHETIC invented GPS points, NOT the 2026 NFL outcome holdout.
+# No NOAA API, no Google Maps geocoding, no real play or video downloads.
+# This generates a mathematical CANDIDATE only; never updates the stadium
+# registry, field wind, policy weights or 2026 once-only evaluation.
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/buffalo_2026_field_axis_measurement.py
+      - scripts/measure_buffalo_field_axis.py
+      - tests/test_buffalo_2026_field_axis_measurement.py
+      - .github/workflows/buffalo_2026_survey_geometry_rehearsal.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  goal-line-geodesy-and-source-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project test requirements
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Verify geometry and source integrity without any real games
+        run: |
+          python -m py_compile \
+            src/buffalo_2026_field_axis_measurement.py \
+            scripts/measure_buffalo_field_axis.py
+          PYTHONPATH=. python -m pytest -q \
+            tests/test_buffalo_2026_field_axis_measurement.py
+      - name: Run real CLI only on INVENTED goal-line GPS and local files
+        run: |
+          mkdir -p artifacts/fictional_measurements
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("artifacts/fictional_measurements")
+          points={
+            "NORTH":(42.773445,-78.792109,"northgps01","observernorth01","north"),
+            "SOUTH":(42.772635,-78.792271,"southgps01","observersouth01","south"),
+          }
+          manifest={}
+          for side,(lat,lon,source_id,observer,filename) in points.items():
+            (p/f"{filename}.gps.txt").write_text(
+              "FICTIONAL_COORDINATES_ONLY_NOT_REAL_SURVEY_"+side
+            )
+            manifest[side]={
+              "latitude":lat,"longitude":lon,
+              "horizontal_uncertainty_m":2.0,
+              "source_id":source_id,"observer_id":observer,
+              "measurement_method":"CLAIMED_FIELD_GPS",
+              "source_url":f"https://example.org/fake-{filename}",
+              "collected_at_utc":"2026-10-12T18:00:00Z",
+              "landmark_description":f"{filename} physical goal line midpoint test",
+              "artifact_file":f"{filename}.gps.txt",
+            }
+          (p/"GPS_MANIFEST.json").write_text(json.dumps(manifest, indent=2))
+          PY
+          PYTHONPATH=. python -m scripts.measure_buffalo_field_axis \
+            --manifest-json artifacts/fictional_measurements/GPS_MANIFEST.json \
+            --landmark-type GOAL_LINE_MIDPOINTS_100YDS \
+            --out artifacts/FICTITIOUS_NEW_BUFFALO_AZIMUTH.json
+      - name: Verify candidate never becomes trusted metar/model/real-world survey
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result=json.loads(Path("artifacts/FICTITIOUS_NEW_BUFFALO_AZIMUTH.json").read_text())
+          assert result["status"]=="USER_SUPPLIED_FIELD_GEOMETRY_CANDIDATE_NOT_SURVEY_VERIFIED"
+          assert result["expected_field_separation_m"]==91.44
+          assert 90 < result["wgs84_geometry"]["distance_m"] < 92
+          assert 7 < result["candidate_northward_azimuth_deg"] < 10
+          assert 0 < result["candidate_worst_case_angle_error_deg_if_errors_true"] < 4
+          for k in ("independently_surveyed_exact_field_bearing",
+            "coordinate_provenance_independently_authenticated",
+            "independent_source_coordinates_crosschecked",
+            "two_witnesses_independence_verified",
+            "goal_line_landmarks_verified_on_field",
+            "attack_end_of_specific_nfl_play_verified",
+            "may_use_candidate_as_trusted_METAR_direction",
+            "may_change_official_go_fg_punt_model",
+            "protected_2026_nfl_outcomes_examined",
+            "real_2027_outcomes_examined",
+            "source_contents_in_receipt"):
+            assert result[k] is False, k
+          assert len(result["source_points"])==2
+          assert all(len(p["original_local_artifact_sha256"])==64
+            for p in result["source_points"].values())
+          assert "FICTIONAL_COORDINATES_ONLY_NOT_REAL_SURVEY" not in json.dumps(result)
+          print("PASS: synthetic WGS84 compass computation; NO independent survey or production adjustment")
+          PY
+      - name: Refuse any tampering with frozen production weights and 2026 gates
+        run: |
+          git diff --exit-code -- models data \
+            src/stadium_weather_2026_reference.json \
+            src/42_build_decision_engine.py \
+            src/66_forward_2026_continuation_wp.py \
+            src/83_forward_2026_native_challenger_once.py
+      - name: Preserve only fabricated geometry metadata without source media
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-2026-buffalo-endzone-geodesy-candidate
+          path: artifacts/FICTITIOUS_NEW_BUFFALO_AZIMUTH.json
+          retention-days: 14
+          if-no-files-found: error
