@@ -302,6 +302,18 @@ real-time independently attested pre-snap predictions. The separate
 Sportradar/TSA work is an **optional stronger real-time research experiment**,
 not a blocker for this existing-data path. No 2027 outcome data have been read.
 
+The [isolated nflverse input reconstructor](src/nflverse_2027_reconstruction.py)
+and [new frozen-engine replay adapter](src/nflverse_2027_frozen_policy_replay.py)
+now connect the same fourth-down field format to the *existing* registered
+300/1,200-trial policy, with no action/final-label lookahead. The
+[replay acceptance report](reports/2027_nflverse_to_frozen_policy_dry_run.md)
+and [synthetic-only CI workflow](.github/workflows/2027_nflverse_frozen_engine_bridge.yml)
+cover Q4's native standard-35 kickoff correction, model provenance,
+missing Q2 half-receiver/roof context, source exclusions and holdout denial.
+The only executable forecast inputs are **fabricated 2027-shaped games**.
+Actual 2027 evaluation stays explicitly blocked until the **entire**
+regular season and separate source/completeness approval are available.
+
 ## Independent 2027 Fourth-Down Action-Policy Study
 
 The separate [preregistered 2027 decision study](reports/2027_fourth_down_action_policy_protocol.md)
