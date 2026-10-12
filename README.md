@@ -308,8 +308,16 @@ Q4 uses the isolated native standard-35 kickoff correction at 1,200
 trials with seed 43. The bridge verifies the pinned source/assets and
 joins policy action probabilities with e(policy|X), mu(policy,X) without
 using the actual coach decision or final game result as pre-snap inputs.
-Only fabricated scenarios have been replayed; real decision-time roof,
-halftime-receiver, and outcome provenance still need independent review.
+Only fabricated policy-decision scenarios have been replayed. Separately, an
+[independent ESPN-versus-PBP final-score audit](reports/independent_espn_2014_2025_final_score_audit.md)
+matched **3,151 / 3,151** completed 2014–2025 REG game margins with **zero
+score mismatches**, covering 47,942 historical fourth-down source rows.
+Every verified score margin is preserved in a
+[permanent compact archive](data/independent_espn_2014_2025_margin_archive.json)
+and can be [replayed offline](src/independent_espn_margin_archive.py).
+This verifies **final outcomes only**; real decision-time roof,
+halftime-receiver, action intent, kicker and forecast-timestamp
+provenance still need independent review.
 
 Passing the original once-only 2026 native-kickoff test may eventually
 allow narrowing the phrase *"kickoff inputs not yet validated on future
