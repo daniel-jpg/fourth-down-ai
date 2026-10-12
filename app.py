@@ -39,35 +39,6 @@ st.set_page_config(
     layout="wide",
 )
 
-# Read-only deployment fingerprint. This displays the checked-out revision
-# when the deployment platform preserves Git metadata. It never fetches
-# remote data or changes prediction results.
-import subprocess
-from pathlib import Path
-
-def deployed_git_revision() -> str | None:
-    try:
-        revision = subprocess.check_output(
-            ["git", "rev-parse", "--verify", "HEAD"],
-            cwd=Path(__file__).resolve().parent,
-            text=True,
-            stderr=subprocess.DEVNULL,
-            timeout=2,
-        ).strip()
-    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-        return None
-    if len(revision) == 40 and all(ch in "0123456789abcdef" for ch in revision):
-        return revision
-    return None
-
-with st.sidebar.expander("Build info", expanded=False):
-    deployed_sha = deployed_git_revision()
-    if deployed_sha:
-        st.code(deployed_sha[:12])
-        st.caption("Running Git commit (short SHA).")
-    else:
-        st.caption("Git revision unavailable on this host.")
-
 # =========================================================
 # Interactive football field component
 # =========================================================
