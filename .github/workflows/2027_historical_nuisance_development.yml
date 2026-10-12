@@ -1,0 +1,56 @@
+name: 2027 policy study historical nuisance training (development only)
+
+# FROZEN 2014-25 checked-in labeled PBP. No new NFL downloads,
+# no 2026/27 results, no future policy scoring or model promotion.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/historical_fourth_down_cohort.py"
+      - "src/historical_coach_nuisances.py"
+      - "scripts/train_2027_historical_nuisances.py"
+      - "tests/test_historical_fourth_down_cohort.py"
+      - "tests/test_historical_coach_nuisances.py"
+      - ".github/workflows/2027_historical_nuisance_development.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  historical-nuisance-development:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install existing pinned dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Test row-level cohorts, time boundaries and no feature/outcome leaks
+        run: |
+          PYTHONPATH=. python -m pytest -v tests/test_historical_fourth_down_cohort.py tests/test_historical_coach_nuisances.py
+      - name: Audit checked-in 2014-25 fourth downs and fit developmental e/mu
+        run: |
+          set -o pipefail
+          PYTHONPATH=. python scripts/train_2027_historical_nuisances.py 2>&1 | tee artifacts_historical_nuisance_log.txt
+      - name: Archive unpromoted 2014-25 nuisances and independent review materials
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fourth-down-historical-nuisances-DEVELOPMENT-ONLY
+          path: |
+            artifacts_historical_nuisance_log.txt
+            artifacts/historical_nuisance_development_audit.json
+            artifacts/coach_propensity_2014_2025_development.joblib
+            artifacts/action_win_reward_2014_2025_development.joblib
+            artifacts/historical_2014_2025_pre_snap.parquet
+            artifacts/historical_2014_2025_actions.parquet
+            artifacts/historical_2014_2025_final_labels.parquet
+            artifacts/historical_2014_2025_exclusions.parquet
+          retention-days: 21
+          if-no-files-found: ignore
