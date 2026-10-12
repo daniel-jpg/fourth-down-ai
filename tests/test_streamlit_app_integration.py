@@ -23,7 +23,6 @@ from src import streamlit_kickoff_preview as preview
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPERIMENT = "Show the experimental kickoff-adjusted comparison"
 EXPLAINER = "Why this recommendation? Immediate action odds"
 NORMAL = {
     "NORMAL_GO_PASS": ("GO — PASS / DROPBACK", .64, "conversion=0.438"),
@@ -148,9 +147,10 @@ def ui(monkeypatch):
     st.cache_resource.clear()
 
 
-def test_initial_page_is_idle_and_experiments_are_opt_in(ui):
+def test_initial_page_is_idle_and_has_no_kickoff_research_panel(ui):
     at = ui.at
-    assert widget(at, "checkbox", EXPERIMENT).value is False
+    assert not any("kickoff comparison" in e.label.lower() for e in at.expander)
+    assert not any("experimental" in c.label.lower() for c in at.checkbox)
     assert not widget(at, "button", "Analyze Fourth Down").disabled
     assert not at.metric
     assert not ui.engine.calls
@@ -316,7 +316,7 @@ def test_q4_material_warning_is_automatic_and_does_not_change_official_results(u
     assert "conditional post-FG win probabilities" in values(ui.at, "warning")
     assert "official recommendation is unchanged" in values(ui.at, "warning")
     assert metrics(ui.at)["Win probability if chosen"] == "64.00%"
-    assert not widget(ui.at, "checkbox", EXPERIMENT).value
+    assert not any("experimental" in c.label.lower() for c in ui.at.checkbox)
     ui.probe.assert_called_once_with(ui.engine.calls[0][0])
     assert not any(fn.called for fn in ui.previews.values())
 
@@ -338,57 +338,16 @@ def test_warning_probe_failure_has_visible_fallback_and_preserves_result(ui):
     assert metrics(ui.at)["FIELD GOAL"] == "40.00%"
 
 
-def enable_experiment(at):
-    widget(at, "checkbox", EXPERIMENT).set_value(True)
-    run(at)
-
-
-def official_metrics(at):
-    labels = {"Recommendation", "Win probability if chosen", "Advantage over FIELD GOAL",
-              "PASS / DROPBACK", "RUN", "FIELD GOAL", "PUNT"}
-    return {key: value for key, value in metrics(at).items() if key in labels}
-
-
-def test_opt_in_preview_can_disagree_without_overwriting_official_result(ui):
-    analyze(ui.at)
-    original = official_metrics(ui.at)
-    original_response = deepcopy(ui.engine.outputs[-1]["results"])
-    enable_experiment(ui.at)
-    assert not any(fn.called for fn in ui.previews.values())
-    analyze(ui.at)
-    ui.previews["preview_observed_2025_resolved_recommendation"].assert_called_once()
-    assert metrics(ui.at)["Experimental strategy (not official)"] == "FIELD GOAL"
-    assert official_metrics(ui.at) == original
-    pd.testing.assert_frame_equal(ui.engine.outputs[-1]["results"], original_response)
-    assert "strategy is sensitive" in values(ui.at, "warning")
-    widget(ui.at, "checkbox", EXPERIMENT).set_value(False)
-    run(ui.at)
-    analyze(ui.at)
-    assert "Experimental strategy (not official)" not in metrics(ui.at)
-    assert official_metrics(ui.at) == original
-    assert ui.previews["preview_observed_2025_resolved_recommendation"].call_count == 1
-
-
-def test_preview_failure_is_visible_and_official_result_survives(ui):
-    ui.previews["preview_observed_2025_resolved_recommendation"].side_effect = RuntimeError("fixture failure")
-    enable_experiment(ui.at)
-    analyze(ui.at)
-    assert "optional kickoff scenario was unavailable" in values(ui.at, "warning")
-    assert "fixture failure" in values(ui.at, "warning")
-    assert metrics(ui.at)["Win probability if chosen"] == "64.00%"
+def test_public_q4_analysis_uses_only_official_model(ui):
+    at = ui.at
+    assert not any("kickoff comparison" in e.label.lower() for e in at.expander)
+    assert not any("experimental" in c.label.lower() for c in at.checkbox)
+    analyze(at)
+    assert metrics(at)["Recommendation"] == "GO FOR IT"
+    assert metrics(at)["FIELD GOAL"] == "40.00%"
     assert len(ui.engine.calls) == 1
-
-
-def test_simplified_kickoff_panel_has_one_optional_control(ui):
-    assert widget(ui.at, "expander", "2025 kickoff comparison")
-    assert [w.label for w in ui.at.checkbox if "kickoff" in w.label.lower()] == [EXPERIMENT]
-    assert not any(w.label.startswith("Advanced:") for w in ui.at.checkbox)
-    assert not any("Assumed" in w.label for w in ui.at.select_slider)
-    enable_experiment(ui.at)
-    analyze(ui.at)
-    ui.previews["preview_observed_2025_resolved_recommendation"].assert_called_once()
-    assert metrics(ui.at)["Recommendation"] == "GO FOR IT"
-    assert metrics(ui.at)["FIELD GOAL"] == "40.00%"
+    assert not any(fn.called for fn in ui.previews.values())
+    assert not any("Experimental strategy" in name for name in metrics(at))
 
 
 @pytest.mark.parametrize("ot_format,clock,timeouts", [
@@ -403,7 +362,7 @@ def test_overtime_controls_state_and_game_value_labels(ui, ot_format, clock, tim
     widget(at, "text_input", "Time remaining (MM:SS)").set_value(clock)
     run(at)
     assert len(widget(at, "radio", "Offense timeouts").options) == timeouts + 1
-    assert not any(item.label == EXPERIMENT for item in at.checkbox)
+    assert not any("experimental" in item.label.lower() for item in at.checkbox)
     analyze(at)
     state = ui.engine.calls[0][0]
     assert state["ot_format"] == ot_format and state["ot_phase"] == "OPENING"

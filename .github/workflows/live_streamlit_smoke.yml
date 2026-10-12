@@ -1,4 +1,4 @@
-name: Live Streamlit browser smoke (one-time/manual)
+name: Live Streamlit browser smoke (official-only interface)
 
 # This runs when first added (or deliberately edited) and can also be
 # dispatched manually. It never blocks the regular offline regression suite.
@@ -72,82 +72,47 @@ jobs:
                   assert app is not None, "Live app was not found in any browser frame"
                   print("Found live app frame:", app.url, flush=True)
 
-                  assert app.get_by_text("Build info", exact=True).count() == 0
-                  app.get_by_text("2025 kickoff comparison", exact=True).click()
-                  option = app.get_by_role(
-                      "checkbox",
-                      name="Show the experimental kickoff-adjusted comparison",
-                  )
-                  assert not option.is_checked(), "Scenario should be opt-in"
-                  # Streamlit's React-Aria label overlays the native input.
-                  # Click the visible text a real user would click, rather
-                  # than Playwright's input.check() (which the label intercepts).
-                  app.get_by_text(
+                  # Allow Streamlit Cloud to catch up with main's deployment.
+                  deadline = time.monotonic() + 240
+                  while time.monotonic() < deadline:
+                      if (
+                          app.get_by_text("2025 kickoff comparison", exact=True).count() == 0
+                          and app.get_by_text("Build info", exact=True).count() == 0
+                      ):
+                          break
+                      print("Waiting for removed kickoff panel to deploy", flush=True)
+                      page.wait_for_timeout(8000)
+                      page.reload(wait_until="domcontentloaded", timeout=60000)
+                      app = find_app_frame(page, seconds=40)
+                      assert app is not None, "Streamlit app frame missing after reload"
+                  else:
+                      raise AssertionError(
+                          "Old kickoff panel still visible after deployment wait"
+                      )
+                  assert app.get_by_text(
                       "Show the experimental kickoff-adjusted comparison",
-                      exact=True,
-                  ).click()
-                  # Streamlit reruns the whole page when this setting changes.
-                  # Wait for that rerun before clicking Analyze.
-                  page.wait_for_timeout(2500)
-                  app.get_by_role(
-                      "checkbox",
-                      name="Show the experimental kickoff-adjusted comparison",
-                  ).wait_for(timeout=30000)
-                  assert app.get_by_role(
-                      "checkbox",
-                      name="Show the experimental kickoff-adjusted comparison",
-                  ).is_checked(), "Visible checkbox label did not enable scenario"
+                      exact=True
+                  ).count() == 0, "Removed scenario checkbox is still visible"
+
                   app.get_by_role("button", name="Analyze Fourth Down").click()
-                  print("Clicked Analyze Fourth Down on hosted app", flush=True)
                   app.get_by_text("Decision", exact=True).first.wait_for(
                       timeout=120000
                   )
-                  app.get_by_text(
+                  app.get_by_text("Recommendation", exact=True).first.wait_for(
+                      timeout=120000
+                  )
+                  assert app.get_by_text(
                       "2025 kickoff scenario results", exact=True
-                  ).first.wait_for(timeout=240000)
-                  assert app.get_by_text("Recommendation", exact=True).count() > 0
-                  # The scenario title renders before Monte Carlo finishes.
-                  # Wait for the result, or surface a real model error.
-                  deadline = time.monotonic() + 150
-                  last_report = 0
-                  while time.monotonic() < deadline:
-                      now = time.monotonic()
-                      if now - last_report >= 15:
-                          last_report = now
-                          try:
-                              txt = app.locator("body").inner_text(timeout=5000)
-                              print(
-                                  "Live status:",
-                                  "decision=" + str("Decision" in txt),
-                                  "scenario=" + str("2025 kickoff scenario results" in txt),
-                                  "metric=" + str("Experimental strategy (not official)" in txt),
-                                  "warning=" + str("optional kickoff scenario was unavailable" in txt),
-                                  "tail=" + repr(txt[-450:]),
-                                  flush=True,
-                              )
-                          except Exception as exc:
-                              print("Diagnostic text error:", str(exc)[:250], flush=True)
-                      error = app.get_by_text(
-                          "optional kickoff scenario was unavailable", exact=False
-                      )
-                      if error.count():
-                          raise AssertionError(
-                              "Live scenario failed: " + error.first.inner_text()
-                          )
-                      result_metric = app.get_by_text(
-                          "Experimental strategy (not official)", exact=True
-                      )
-                      if result_metric.count():
-                          print("Live scenario strategy metric rendered", flush=True)
-                          break
-                      page.wait_for_timeout(1500)
-                  else:
-                      raise AssertionError(
-                          "Live scenario metric not visible within 150 seconds; inspect diagnostics"
-                      )
+                  ).count() == 0
+                  assert app.get_by_text(
+                      "Experimental strategy (not official)", exact=True
+                  ).count() == 0
+                  assert app.get_by_text(
+                      "Win probability if chosen", exact=True
+                  ).count() > 0
                   print(
-                      "LIVE PASS: official decision and optional observed-2025 "
-                      "kickoff comparison both rendered in the hosted app.",
+                      "LIVE PASS: removed public kickoff research panel, "
+                      "official fourth-down recommendation renders.",
                       flush=True,
                   )
               finally:
