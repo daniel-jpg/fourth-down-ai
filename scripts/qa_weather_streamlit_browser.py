@@ -318,7 +318,13 @@ def check_baseline_and_weather(frame, page) -> dict:
     )
     textarea.fill('{"unsupported": "made-up airport weather"}')
     textarea.press("Tab")
-    page.wait_for_timeout(1200)
+    # On the constrained public host, the Streamlit warning may only
+    # appear after a slow server rerun. Wait for the new warning rather
+    # than reading the old page immediately after Tab.
+    warning = frame.get_by_text(
+        "Invalid, inconsistent or unsupported METAR receipt", exact=False
+    )
+    warning.wait_for(state="visible", timeout=60000)
     b = body_text(frame)
     assert "Invalid, inconsistent or unsupported METAR receipt" in b
     assert metric(frame, "Recommendation") == default["Recommendation"]
@@ -329,11 +335,11 @@ def check_baseline_and_weather(frame, page) -> dict:
 
     click_text(frame, "Show 2026 stadium compass lookup (research only)")
     frame.get_by_text("2026 venue context", exact=True).wait_for(
-        state="visible", timeout=20000
+        state="visible", timeout=50000
     )
     click_text(frame, "Official 2026 international game")
     frame.get_by_text("2026 NFL international fixture", exact=True).wait_for(
-        state="visible", timeout=20000
+        state="visible", timeout=50000
     )
     assert frame.get_by_text("2026 venue to inspect", exact=True).count() == 0
     assert metric(frame, "Recommendation") == default["Recommendation"]
@@ -345,7 +351,7 @@ def check_baseline_and_weather(frame, page) -> dict:
     select_choice(frame, page, "Stadium / roof", "Fixed dome")
     frame.get_by_text(
         "The roof is closed or domed.", exact=False
-    ).wait_for(state="visible", timeout=20000)
+    ).wait_for(state="visible", timeout=50000)
     assert frame.get_by_text(
         "Enter observed temperature and wind", exact=True
     ).count() == 0, "Dome offered outdoor weather adjustment"
