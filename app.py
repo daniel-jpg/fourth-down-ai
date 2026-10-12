@@ -1825,14 +1825,13 @@ experimental_native_candidate_enabled = False
 if qtr == 4:
 
     with st.expander(
-        "2025+ kickoff rule comparison (experimental)",
+        "2025 kickoff scenarios",
         expanded=False,
     ):
 
         st.caption(
-            "Compare the official model with a separate simulation using "
-            "observed 2025 NFL kickoff outcomes. This is an experimental "
-            "scenario, not a validated replacement for the default model."
+            "Explore how observed 2025 kickoff field position and timing "
+            "affect the comparison. The official recommendation is unchanged."
         )
 
         experimental_kickoff_enabled = st.checkbox(
@@ -3255,17 +3254,16 @@ if run_model:
     if len(experimental) > 0:
 
         with st.expander(
-            "Experimental fake plays"
+            "Why fake plays are not ranked"
         ):
 
-            for _, row in (
-                experimental.iterrows()
-            ):
-
-                st.write(
-                    f"**{row['decision']}** — "
-                    f"{row['detail']}"
-                )
+            st.caption(
+                "These play types lack sufficient historical support for "
+                "a dependable win-probability ranking. They are excluded "
+                "from the official recommendation."
+            )
+            for _, row in experimental.iterrows():
+                st.write(f"**{row['decision']}**: {row['detail']}")
 
 
     # =====================================================
@@ -3297,8 +3295,8 @@ if run_model:
         )
 
         st.write(
-            "- Fake punts and fake field goals are "
-            "experimental-only."
+            "- Fake punts and fake field goals are excluded from rankings "
+            "because reliable estimates are not available."
         )
 
         st.write(
