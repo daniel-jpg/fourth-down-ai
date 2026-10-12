@@ -21,7 +21,7 @@ from collections import Counter
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 from src.fourth_down_cohort_builder import (
     PRE_SNAP_KEYS, REQUIRED_MANIFEST, build_synthetic_cohort,
@@ -143,8 +143,9 @@ def validate_label_free_forecasts(bundle: Any) -> dict:
 
 def run_fabricated_postseason_once(
     payload: Any, output_dir: Path, *, mode: Any, bootstrap_draws: int = 20,
+    pre_outcome_claim: Callable[[str], dict[str, Any]] | None = None,
 ) -> dict:
-    """Exclusive one-time local study. Never evaluates genuine season data."""
+    """Exclusive synthetic study; optional shared claim BEFORE outcome reads."""
     refuse_future_data(mode)  # MUST occur before dereferencing a caller object
     if not isinstance(payload, dict) or set(payload) != TOP_LEVEL:
         raise ValueError("Expected separate forecast, PBP roster, action and scoreboard")
@@ -164,6 +165,27 @@ def run_fabricated_postseason_once(
     # From this line onward, only labels may be accessed. If any subsequent
     # verification fails, the sealed output directory remains forever blocked.
     try:
+        # The optional shared claim is made only after the label-free seal
+        # exists and BEFORE touching either scores or observed coach choices.
+        # Its implementation is restricted to a fabricated local bare Git
+        # remote, and cannot issue any real 2027 release claim.
+        remote_claim = None
+        if pre_outcome_claim is not None:
+            if not callable(pre_outcome_claim):
+                raise TypeError("Synthetic remote claim must be callable")
+            remote_claim = pre_outcome_claim(seal["synthetic_forecast_sha256"])
+            from src.repository_once_claim import FULL_REF
+            if (not isinstance(remote_claim, dict)
+                    or remote_claim.get("status") !=
+                    "FABRICATED_REMOTE_ONCE_CLAIM_CREATED"
+                    or remote_claim.get("claim_ref") != FULL_REF
+                    or remote_claim.get("remote") != "LOCAL_BARE_GIT_ONLY"
+                    or remote_claim.get("real_2027_evaluation_authorized") is not False
+                    or remote_claim.get("git_tag_delete_or_force_protection_configured") is not False):
+                raise RuntimeError("Only a verified local fabricated claim is permitted")
+            with (base / "remote_claim_receipt.json").open("xb") as fd:
+                fd.write(_json_bytes(remote_claim))
+
         season = verify_fabricated_complete_season(
             payload["pbp_games"], payload["reference_games"], mode=mode,
         )
@@ -202,6 +224,14 @@ def run_fabricated_postseason_once(
             "exclusion_counts": cohort["exclusion_counts"],
             "observed_play_count": cohort["total_observed_plays"],
             "frozen_policy_commit": POLICY_COMMIT,
+            "remote_claim_sha256": (
+                None if remote_claim is None
+                else remote_claim["claim_sha256"]
+            ),
+            "remote_claim_scope": (
+                "NOT_REQUESTED" if remote_claim is None
+                else "LOCAL_BARE_GIT_FABRICATED_ONLY"
+            ),
             "evaluated_synthetic_only": study,
             "interpretation": (
                 "Single-use LOCAL fabricated-data arithmetic rehearsal; "
