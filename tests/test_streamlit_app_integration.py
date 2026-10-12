@@ -740,10 +740,10 @@ def test_closed_roof_never_promises_outdoor_weather_adjustment(ui):
         check for check in ui.at.checkbox
         if check.label in ("Include temperature", "Include wind speed")
     ]
-    assert "do not enter" in values(ui.at, "caption").lower() or (
-        "do not enter the field-goal weather sensitivity" in
-        values(ui.at, "caption")
-    )
+    captions = values(ui.at, "caption").lower()
+    assert "covered stadium" in captions
+    assert "outdoor temperature and wind do not apply" in captions
+    assert "use the normal recommendation" in captions
 
 
 
