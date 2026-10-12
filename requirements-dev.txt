@@ -1,2 +1,5 @@
 -r requirements.txt
 pytest==9.1.1
+
+# Offline research-only Ed25519 forecast/witness receipts; NOT loaded by public app.
+cryptography==46.0.0
