@@ -193,6 +193,45 @@ def test_permutation_is_deterministic_and_auditable():
     assert res1["synthetic_input_sha256"] != res2["synthetic_input_sha256"]
 
 
+
+def test_logged_fourth_down_without_pre_snap_state_is_an_explicit_exclusion():
+    obj = fixture()
+    unseen = copy.deepcopy(obj["observed_plays"][0])
+    unseen["play_id"] = "10"
+    obj["observed_plays"].append(unseen)
+    result = build_synthetic_cohort(obj)
+
+    assert result["total_pre_snap_candidates"] == 1
+    assert result["total_observed_plays"] == 2
+    assert result["matched_decision_keys"] == 1
+    assert result["included_decisions"] == 1
+    assert result["exclusion_counts"] == {"unmatched_pre_snap": 1}
+    assert result["excluded_decisions"] == [{
+        "game_id": "synthetic-game-1", "play_id": "10",
+        "reason": "unmatched_pre_snap",
+    }]
+
+
+def test_both_missing_join_directions_are_reported_in_stable_key_order():
+    obj = fixture()
+    obj["pre_snap"][0]["play_id"] = "9"
+    # Original observed play ID=11 now has no pre-snap row. Likewise the
+    # existing pre-snap ID=9 has no observed action.
+    result = build_synthetic_cohort(obj)
+    assert result["included_decisions"] == 0
+    assert result["matched_decision_keys"] == 0
+    assert result["exclusion_counts"] == {
+        "unmatched_observed_play": 1, "unmatched_pre_snap": 1,
+    }
+    assert result["excluded_decisions"] == [
+        {"game_id": "synthetic-game-1", "play_id": "11",
+         "reason": "unmatched_pre_snap"},
+        {"game_id": "synthetic-game-1", "play_id": "9",
+         "reason": "unmatched_observed_play"},
+    ]
+
+
+
 def test_synthetic_cli_roundtrip(tmp_path):
     path, out = tmp_path / "fabricated.json", tmp_path / "joined.json"
     path.write_text(json.dumps(fixture()))
