@@ -115,6 +115,34 @@ selector is strictly descriptive and does not change any probability.
 These exploratory comparators are not the deployed models and cannot
 justify promoting weather into the official GO/PUNT strategy ranking.
 
+### Timestamped NOAA airport weather evidence (optional, research only)
+
+A separate [NOAA METAR source collector](scripts/capture_awc_decision_weather.py)
+can now make a one-shot recent **airport** weather request (or read an offline
+JSON fixture), strictly check original report and NOAA receipt timestamps
+against a supplied football decision time, reject stations beyond **30 km**
+or observations older than **90 minutes**, and archive SHA-256 source evidence.
+The [physics and source-quality module](src/metar_decision_weather.py)
+decomposes wind reported **FROM true north in knots** into offense-relative
+headwind/tailwind and signed crosswind, but only with a separately supplied
+physical field attacking bearing. Variable wind remains unknown. Coded rain
+or snow is an airport present-weather observation, not measured rainfall
+at the football field. A late download is labeled retrospective, never
+an independently witnessed live-game forecast.
+
+The app's **Inspect timestamped airport METAR evidence** option, inside
+manual weather entry, lets a user paste a research receipt to inspect its
+provenance and directional context. It **does not supply official model
+features or alter the experimental FG what-if**, and pasted JSON is
+unsigned and not independently authenticated. The [complete capture
+protocol and remaining field-sensor requirements](reports/weather_decision_time_noaa_metar_evidence.md)
+explain the limitations. The
+[dedicated offline synthetic CI](.github/workflows/metar_weather_evidence.yml)
+and headless Streamlit checks ensure the 2026 protected workflows, the
+frozen GO/FG/PUNT models and future-season release gate remain untouched.
+Real signed on-field wind vectors and precipitation intensity are still
+needed for any **validated weather-aware recommendation**.
+
 ## Overtime Support
 
 The engine supports both **regular-season** and **postseason** overtime.
