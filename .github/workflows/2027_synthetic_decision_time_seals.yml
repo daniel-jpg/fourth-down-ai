@@ -1,0 +1,42 @@
+name: 2027 synthetic decision-time source and witness seals
+
+# Static fabricated-only evidence. No API fetches for real 2026/2027 NFL
+# events, no scheduled prospective monitor, no outcomes or gate dispatch.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/synthetic_decision_time_seals.py"
+      - "tests/test_synthetic_decision_time_seals.py"
+      - "requirements-dev.txt"
+      - ".github/workflows/2027_synthetic_decision_time_seals.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-seal-rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install pinned dev-only signing and project dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Verify fabricated source freshness, independent receipts and label firewall
+        run: |
+          set -o pipefail
+          PYTHONPATH=. python -m pytest -v tests/test_synthetic_decision_time_seals.py 2>&1 | tee 2027-fabricated-signed-seal-tests.log
+      - name: Preserve fabricated-only rehearsal logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 2027-synthetic-decision-time-evidence-rehearsal
+          path: 2027-fabricated-signed-seal-tests.log
+          retention-days: 14
