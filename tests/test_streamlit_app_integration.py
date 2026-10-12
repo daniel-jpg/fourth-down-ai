@@ -498,7 +498,13 @@ def test_real_frozen_engine_loads_and_renders_without_live_data(monkeypatch, qua
             widget(at, "number_input", "Offense score").set_value(27)
         run(at)
         analyze(at)
-        assert metrics(at)["Recommendation"] in {"GO FOR IT", "FIELD GOAL", "PUNT"}
+        assert metrics(at)["Recommendation"] in {
+            "GO FOR IT", "FIELD GOAL", "PUNT", "INCONCLUSIVE",
+        }
+        if metrics(at)["Recommendation"] == "INCONCLUSIVE":
+            assert quarter == 4
+            assert "Frozen-model FG WP" in metrics(at)
+            assert "Model reliability warning" in values(at, "warning")
         odds = widget(at, "expander", EXPLAINER).dataframe[0].value
         assert not odds.empty
         label_map = {"GO — PASS / DROPBACK": "PASS / DROPBACK", "GO — RUN": "RUN",
