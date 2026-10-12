@@ -26,8 +26,8 @@ def test_real_2025_nflverse_and_independent_espn_archive(real_archive_report):
     assert report["policy_commit"] == packet.FROZEN_POLICY
     assert report["reg_game_count"] == 272
     assert sum(report["weeks"].values()) == 272
-    assert set(report["weeks"]) == set(range(1, 19))
-    assert report["weeks"][18] == 16
+    assert set(report["weeks"]) == {str(i) for i in range(1, 19)}
+    assert report["weeks"]["18"] == 16
     scores = report["archived_independent_scores"]
     assert scores["reference_games_verified"] == 3151
     assert scores["provider"] == "ESPN historical score archive (2014-2025)"
