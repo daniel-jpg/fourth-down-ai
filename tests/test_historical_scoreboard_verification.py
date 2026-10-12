@@ -136,6 +136,33 @@ def test_wrong_week_type_or_future_season_fails(change, expected):
         parse_espn_week(bad, 2025, 1)
 
 
+def test_documented_2022_canceled_buf_cin_cannot_be_treated_as_final():
+    raw = {"events": [
+        espn_game(
+            season=2022, week=17, home="CIN", away="BUF",
+            home_score="7", away_score="3", final=False,
+            event_id="401437922",
+        ),
+        espn_game(
+            season=2022, week=17, home="GB", away="MIN",
+            home_score="41", away_score="17", final=True,
+            event_id="401437900",
+        ),
+    ]}
+    raw["events"][0]["status"]["type"]["name"] = "STATUS_CANCELED"
+    parsed = parse_espn_week(raw, 2022, 17)
+    assert len(parsed) == 1
+    assert parsed[0]["home"] == "GB"
+    wrong = deepcopy(raw)
+    wrong["events"][0]["competitions"][0]["competitors"][1]["team"]["abbreviation"] = "KC"
+    with pytest.raises(ValueError, match="not final"):
+        parse_espn_week(wrong, 2022, 17)
+    wrong = deepcopy(raw)
+    wrong["events"][0]["status"]["type"]["name"] = "STATUS_IN_PROGRESS"
+    with pytest.raises(ValueError, match="not final"):
+        parse_espn_week(wrong, 2022, 17)
+
+
 def test_incomplete_unfinished_score_cannot_be_used():
     raw = two_game_payload()
     raw["events"][0]["status"]["type"]["completed"] = False
