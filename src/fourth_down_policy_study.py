@@ -83,6 +83,21 @@ def _validate_manifest(manifest: Mapping[str, Any]) -> str:
     return mode
 
 
+def _optional_bounded_number(value: Any, label: str, *, low: float, high: float) -> float | None:
+    """Validate optional decision-time continuous covariates without coercing flags."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise ValueError(f"{label} must be numeric, not Boolean")
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{label} must be numeric") from exc
+    if not math.isfinite(number) or not low <= number <= high:
+        raise ValueError(f"{label} must be finite and in [{low}, {high}]")
+    return number
+
+
 def _validated_rows(records: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     if not records:
         raise ValueError("At least one record is required")
@@ -126,6 +141,21 @@ def _validated_rows(records: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]
         policy_wp = _probability(r["q_wp_policy"], "q_wp_policy")
         mu = _probability(r["mu_policy"], "mu_policy")
         propensity = _probability(r["propensity_policy"], "propensity_policy")
+        site = r.get("site")
+        if site is not None and site not in ("HOME", "AWAY", "NEUTRAL"):
+            raise ValueError("site must be HOME, AWAY or NEUTRAL")
+        close_call = r.get("close_call")
+        if close_call is not None and type(close_call) is not bool:
+            raise ValueError("close_call must be a pre-snap Boolean")
+        yardline = _optional_bounded_number(
+            r.get("yardline_100"), "yardline_100", low=0.5, high=99.5
+        )
+        togo = _optional_bounded_number(
+            r.get("ydstogo"), "ydstogo", low=0., high=100.
+        )
+        if yardline is not None and togo is not None:
+            if togo > max(1., yardline) + 1e-9:
+                raise ValueError("ydstogo may not cross the opposing end zone")
         validated.append({
             "game_id": game_id,
             "play_id": play_id,
@@ -138,6 +168,10 @@ def _validated_rows(records: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]
             "q_wp_policy": policy_wp,
             "mu_policy": mu,
             "propensity_policy": propensity,
+            "site": site,
+            "close_call": close_call,
+            "yardline_100": yardline,
+            "ydstogo": togo,
             "agree": action == policy,
         })
     return validated
@@ -241,6 +275,74 @@ def _calibration_report(
     }
 
 
+def _prespecified_subgroups(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """Fixed, DESCRIPTIVE breakouts registered before 2027 outcomes exist.
+
+    Missing synthetic-fixture metadata is reported explicitly, never
+    assigned to HOME/away/not-a-close-call by default. No subgroup
+    selection or threshold uses the observed winner.
+    """
+    def summarize(group: Sequence[dict[str, Any]]) -> dict[str, Any]:
+        factual = [
+            row for row in group
+            if row["q_wp_observed"] is not None
+            and row["observed_action"] in row["eligible_actions"]
+        ]
+        return {
+            "decisions": len(group),
+            "distinct_games": len({r["game_id"] for r in group}),
+            "factual_supported_decisions": len(factual),
+            "factual_unsupported_decisions": len(group) - len(factual),
+            "factual_brier": _mean([_brier_record(r) for r in factual]),
+            "mean_factual_predicted_wp": _mean(
+                [r["q_wp_observed"] for r in factual]
+            ),
+            "factual_observed_win_rate": _mean(
+                [r["offense_win"] for r in factual]
+            ),
+        }
+
+    def by_fixed_bucket(bucket, names: tuple[str, ...]) -> dict[str, Any]:
+        return {
+            label: summarize([r for r in rows if bucket(r) == label])
+            for label in names
+        }
+
+    def deep_own_short_bucket(r: dict[str, Any]) -> str:
+        pos = r["yardline_100"]
+        distance = r["ydstogo"]
+        if pos is None or distance is None:
+            return "NOT_RECORDED"
+        return ("OWN_1_TO_10_4TH_2_OR_3"
+                if pos >= 90.0 and 1.5 <= distance <= 3.5 else "OTHER")
+
+    return {
+        "classification": (
+            "Preregistered descriptive summaries only; NOT independently "
+            "validated subgroup improvements or causal policy effects."
+        ),
+        "q4_vs_q1_to_q3": by_fixed_bucket(
+            lambda r: "Q4" if r["quarter"] == 4 else "Q1_TO_Q3",
+            ("Q1_TO_Q3", "Q4"),
+        ),
+        "offense_site": by_fixed_bucket(
+            lambda r: r["site"] if r["site"] is not None else "NOT_RECORDED",
+            ("HOME", "AWAY", "NEUTRAL", "NOT_RECORDED"),
+        ),
+        "close_call": by_fixed_bucket(
+            lambda r: (
+                "YES" if r["close_call"] is True else
+                "NO" if r["close_call"] is False else "NOT_RECORDED"
+            ),
+            ("YES", "NO", "NOT_RECORDED"),
+        ),
+        "deep_own_short_yardage": by_fixed_bucket(
+            deep_own_short_bucket,
+            ("OWN_1_TO_10_4TH_2_OR_3", "OTHER", "NOT_RECORDED"),
+        ),
+    }
+
+
 def _dr_policy_win(row: dict[str, Any]) -> float:
     estimate = row["mu_policy"]
     if row["agree"]:
@@ -320,6 +422,15 @@ def evaluate(
     rows = _validated_rows(records)
     if mode == "prospective" and len({r["game_id"] for r in rows}) < 100:
         raise ValueError("Require >=100 distinct games for a prospective report")
+    if mode == "prospective" and any(
+        row[key] is None
+        for row in rows
+        for key in ("site", "close_call", "yardline_100", "ydstogo")
+    ):
+        raise ValueError(
+            "Prospective study requires complete pre-snap site, "
+            "close_call, yardline_100 and ydstogo subgroup metadata"
+        )
     return {
         "study": "2027_frozen_fourth_down_action_policy_diagnostic",
         "mode": mode,
@@ -336,6 +447,7 @@ def evaluate(
         "observational_one_step_policy_comparison": _policy_report(
             rows, draws=bootstrap_draws, seed=seed,
         ),
+        "prespecified_descriptive_subgroups": _prespecified_subgroups(rows),
         "warning": (
             "Only 2027 completed non-tied REGULATION play outcomes, "
             "with pre-snap features and frozen policy predictions. "
