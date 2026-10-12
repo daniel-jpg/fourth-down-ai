@@ -1715,13 +1715,20 @@ st.markdown(
     "#### Ball Position"
 )
 
-yardline_100 = (
-    draggable_football_field(
+# Keep the interactive field and optional weather visible in the same row.
+# The right-hand container is populated after reading Stadium / roof below,
+# so covered venues do not expose irrelevant outdoor weather inputs.
+ball_position_col, weather_position_col = st.columns([2.15, 1], gap="large")
+
+with ball_position_col:
+    yardline_100 = draggable_football_field(
         ydstogo=ydstogo,
         default=30,
         key="football_field",
     )
-)
+
+with weather_position_col:
+    weather_slot = st.container()
 
 max_yards_to_go = max(
     1.0,
@@ -1776,46 +1783,42 @@ with col5:
     )
 
 
-# Weather is optional, and the separate FG sensitivity has NOT passed
-# out-of-sample validation. No weather inputs enter the official model.
-# Streamlit's value=None leaves these number fields genuinely blank.
+# This content appears in the container beside the ball-position field.
+# Streamlit's blank numeric inputs are truly optional (value=None).
+# Weather never becomes part of the official frozen recommendation.
 weather_inputs = None
-with st.expander("Weather observations (optional)", expanded=False):
+with weather_slot:
+    st.markdown("**Weather (optional)**")
     if roof not in ("outdoors", "open"):
         st.caption(
             "Covered stadium: outdoor temperature and wind do not apply "
             "to this optional comparison. Use the normal recommendation."
         )
     else:
-        st.caption(
-            "Optional: enter observed temperature and wind speed. "
-            "Leave either box empty to skip the experimental field-goal "
-            "comparison. The official recommendation never uses weather."
+        current_temp_f = st.number_input(
+            "Temperature (°F)",
+            min_value=-25,
+            max_value=115,
+            value=None,
+            step=1,
+            placeholder="Leave blank",
+            help=(
+                "Optional outdoor temperature in Fahrenheit, observed "
+                "at the time of the fourth-down decision."
+            ),
         )
-        weather_left, weather_right = st.columns(2)
-        with weather_left:
-            current_temp_f = st.number_input(
-                "Temperature (°F)",
-                min_value=-25,
-                max_value=115,
-                value=None,
-                step=1,
-                placeholder="Optional, e.g. 65",
-                help="Observed outdoor temperature in degrees Fahrenheit.",
-            )
-        with weather_right:
-            current_wind_mph = st.number_input(
-                "Wind speed (mph)",
-                min_value=0,
-                max_value=40,
-                value=None,
-                step=1,
-                placeholder="Optional, e.g. 5",
-                help=(
-                    "Observed outdoor wind speed in miles per hour. "
-                    "Direction is not modeled."
-                ),
-            )
+        current_wind_mph = st.number_input(
+            "Wind speed (mph)",
+            min_value=0,
+            max_value=40,
+            value=None,
+            step=1,
+            placeholder="Leave blank",
+            help=(
+                "Optional outdoor wind speed in mph, observed at the play. "
+                "Wind direction is not modeled."
+            ),
+        )
         if current_temp_f is not None and current_wind_mph is not None:
             weather_inputs = {
                 "roof": roof,
@@ -1833,7 +1836,12 @@ with st.expander("Weather observations (optional)", expanded=False):
                 "Add the other weather value to see the experimental "
                 "field-goal comparison. You can still analyze normally."
             )
-
+        else:
+            st.caption(
+                "Leave either field blank to skip the experimental "
+                "field-goal comparison. The official recommendation "
+                "never uses weather."
+            )
 
 
 second_half_receiver = None
