@@ -237,7 +237,9 @@ def check_baseline_and_weather(frame, page) -> dict:
     print("WEATHER_BASELINE_OFFICIAL", default, flush=True)
 
     click_text(frame, "Weather observations (optional)")
-    click_text(frame, "Enter observed temperature and wind")
+    click_text(frame, "Include temperature")
+    assert frame.get_by_text("Wind speed (mph)", exact=True).count() == 0
+    click_text(frame, "Include wind speed")
     frame.get_by_text("Temperature (°F)", exact=True).wait_for(
         state="visible", timeout=25000
     )
@@ -312,7 +314,8 @@ def check_baseline_and_weather(frame, page) -> dict:
 
     # A pasted unsupported JSON receipt must be rejected and never change
     # the official or experimental outcome. No NOAA network request.
-    click_text(frame, "Review a saved airport weather report (advanced)")
+    click_text(frame, "Advanced reference: stadiums and saved airport data (does not affect predictions)")
+    click_text(frame, "Open saved airport report (JSON required)")
     textarea = frame.get_by_role(
         "textbox", name="METAR research receipt JSON"
     )
@@ -333,7 +336,7 @@ def check_baseline_and_weather(frame, page) -> dict:
     )
     print("WEATHER_INVALID_METAR_REJECTED_NO_POLICY_CHANGE", flush=True)
 
-    click_text(frame, "See stadium locations and field directions")
+    click_text(frame, "Show stadium information (reference only)")
     frame.get_by_text("2026 venue context", exact=True).wait_for(
         state="visible", timeout=50000
     )
@@ -352,9 +355,10 @@ def check_baseline_and_weather(frame, page) -> dict:
     frame.get_by_text(
         "The roof is closed or domed.", exact=False
     ).wait_for(state="visible", timeout=50000)
-    assert frame.get_by_text(
-        "Enter observed temperature and wind", exact=True
-    ).count() == 0, "Dome offered outdoor weather adjustment"
+    for label in ("Include temperature", "Include wind speed"):
+        assert frame.get_by_text(label, exact=True).count() == 0, (
+            "Dome offered outdoor weather adjustment"
+        )
     await_metric_cleared(frame, page, "Weather what-if FG make")
     await_metric_cleared(frame, page, "Recommendation")
     dome = analyze(frame, page, weather=False)
