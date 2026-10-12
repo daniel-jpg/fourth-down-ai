@@ -23,6 +23,14 @@ The new [shadow intake](../src/shadow_historical_data_refresh.py) reuses that hi
 
 No training, calibration retuning, model selection, scoring of 2026/2027 heldout data, or deployment occurs. New development candidates will receive their own artifacts, evaluation metrics, and approval process rather than changing original frozen assets.
 
+## Verified complete historical staging result
+
+The [passing full staging run](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38277133358) confirms that the source contains **50,095** fourth-down candidates in total: **47,942** regular-season and **2,153** postseason/other candidates. The independent ESPN final-score audit's 47,942 denominator applies to **regular-season games only**, not the entire original labeled file.
+
+The historical normal-action extractor includes **44,507** usable decisions and records **5,588** exclusions (including 2,153 non-REG rows). Its explicit development memberships are **32,961** decisions from 2014–2022, **7,794** from 2023–2024, and **3,752** previously inspected 2025 decisions. The focused source/feature/split tests all passed, the five staged tables' SHA-256 digests matched their manifest, and no tracked frozen model or training data were changed.
+
+The test has **not** produced a new learned model, processed 2026/2027 NFL plays, or assigned prospective meaning to backfilled historical features.
+
 ## What the pipeline produces
 
 Running the module on an already checked-out historical repository produces one isolated untracked directory:
