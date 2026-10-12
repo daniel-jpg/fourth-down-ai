@@ -32,8 +32,8 @@ def fabricated(**overrides):
     row = {
         "game_id": "synthetic_2027_08_ABC_DEF",
         "play_id": "3210",
-        "season": 2027, "week": 8, "quarter": 4, "down": 4,
-        "game_seconds_remaining": 299.,
+        "season": 2027, "week": 8, "quarter": 1, "down": 4,
+        "game_seconds_remaining": 3100.,
         "yardline_100": 6., "ydstogo": 4., "goal_to_go": 0.,
         "score_differential": -4.,
         "posteam_timeouts_remaining": 3,
@@ -68,7 +68,7 @@ class SyntheticEngine:
         return True, ""
 
     def recommend(self, state, n_simulations, seed):
-        assert seed == RANDOM_SEED
+        assert seed in (RANDOM_SEED, 43)
         assert 2 <= n_simulations <= 4000
         # Every stub result is computed from pre-snap inputs ONLY.
         weights = {
@@ -275,6 +275,7 @@ def test_real_pinned_engine_smoke_q4_site_and_q2_halftime(snapshot):
     examples = [
         fabricated(
             game_id="synthetic_2027_q4_backed_up",
+            quarter=4, game_seconds_remaining=299.,
             score_differential=-4, yardline_100=6.,
             ydstogo=4., goal_to_go=0., roof="outdoors",
         ),
@@ -292,12 +293,33 @@ def test_real_pinned_engine_smoke_q4_site_and_q2_halftime(snapshot):
         ),
     ]
     for sample in examples:
+        n = 200 if sample["quarter"] == 4 else 32
         result = build_synthetic_policy_forecast(
             MANIFEST, sample, engine=engine, nuisance_snapshot=snapshot,
-            n_simulations=32,
+            n_simulations=n,
         )
-        # Deterministic replay of the real pinned engine, exact seed.
-        actual = engine.recommend(engine_state(sample), n_simulations=32, seed=42)
+        # Re-run EXACT registered Q4-native / Q1-3-adaptive branch with the
+        # same frozen seed and actual budget, not an unpatched Q4 engine.
+        if sample["quarter"] == 4:
+            from src.streamlit_kickoff_preview import (
+                isolated_engine_from_loaded_engine,
+                preview_native_kickoff_feature_candidate,
+            )
+            private = isolated_engine_from_loaded_engine(engine)
+            actual = preview_native_kickoff_feature_candidate(
+                engine_state(sample), simulations=n, action_seed=43,
+                isolated_engine=private,
+            )
+            assert result["audit"]["kickoff_input_mode"] == "Q4_NATIVE_STANDARD_35"
+            assert result["audit"]["seed"] == 43
+        else:
+            meta = result["audit"]
+            actual = engine.recommend(
+                engine_state(sample),
+                n_simulations=meta["simulation_count"], seed=meta["seed"],
+            )
+            assert meta["kickoff_input_mode"] == "NO_Q4_KICKOFF_PATCH"
+            assert meta["pilot_simulations"] == 32
         computed = actual["results"]
         eligible = computed.loc[
             computed["eligible"] & computed["action"].isin(ACTIONS)
@@ -309,6 +331,17 @@ def test_real_pinned_engine_smoke_q4_site_and_q2_halftime(snapshot):
         assert result["pre_snap"]["policy_action"] in eligible
         assert result["audit"]["engine_blob_sha1"] == PINNED_ENGINE_BLOB
         assert result["audit"]["full_precision"] is False
+
+
+
+
+def test_q4_cannot_silently_fall_back_to_unpatched_low_budget(snapshot):
+    q4 = fabricated(quarter=4, game_seconds_remaining=299.)
+    with pytest.raises(ValueError, match="Q4 native kickoff patch"):
+        build_synthetic_policy_forecast(
+            MANIFEST, q4, engine=SyntheticEngine(),
+            nuisance_snapshot=snapshot, n_simulations=32,
+        )
 
 
 def test_bridge_never_downloads_or_reads_future_outcomes():
