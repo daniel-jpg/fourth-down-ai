@@ -1,0 +1,77 @@
+name: Portable Docker Streamlit Q4 HOME browser QA
+
+# Optional fallback proof only; never publishes images or migrates users.
+on:
+  push:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - app.py
+      - requirements.txt
+      - src/**
+      - scripts/qa_local_streamlit_home_browser.py
+      - .github/workflows/portable_docker_streamlit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  portable-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build production runtime without publishing
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          load: true
+          tags: fourth-down-ai:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Start container under explicit CPU and memory limits
+        run: |
+          docker run --detach --name fourth-down-ai-smoke \
+            --memory=1g --cpus=2 \
+            --publish 127.0.0.1:8531:8501 \
+            --env PORT=8501 \
+            fourth-down-ai:ci
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Chromium driver
+        run: |
+          python -m pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+
+      - name: Exercise Docker app using the same Q4 HOME browser test
+        env:
+          FOURTH_DOWN_SMOKE_BASE_URL: http://127.0.0.1:8531
+        run: |
+          PYTHONPATH=. python scripts/qa_local_streamlit_home_browser.py
+
+      - name: Collect container status and sanitized tail
+        if: always()
+        run: |
+          docker logs --tail 100 fourth-down-ai-smoke || true
+          docker inspect --format '{{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' \
+            fourth-down-ai-smoke || true
+          docker rm --force fourth-down-ai-smoke || true
+
+      - name: Retain Chromium screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portable-docker-q4-home
+          path: local-streamlit-q4-home.png
+          if-no-files-found: ignore
+          retention-days: 7

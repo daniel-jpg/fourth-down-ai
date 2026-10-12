@@ -20,15 +20,19 @@ from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
 PORT = 8531
-BASE_URL = f"http://127.0.0.1:{PORT}"
+# CI may reuse the same browser assertions against an already-running
+# Streamlit process inside a portable Docker container.
+BASE_URL = os.environ.get(
+    "FOURTH_DOWN_SMOKE_BASE_URL", f"http://127.0.0.1:{PORT}"
+).rstrip("/")
 HEALTH_URL = f"{BASE_URL}/_stcore/health"
 SCREENSHOT = ROOT / "local-streamlit-q4-home.png"
 
 
-def wait_for_server(process: subprocess.Popen, seconds: int = 60) -> None:
+def wait_for_server(process: subprocess.Popen | None, seconds: int = 90) -> None:
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
-        if process.poll() is not None:
+        if process is not None and process.poll() is not None:
             raise RuntimeError(f"Streamlit server exited with {process.returncode}")
         try:
             with urllib.request.urlopen(HEALTH_URL, timeout=2) as response:
@@ -138,6 +142,12 @@ def run_browser() -> None:
 
 
 def main() -> None:
+    if os.environ.get("FOURTH_DOWN_SMOKE_BASE_URL"):
+        wait_for_server(None, seconds=120)
+        print("EXTERNAL_STREAMLIT_SERVER_READY", BASE_URL, flush=True)
+        run_browser()
+        return
+
     with tempfile.TemporaryDirectory(prefix="fourth-down-local-smoke-") as tmp:
         log_path = Path(tmp) / "streamlit.log"
         with log_path.open("w", encoding="utf-8") as logfile:
