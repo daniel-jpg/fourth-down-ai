@@ -1,0 +1,51 @@
+name: Real local Streamlit Q4 HOME browser QA
+
+# Distinguish an actual Streamlit browser/control failure from Community Cloud
+# platform startup, provisioning or connection instability.
+on:
+  push:
+    branches: [main]
+    paths:
+      - app.py
+      - requirements.txt
+      - src/streamlit_kickoff_preview.py
+      - src/42_build_decision_engine.py
+      - scripts/qa_local_streamlit_home_browser.py
+      - .github/workflows/local_streamlit_home_browser.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check out the tested source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install locked app dependencies and browser QA
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+
+      - name: Exercise local Streamlit HOME radio and Q4 decision
+        run: |
+          PYTHONPATH=. python scripts/qa_local_streamlit_home_browser.py
+
+      - name: Save local browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-streamlit-q4-home-browser
+          path: local-streamlit-q4-home.png
+          if-no-files-found: ignore
+          retention-days: 7
