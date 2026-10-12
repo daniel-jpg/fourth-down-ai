@@ -153,6 +153,34 @@ and no-retry guards for blocked or empty responses. The live trial used
 so it certifies API compatibility—not an actual NFL stadium or validated
 on-field weather. [See exact timing and evidence limits](reports/weather_decision_time_noaa_metar_evidence.md).
 
+### 2026 NFL stadium compass lookup (research only)
+
+The optional weather panel can now show **2026 stadium geometry by physical
+venue**, from a pinned community Google-Earth geographic reference:
+**32 team entries, 31 usable approximate stadium coordinates and unoriented
+field axes**. The new 2026 Buffalo stadium is deliberately unmapped because
+the older source still identifies the retired building; the 2026 Tennessee
+location is not assumed valid for its planned 2027 replacement stadium.
+[Full source provenance and venue-year caveats](reports/2026_nfl_stadium_weather_geometry.md).
+
+To use the lookup, enable **Enter observed temperature and wind**, then
+**Show 2026 stadium compass lookup (research only)**. Choose the actual
+game venue and independently check whether the offense is attacking
+toward approximate compass bearing **A** or **B** (180 degrees apart).
+Never infer orientation from the quarter, field position, left/right
+field graphic or home/away classification. The app provides a copyable
+[one-shot venue-to-NOAA collector command](scripts/capture_nfl_venue_awc_context.py);
+it makes **no automatic NOAA request** and no changes to official action
+probabilities. Venue estimates and actual roof/attack direction remain
+**unverified**, even for real NOAA airport weather.
+
+The [stadium geometry tests](tests/test_nfl_stadium_weather_geometry.py)
+and [dedicated synthetic 2026 GitHub workflow](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38293909282)
+passed **87 checks**, including a fake Seattle venue to nearby airport
+wind-vector receipt, a blocked second receipt write and model-input
+isolation. Protected model artifacts and future-season evaluation gates
+are untouched.
+
 ## Overtime Support
 
 The engine supports both **regular-season** and **postseason** overtime.
