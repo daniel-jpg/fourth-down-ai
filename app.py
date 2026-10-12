@@ -2247,6 +2247,15 @@ if situation_valid:
                 "Kickoff sensitivity check unavailable; compare "
                 "the estimated action edge with extra caution."
             )
+        from src.situational_support import late_q4_goal_line_site_notice
+        eligible_strategy_names = {best["strategy"]}
+        if second is not None:
+            eligible_strategy_names.add(second["strategy"])
+        site_reliability_notice = late_q4_goal_line_site_notice(
+            state, eligible_strategy_names,
+        )
+        if site_reliability_notice:
+            st.caption(site_reliability_notice)
 
     # =====================================================
     # GO play call
