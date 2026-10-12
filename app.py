@@ -2266,6 +2266,8 @@ if situation_valid:
         == "GO FOR IT"
         and
         len(go) >= 2
+        and
+        not go_support_notice
     ):
 
         pass_row = go[
