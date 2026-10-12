@@ -7,6 +7,9 @@ on:
     branches: [main]
     paths:
       - "src/historical_scoreboard_verification.py"
+      - "src/independent_espn_margin_archive.py"
+      - "data/independent_espn_2014_2025_margin_archive.json"
+      - "tests/test_independent_espn_margin_archive.py"
       - "tests/test_historical_scoreboard_verification.py"
       - "scripts/audit_independent_espn_historical_scores.py"
       - ".github/workflows/independent_espn_historical_score_audit.yml"
@@ -31,7 +34,10 @@ jobs:
           python -m pip install -r requirements-dev.txt
       - name: Synthetic ESPN payload and PBP mismatch fail-closed tests
         run: |
-          PYTHONPATH=. python -m pytest -v tests/test_historical_scoreboard_verification.py
+          PYTHONPATH=. python -m pytest -v tests/test_historical_scoreboard_verification.py tests/test_independent_espn_margin_archive.py
+      - name: Replay entire 3151-game ESPN archive offline, no source requests
+        run: |
+          PYTHONPATH=. python -m src.independent_espn_margin_archive
       - name: Cross-check ALL 2014-2025 REG final game margins against ESPN
         run: |
           set -o pipefail
