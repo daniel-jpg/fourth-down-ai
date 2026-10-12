@@ -132,7 +132,7 @@ def test_missing_context_stays_missing_without_posthoc_kickoff_or_roof_default()
     assert q2["model_context_gaps"] == (
         "ROOF_UNAVAILABLE_OR_NOT_REVIEWED;Q2_SECOND_HALF_RECEIVER_UNAVAILABLE"
     )
-    assert q2["roof"] is None
+    assert pd.isna(q2["roof"])
     assert obj["audit"]["missing_model_context_counts"] == {
         "Q2_SECOND_HALF_RECEIVER_UNAVAILABLE": 1,
         "ROOF_UNAVAILABLE_OR_NOT_REVIEWED": 1,
