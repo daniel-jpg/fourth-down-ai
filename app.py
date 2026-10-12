@@ -392,7 +392,10 @@ export default function(component) {
         );
 
 
-    const render = () => {
+    // A draft edit can preview field position without resetting the text box.
+    let committedYardline = yardline;
+
+    const render = (syncInput = true) => {
 
         const firstDownYardline =
             Math.max(
@@ -446,8 +449,10 @@ export default function(component) {
         firstDown.style.left =
             `${firstDownYardline}%`;
 
-        losInput.value =
-            yardline;
+        if (syncInput) {
+            losInput.value =
+                String(yardline);
+        }
 
         ball.setAttribute(
             "aria-valuenow",
@@ -484,15 +489,25 @@ export default function(component) {
         newYardline
     ) => {
 
+        // Number("") is zero. An empty/non-numeric input must never
+        // silently become yardline_100=1 in the saved game state.
+        const numeric = Number(newYardline);
+        if (
+            (typeof newYardline === "string" && newYardline.trim() === "")
+            ||
+            !Number.isFinite(numeric)
+        ) {
+            yardline = committedYardline;
+            render();
+            return;
+        }
+
         yardline = clamp(
-            Math.round(
-                Number(
-                    newYardline
-                )
-            ),
+            Math.round(numeric),
             1,
             99
         );
+        committedYardline = yardline;
 
         render();
 
@@ -600,6 +615,10 @@ export default function(component) {
         ball.classList.remove(
             "dragging"
         );
+
+        // Canceled drags do not update Streamlit; restore the marker.
+        yardline = committedYardline;
+        render();
     };
 
 
@@ -623,27 +642,25 @@ export default function(component) {
 
     losInput.oninput = () => {
 
-        const value =
-            Number(
-                losInput.value
-            );
+        const raw = losInput.value;
+        const value = Number(raw);
 
+        // Leave blank, partial, or invalid drafts editable.
+        // Do not write a clamped number back during each keystroke.
         if (
-            Number.isFinite(
-                value
-            )
+            raw.trim() === ""
+            ||
+            !Number.isInteger(value)
+            ||
+            value < 1
+            ||
+            value > 99
         ) {
-
-            yardline = clamp(
-                Math.round(
-                    value
-                ),
-                1,
-                99
-            );
-
-            render();
+            return;
         }
+
+        yardline = value;
+        render(false);
     };
 
 
