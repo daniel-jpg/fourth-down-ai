@@ -850,6 +850,8 @@ def test_stale_buf_venue_never_exposes_retired_stadium_coordinates(ui):
     run(ui.at)
     assert "Buffalo moved" in values(ui.at, "warning")
     assert "retired stadium" in values(ui.at, "warning")
+    assert "42.77304" in values(ui.at, "caption")
+    assert "-78.79219" in values(ui.at, "caption")
     assert "Offense's verified attacking end (research only)" not in [
         x.label for x in ui.at.selectbox
     ]
@@ -858,3 +860,46 @@ def test_stale_buf_venue_never_exposes_retired_stadium_coordinates(ui):
     for state, _, _ in ui.engine.calls:
         assert "venue_team" not in state
         assert "field_lat" not in state
+
+
+
+def test_nine_official_2026_international_fixtures_never_use_us_home_axes(ui):
+    widget(
+        ui.at, "checkbox", "Enter observed temperature and wind",
+    ).set_value(True)
+    run(ui.at)
+    widget(
+        ui.at, "checkbox",
+        "Show 2026 stadium compass lookup (research only)",
+    ).set_value(True)
+    run(ui.at)
+    widget(
+        ui.at, "radio", "2026 venue context",
+    ).set_value("Official 2026 international game")
+    run(ui.at)
+    assert "2026 venue to inspect" not in [x.label for x in ui.at.selectbox]
+    assert "Offense's verified attacking end (research only)" not in [
+        x.label for x in ui.at.selectbox
+    ]
+    widget(
+        ui.at, "selectbox", "2026 NFL international fixture",
+    ).set_value(0)
+    run(ui.at)
+    assert "Melbourne Cricket Ground" in values(ui.at, "warning")
+    assert "Do NOT use" in values(ui.at, "warning")
+    assert "NOT verified" in values(ui.at, "caption")
+    analyze(ui.at)
+    assert metrics(ui.at)["Recommendation"] == "GO FOR IT"
+    assert all(
+        "international" not in state and "stadium_id" not in state
+        and "offense_attack_heading_true_deg_approx" not in state
+        for state, _, _ in ui.engine.calls
+    )
+    widget(
+        ui.at, "selectbox", "2026 NFL international fixture",
+    ).set_value(4)
+    run(ui.at)
+    assert "Wembley Stadium" in values(ui.at, "warning")
+    assert "domestic" not in values(ui.at, "caption").lower() or (
+        "domestic-venue command rejects" in values(ui.at, "caption")
+    )
