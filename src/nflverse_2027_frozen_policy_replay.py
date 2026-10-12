@@ -155,6 +155,7 @@ def replay_fabricated_nflverse_through_frozen_policy(
         ready.append(snapshot)
     if ready and n_simulations < 200 and any(s["quarter"] == 4 for s in ready):
         raise ValueError("Q4 native kickoff policy requires >=200 synthetic trials")
+    using_registered_engine = engine is None
     if ready:
         # The snapshot has been validated before any heavy model operation.
         if nuisance_snapshot is None:
@@ -203,9 +204,9 @@ def replay_fabricated_nflverse_through_frozen_policy(
             "reconstruction_asof": FAKE_ASOF,
             "real_2027_holdout_gate": FINAL_2027_GATE_STATUS,
             "engine_used": (
-                "PINNED_REGISTERED_ENGINE" if not predictions or
-                not replay_audit or engine is None
-                else "FABRICATED_ONLY_ENGINE_REPLAY"
+                "NOT_RUN" if not predictions else
+                "PINNED_REGISTERED_ENGINE" if using_registered_engine else
+                "TEST_INJECTED_SYNTHETIC_ENGINE"
             ),
             "policy_engine_blob_sha1": PINNED_ENGINE_BLOB,
             "full_precision_requested": n_simulations == APP_HIGH_SIMULATIONS,
