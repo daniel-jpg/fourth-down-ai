@@ -37,8 +37,10 @@ from src.fourth_down_cohort_builder import (
 )
 from src.fourth_down_policy_study import POLICY_COMMIT
 from src.frozen_2027_policy_bridge import (
-    SNAPSHOT_KEYS, validate_synthetic_snapshot,
+    SNAPSHOT_KEYS, PINNED_ENGINE_BLOB, REGISTERED_APP_BLOB,
+    validate_synthetic_snapshot,
 )
+from src.historical_nuisance_portable import EXPECTED_STATUS
 
 VERSION = 1
 MANIFEST = {
@@ -68,6 +70,17 @@ EVENT_KEYS = frozenset({
 BUNDLE_KEYS = frozenset({
     "manifest", "snapshot", "source_events", "forecast",
     "captured_at_utc", "forecast_issued_at_utc",
+})
+# No outcome/action field can hide inside seemingly harmless audit
+# metadata. Keep in lockstep with build_synthetic_policy_forecast.
+FORECAST_AUDIT_KEYS = frozenset({
+    "source", "frozen_policy_commit", "engine_blob_sha1",
+    "historical_nuisance", "simulation_count", "seed",
+    "full_precision", "registered_app_blob", "kickoff_input_mode",
+    "adaptive_escalated", "pilot_action_gap_z", "pilot_simulations",
+    "default_kicker_context", "site", "goal_to_go", "roof",
+    "second_half_receiver", "close_call_rule",
+    "observed_action_access", "outcome_access", "prospectively_validated",
 })
 COLLECTOR_KEYS = frozenset({"bundle", "collector_receipt"})
 FINAL_KEYS = frozenset({"bundle", "collector_receipt", "witness_receipt"})
@@ -277,15 +290,33 @@ def validate_source_bundle(bundle: Any) -> dict:
         if presnap[k] != raw[k]:
             raise ValueError(f"Frozen forecast input diverges from provider state: {k}")
     audit = prediction["audit"]
-    if (not isinstance(audit, dict)
-            or audit.get("source") != "SYNTHETIC ONLY; NO REAL FUTURE OUTCOMES"
-            or audit.get("prospectively_validated") is not False
-            or audit.get("observed_action_access") is not False
-            or audit.get("outcome_access") is not False
-            or audit.get("frozen_policy_commit") != POLICY_COMMIT
-            or audit.get("roof") != raw["roof"]
-            or audit.get("second_half_receiver") != raw["second_half_receiver"]
-            or audit.get("site") != raw["site"]):
+    _exact(audit, FORECAST_AUDIT_KEYS, "frozen policy audit metadata")
+    if (audit["source"] != "SYNTHETIC ONLY; NO REAL FUTURE OUTCOMES"
+            or audit["prospectively_validated"] is not False
+            or audit["observed_action_access"] is not False
+            or audit["outcome_access"] is not False
+            or audit["frozen_policy_commit"] != POLICY_COMMIT
+            or audit["historical_nuisance"] != EXPECTED_STATUS
+            or audit["engine_blob_sha1"] != PINNED_ENGINE_BLOB
+            or audit["registered_app_blob"] != REGISTERED_APP_BLOB
+            or audit["default_kicker_context"] !=
+               "PINNED ENGINE MODEL PRIOR, NO INDIVIDUAL KICKER DATA"
+            or audit["roof"] != raw["roof"]
+            or audit["goal_to_go"] != raw["goal_to_go"]
+            or audit["second_half_receiver"] != raw["second_half_receiver"]
+            or audit["site"] != raw["site"]
+            or type(audit["full_precision"]) is not bool
+            or type(audit["adaptive_escalated"]) is not bool
+            or type(audit["simulation_count"]) is not int
+            or not 2 <= audit["simulation_count"] <= 1200
+            or type(audit["seed"]) is not int
+            or audit["seed"] not in (42,43)
+            or type(audit["pilot_simulations"]) is not int
+            or not 0 <= audit["pilot_simulations"] <= 300
+            or audit["kickoff_input_mode"] != (
+                "Q4_NATIVE_STANDARD_35" if raw["quarter"] == 4
+                else "NO_Q4_KICKOFF_PATCH"
+            )):
         raise ValueError("Forecast evidence has unsafe mode or mismatched provenance")
     from src.fourth_down_cohort_builder import _validate_prespnap
     _validate_prespnap(presnap)
