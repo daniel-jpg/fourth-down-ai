@@ -106,24 +106,35 @@ def analyze_branches(engine, case_name: str, s: dict, simulations: int=1200) -> 
     original_recommend=engine["recommend"]
     original_wp=engine["predict_original_team_wp"]
     captures = []
+    in_evaluator = [False]
+    # Try resolution may recursively evaluate touchdown continuation.
+    # Only count the top-level n simulated outcomes, not nested Trys.
     # Wrap private evaluator WITHOUT mutating original globals.
     def inspect(base, states):
         transformed = [
             native_q4_normal_kickoff(x) if int(base["qtr"]) == 4 else x
             for x in states
         ]
-        wps=original_eval(base,transformed)
-        assert len(wps) == len(states)
-        for row, wp in zip(transformed,wps):
-            captures.append({
-                "possession_original":bool(row["_possession_original"]),
-                "score_change":float(row["_score_change_original"]),
-                "wp":float(wp),
-                "yardline":float(row["yardline_100"]),
-                "down":float(row["down"]),
-                "is_kickoff":bool(row["is_kickoff"]),
-            })
-        return wps
+        outer = not in_evaluator[0]
+        if outer:
+            in_evaluator[0] = True
+        try:
+            wps = original_eval(base, transformed)
+            assert len(wps) == len(states)
+            if outer:
+                for row, wp in zip(transformed,wps):
+                    captures.append({
+                        "possession_original":bool(row["_possession_original"]),
+                        "score_change":float(row["_score_change_original"]),
+                        "wp":float(wp),
+                        "yardline":float(row["yardline_100"]),
+                        "down":float(row["down"]),
+                        "is_kickoff":bool(row["is_kickoff"]),
+                    })
+            return wps
+        finally:
+            if outer:
+                in_evaluator[0] = False
     private["evaluate_post_play_states"]=inspect
     def sim(action: str):
         captures.clear()

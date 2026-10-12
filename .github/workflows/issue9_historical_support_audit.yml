@@ -33,6 +33,7 @@ jobs:
 
       - name: Audit development support and action branches
         run: |
+          set -o pipefail
           PYTHONPATH=. python scripts/audit_issue9_support_and_branches.py | tee issue9-audit.txt
 
       - name: Preserve historical audit outputs
