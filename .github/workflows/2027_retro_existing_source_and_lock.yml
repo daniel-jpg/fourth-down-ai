@@ -10,8 +10,13 @@ on:
       - src/nflverse_espn_historical_collection.py
       - scripts/collect_nflverse_espn_2025.py
       - src/repository_once_claim.py
+      - src/postseason_2027_once_only.py
+      - src/github_2027_tag_ruleset_readiness.py
+      - scripts/audit_2027_tag_rulesets.py
+      - reports/2027_tag_protection_ruleset_proposal.json
       - tests/test_nflverse_espn_historical_collection.py
       - tests/test_repository_once_claim.py
+      - tests/test_github_2027_tag_ruleset_readiness.py
       - .github/workflows/2027_retro_existing_source_and_lock.yml
   workflow_dispatch:
 
@@ -36,7 +41,28 @@ jobs:
         run: |
           PYTHONPATH=. python -m pytest -q \
             tests/test_nflverse_espn_historical_collection.py \
-            tests/test_repository_once_claim.py
+            tests/test_repository_once_claim.py \
+            tests/test_github_2027_tag_ruleset_readiness.py
+      - name: Validate tag protection proposal without installing it
+        run: |
+          mkdir -p artifacts
+          PYTHONPATH=. python -m scripts.audit_2027_tag_rulesets \
+            --proposed-only --report-out artifacts/2027_tag_proposal_only.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          proposal=json.loads(Path("artifacts/2027_tag_proposal_only.json").read_text())
+          committed=json.loads(Path("reports/2027_tag_protection_ruleset_proposal.json").read_text())
+          assert proposal["purpose"] == "PROPOSAL_ONLY_NOT_INSTALLED"
+          assert proposal["ruleset"] == committed
+          assert committed["conditions"]["ref_name"]["include"] == [
+              "refs/tags/fourth-down-ai/2027-postseason-once"
+          ]
+          assert set(r["type"] for r in committed["rules"]) == {"update", "deletion"}
+          assert committed["bypass_actors"] == []
+          assert proposal["real_2027_holdout_evaluation_authorized"] is False
+          print("PASS: ruleset proposal checked; NO real GitHub ruleset installed")
+          PY
       - name: Produce one genuine historical 2025 source evidence packet
         run: |
           mkdir -p artifacts
@@ -71,6 +97,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: existing-nflverse-espn-2025-offline-evidence
-          path: artifacts/nflverse_espn_verified_2025.json
+          path: |
+            artifacts/nflverse_espn_verified_2025.json
+            artifacts/2027_tag_proposal_only.json
           if-no-files-found: ignore
           retention-days: 21
