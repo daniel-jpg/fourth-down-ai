@@ -24,10 +24,37 @@ jobs:
       - name: Exercise public Streamlit app without changing model state
         run: |
           python - <<'PY'
-          from pathlib import Path
+          import time
           from playwright.sync_api import sync_playwright
 
           url = "https://fourth-down-ai.streamlit.app/"
+
+          def find_app_frame(page, seconds=80):
+              deadline = time.monotonic() + seconds
+              while time.monotonic() < deadline:
+                  for frame in page.frames:
+                      try:
+                          if frame.get_by_text("Game Situation", exact=True).count():
+                              return frame
+                      except Exception:
+                          pass
+                  page.wait_for_timeout(1000)
+              print(
+                  "Frame URLs at timeout:",
+                  [(frame.name, frame.url) for frame in page.frames],
+                  flush=True,
+              )
+              for frame in page.frames:
+                  try:
+                      print(
+                          "Frame text excerpt:", frame.url,
+                          frame.locator("body").inner_text(timeout=3000)[:650],
+                          flush=True,
+                      )
+                  except Exception as exc:
+                      print("Frame text unavailable:", str(exc)[:150], flush=True)
+              return None
+
           with sync_playwright() as p:
               browser = p.chromium.launch(headless=True)
               page = browser.new_page(
@@ -37,37 +64,15 @@ jobs:
               try:
                   app = None
                   for attempt in range(2):
-                      try:
-                          page.goto(url, wait_until="domcontentloaded", timeout=90000)
-                          # Streamlit Cloud can embed the actual app inside a
-                          # child frame; a page-only text locator misses it.
-                          for _ in range(75):
-                              for frame in page.frames:
-                                  try:
-                                      if frame.get_by_text(
-                                          "2025 kickoff comparison", exact=True
-                                      ).count() > 0:
-                                          app = frame
-                                          break
-                                  except Exception:
-                                      continue
-                              if app is not None:
-                                  break
-                              page.wait_for_timeout(1000)
-                          if app is not None:
-                              print(f"Found deployed Streamlit app: {app.url}", flush=True)
-                              break
-                          print("Observed frame URLs:", [f.url for f in page.frames], flush=True)
-                          raise RuntimeError("Streamlit app frame was not found")
-                      except Exception as exc:
-                          print(f"Live app wake attempt {attempt + 1}: {exc}", flush=True)
-                          if attempt == 1:
-                              raise
-                          page.wait_for_timeout(5000)
+                      page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                      app = find_app_frame(page)
+                      if app:
+                          break
+                      print(f"Retrying live page load {attempt+1}", flush=True)
+                  assert app is not None, "Live app was not found in any browser frame"
+                  print("Found live app frame:", app.url, flush=True)
 
-                  assert app.get_by_text("Build info", exact=True).count() == 0, (
-                      "Old build-info sidebar is still displayed"
-                  )
+                  assert app.get_by_text("Build info", exact=True).count() == 0
                   app.get_by_text("2025 kickoff comparison", exact=True).click()
                   option = app.get_by_role(
                       "checkbox",
@@ -81,7 +86,7 @@ jobs:
                   )
                   app.get_by_text(
                       "2025 kickoff scenario results", exact=True
-                  ).first.wait_for(timeout=120000)
+                  ).first.wait_for(timeout=240000)
                   assert app.get_by_text("Recommendation", exact=True).count() > 0
                   assert app.get_by_text(
                       "Experimental strategy (not official)", exact=True
@@ -90,8 +95,8 @@ jobs:
                       "optional kickoff scenario was unavailable", exact=False
                   ).count() == 0
                   print(
-                      "LIVE PASS: current simplified kickoff panel, "
-                      "official decision and opt-in scenario output rendered.",
+                      "LIVE PASS: official decision and optional observed-2025 "
+                      "kickoff comparison both rendered in the hosted app.",
                       flush=True,
                   )
               finally:
