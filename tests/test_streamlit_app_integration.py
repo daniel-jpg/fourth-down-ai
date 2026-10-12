@@ -665,11 +665,41 @@ def test_real_frozen_engine_loads_and_renders_without_live_data(monkeypatch, qua
         st.cache_resource.clear()
 
 
-def test_weather_is_optional_separate_from_frozen_official_recommendation(ui, monkeypatch):
-    from src import weather_fg_sensitivity as weather
+def test_weather_fields_are_empty_by_default_and_can_be_entered_directly(ui):
+    """One weather field alone is allowed and never invents the other."""
+    at = ui.at
+    temperature = widget(at, "number_input", "Temperature (°F)")
+    wind = widget(at, "number_input", "Wind speed (mph)")
+    assert temperature.value is None
+    assert wind.value is None
 
-    # No extra weather compute or network access until explicitly entered.
-    assert not values(ui.at, "metric").count("Weather what-if FG make")
+    # The entire normal form is available with no weather inputs.
+    analyze(at)
+    assert metrics(at)["Recommendation"] == "GO FOR IT"
+    assert "Weather what-if FG make" not in metrics(at)
+
+    temperature.set_value(32)
+    run(at)
+    assert widget(at, "number_input", "Temperature (°F)").value == 32
+    assert widget(at, "number_input", "Wind speed (mph)").value is None
+    assert "Add the other weather value" in values(at, "caption")
+    analyze(at)
+    assert "Weather what-if FG make" not in metrics(at)
+
+    # Clearing temperature and entering wind alone also works.
+    widget(at, "number_input", "Temperature (°F)").set_value(None)
+    run(at)
+    widget(at, "number_input", "Wind speed (mph)").set_value(25)
+    run(at)
+    assert widget(at, "number_input", "Temperature (°F)").value is None
+    assert widget(at, "number_input", "Wind speed (mph)").value == 25
+    assert "Add the other weather value" in values(at, "caption")
+    analyze(at)
+    assert "Weather what-if FG make" not in metrics(at)
+
+
+def test_weather_comparison_is_opt_in_and_keeps_official_result(ui, monkeypatch):
+    from src import weather_fg_sensitivity as weather
     mock_weather = Mock(return_value={
         "applicable": True,
         "original_made_probability": .72,
@@ -678,373 +708,96 @@ def test_weather_is_optional_separate_from_frozen_official_recommendation(ui, mo
         "weather_modeled_top_action": "NORMAL_GO_PASS",
     })
     monkeypatch.setattr(weather, "compare_weather_scenario", mock_weather)
-    widget(
-        ui.at, "checkbox", "Include temperature"
-    ).set_value(True)
-    run(ui.at)
-    widget(ui.at, "checkbox", "Include wind speed").set_value(True)
-    run(ui.at)
-    widget(ui.at, "number_input", "Temperature (°F)").set_value(32)
-    run(ui.at)
-    widget(ui.at, "number_input", "Wind speed (mph)").set_value(24)
-    run(ui.at)
-    widget(ui.at, "selectbox", "Weather conditions").set_value("Snow")
-    run(ui.at)
-    widget(
-        ui.at, "selectbox", "Wind direction relative to offense"
-    ).set_value("Headwind")
-    run(ui.at)
-    analyze(ui.at)
+    at = ui.at
+    widget(at, "number_input", "Temperature (°F)").set_value(32)
+    run(at)
+    widget(at, "number_input", "Wind speed (mph)").set_value(24)
+    run(at)
+    analyze(at)
 
-    observed = metrics(ui.at)
+    observed = metrics(at)
     assert observed["Recommendation"] == "GO FOR IT"
     assert observed["Frozen-model FG make estimate"] == "72.0%"
     assert observed["Weather what-if FG make"] == "68.0%"
     assert observed["Weather what-if FG win probability"] == "34.0%"
     mock_weather.assert_called_once()
-    scenario = mock_weather.call_args.kwargs["weather"]
-    assert scenario == {
+    assert mock_weather.call_args.kwargs["weather"] == {
         "roof": "outdoors", "temperature_f": 32,
-        "wind_mph": 24, "conditions": "Snow",
-        "wind_relative_direction": "Headwind",
+        "wind_mph": 24, "conditions": "Unknown",
     }
     assert all("temperature_f" not in state and "wind_mph" not in state
                for state, _, _ in ui.engine.calls)
-    assert "not improve held-out Brier" in values(ui.at, "warning")
-    assert "no unvalidated rain/snow/fog" not in values(ui.at, "warning")
+    assert "not improve held-out Brier" in values(at, "warning")
+    assert "Only these two measurements affect" in values(at, "caption")
 
-    # Streamlit rerenders preserve the tested context and cannot recompute
-    # the more expensive isolated weather scenario from an ordinary rerun.
-    run(ui.at)
+    run(at)
     mock_weather.assert_called_once()
-    assert metrics(ui.at)["Weather what-if FG make"] == "68.0%"
-    # Changing a weather input invalidates the *displayed completed result*.
-    widget(ui.at, "number_input", "Wind speed (mph)").set_value(26)
-    run(ui.at)
-    assert "Weather what-if FG make" not in metrics(ui.at)
-    analyze(ui.at)
-    assert "Weather what-if FG make" in metrics(ui.at)
-    # Direction is recorded in the UI but never fed as an official
-    # feature; changing it invalidates stale scenario output.
-    widget(
-        ui.at, "selectbox", "Wind direction relative to offense"
-    ).set_value("Tailwind")
-    run(ui.at)
-    assert "Weather what-if FG make" not in metrics(ui.at)
+    assert metrics(at)["Weather what-if FG make"] == "68.0%"
+    widget(at, "number_input", "Wind speed (mph)").set_value(26)
+    run(at)
+    assert "Weather what-if FG make" not in metrics(at)
+    analyze(at)
+    assert metrics(at)["Weather what-if FG make"] == "68.0%"
+    assert mock_weather.call_count == 2
+
+    # Clearing either field removes the scenario and preserves standard use.
+    widget(at, "number_input", "Temperature (°F)").set_value(None)
+    run(at)
+    analyze(at)
+    assert metrics(at)["Recommendation"] == "GO FOR IT"
+    assert "Weather what-if FG make" not in metrics(at)
+    assert mock_weather.call_count == 2
 
 
-def test_closed_roof_never_promises_outdoor_weather_adjustment(ui):
+def test_calm_wind_zero_is_a_supplied_value_not_missing(ui, monkeypatch):
+    from src import weather_fg_sensitivity as weather
+    mock_weather = Mock(return_value={"applicable": False, "reason": "fixture"})
+    monkeypatch.setattr(weather, "compare_weather_scenario", mock_weather)
+    at = ui.at
+    widget(at, "number_input", "Temperature (°F)").set_value(65)
+    run(at)
+    widget(at, "number_input", "Wind speed (mph)").set_value(0)
+    run(at)
+    analyze(at)
+    mock_weather.assert_called_once()
+    assert mock_weather.call_args.kwargs["weather"]["wind_mph"] == 0
+
+
+def test_closed_roof_hides_outdoor_weather_without_disabling_analysis(ui):
     widget(ui.at, "selectbox", "Stadium / roof").set_value("closed")
     run(ui.at)
-    assert not [
-        check for check in ui.at.checkbox
-        if check.label in ("Include temperature", "Include wind speed")
-    ]
+    labels = [item.label for item in ui.at.number_input]
+    assert "Temperature (°F)" not in labels
+    assert "Wind speed (mph)" not in labels
     captions = values(ui.at, "caption").lower()
     assert "covered stadium" in captions
     assert "outdoor temperature and wind do not apply" in captions
-    assert "use the normal recommendation" in captions
+    analyze(ui.at)
+    assert metrics(ui.at)["Recommendation"] == "GO FOR IT"
+    assert "Weather what-if FG make" not in metrics(ui.at)
 
 
-
-def test_temperature_and_wind_are_independent_opt_in_fields(ui):
+def test_non_predictive_weather_and_venue_controls_are_absent(ui):
+    """Research utilities remain in offline scripts, not the public app."""
     at = ui.at
-    assert widget(at, "checkbox", "Include temperature").value is False
-    assert widget(at, "checkbox", "Include wind speed").value is False
-    widget(at, "checkbox", "Include temperature").set_value(True)
-    run(at)
-    assert "Temperature (°F)" in [item.label for item in at.number_input]
-    assert "Wind speed (mph)" not in [item.label for item in at.number_input]
-    assert "Only one weather value is enabled" in values(at, "caption")
-    analyze(at)
-    assert "Weather what-if FG make" not in metrics(at)
-    widget(at, "checkbox", "Include wind speed").set_value(True)
-    run(at)
-    assert "Wind speed (mph)" in [item.label for item in at.number_input]
-    assert "Both values are selected" in values(at, "caption")
-    widget(at, "checkbox", "Include temperature").set_value(False)
-    run(at)
-    assert "Temperature (°F)" not in [item.label for item in at.number_input]
-    assert "Wind speed (mph)" in [item.label for item in at.number_input]
-
-
-def test_advanced_reference_is_separate_from_weather_inputs(ui):
-    at = ui.at
-    assert any("Advanced reference: stadiums and saved airport data" in
-               item.label for item in at.expander)
-    assert widget(at, "checkbox", "Show stadium information (reference only)").value is False
-    assert widget(at, "checkbox", "Open saved airport report (JSON required)").value is False
-    assert widget(at, "checkbox", "Include temperature").value is False
-    assert widget(at, "checkbox", "Include wind speed").value is False
-    assert "neither option changes" in values(at, "caption").lower()
+    assert not [
+        item for item in at.checkbox if item.label in (
+            "Include temperature", "Include wind speed",
+            "Show stadium information (reference only)",
+            "Open saved airport report (JSON required)",
+        )
+    ]
+    assert not [
+        item for item in at.selectbox if item.label in (
+            "Weather conditions", "Wind direction relative to offense",
+            "2026 venue to inspect", "2026 NFL international fixture",
+        )
+    ]
+    assert not [
+        item for item in at.expander
+        if "Advanced reference" in item.label
+    ]
+    assert not [item for item in at.text_area
+                if "research receipt" in item.label.lower()]
     assert len(ui.engine.calls) == 0
 
-
-def test_metar_receipt_is_off_field_context_only_not_model_state(ui):
-    """Typed research receipt is interpreted, but NEVER sent to frozen engine."""
-    import json
-    from datetime import datetime, timezone
-    from src.metar_decision_weather import build_metar_decision_evidence
-
-    records = [{
-        "icaoId": "KSEA",
-        "obsTime": int(datetime(
-            2026, 10, 12, 18, 0, tzinfo=timezone.utc,
-        ).timestamp()),
-        "receiptTime": "2026-10-12T18:04:00Z",
-        "lat": 47.4489,
-        "lon": -122.3094,
-        "wdir": 90,
-        "wspd": 12,
-        "rawOb": "METAR KSEA 121800Z 09012KT 10SM -RA BKN015 12/08 A2996",
-    }]
-    blob = json.dumps(records).encode("utf-8")
-    receipt = build_metar_decision_evidence(
-        observations=records, source_bytes=blob,
-        station_id="KSEA",
-        decision_at_utc="2026-10-12T18:35:00Z",
-        captured_at_utc="2026-10-12T18:45:00Z",
-        field_lat=47.595, field_lon=-122.332,
-        offense_attack_heading_true_deg=90,
-        roof="outdoors", fetched_from_awc_https=False,
-    )
-
-    widget(
-        ui.at, "checkbox", "Open saved airport report (JSON required)"
-    ).set_value(True)
-    run(ui.at)
-    widget(
-        ui.at, "text_area", "METAR research receipt JSON"
-    ).set_value(json.dumps(receipt))
-    run(ui.at)
-    captions = values(ui.at, "caption")
-    assert "METAR wind vector:" in captions
-    assert "Airport KSEA" in captions
-    assert "signed headwind" in captions
-    assert "No on-field rainfall/snowfall intensity is measured" in captions
-    assert "Neither the official recommendation" in captions
-    assert "RETROSPECTIVE context" in values(ui.at, "info")
-    assert len(ui.engine.calls) == 0
-
-    analyze(ui.at)
-    assert metrics(ui.at)["Recommendation"] == "GO FOR IT"
-    assert all(
-        "raw_metar" not in state and "headwind_mph_signed" not in state
-        and "wind_from_true_degrees" not in state
-        for state, _, _ in ui.engine.calls
-    )
-
-    # A pasted JSON number cannot silently forge trusted airport wind.
-    receipt["headwind_mph_signed"] = -99
-    widget(
-        ui.at, "text_area", "METAR research receipt JSON"
-    ).set_value(json.dumps(receipt))
-    run(ui.at)
-    assert "Invalid, inconsistent or unsupported METAR receipt" in values(
-        ui.at, "warning"
-    )
-    assert "METAR wind vector:" not in values(ui.at, "caption")
-
-
-
-def test_venue_geometry_lookup_requires_explicit_attack_direction(ui):
-    """Stadium coordinates/axis never appear in the frozen engine input."""
-    widget(
-        ui.at, "checkbox",
-        "Show stadium information (reference only)",
-    ).set_value(True)
-    run(ui.at)
-    # No stadium is inferred from HOME/AWAY or the football field graphic.
-    assert "Offense's verified attacking end" not in [
-        x.label for x in ui.at.selectbox
-    ]
-    widget(ui.at, "selectbox", "2026 venue to inspect").set_value("SEA")
-    run(ui.at)
-    caption = values(ui.at, "caption")
-    assert "Lumen Field" in caption
-    assert "47.59515" in caption
-    assert "unverified" in caption.lower() or "NOT independently surveyed" in caption
-
-    widget(
-        ui.at, "selectbox",
-        "Offense's verified attacking end (research only)",
-    ).set_value("A")
-    run(ui.at)
-    assert "Approximate selected attack bearing" in values(ui.at, "caption")
-    assert "capture_nfl_venue_awc_context" in values(ui.at, "code")
-    assert "official" in values(ui.at, "caption").lower()
-
-    analyze(ui.at)
-    assert metrics(ui.at)["Recommendation"] == "GO FOR IT"
-    assert len(ui.engine.calls) > 0
-    for state, _, _ in ui.engine.calls:
-        for key in (
-            "venue_team", "field_lat", "field_lon", "stadium_id",
-            "attack_end", "heading", "offense_attack_heading_true_deg_approx",
-        ):
-            assert key not in state
-
-    widget(
-        ui.at, "selectbox",
-        "Offense's verified attacking end (research only)",
-    ).set_value("B")
-    run(ui.at)
-    assert "Approximate selected attack bearing" in values(ui.at, "caption")
-
-
-def test_stale_buf_venue_never_exposes_retired_stadium_coordinates(ui):
-    widget(
-        ui.at, "checkbox",
-        "Show stadium information (reference only)",
-    ).set_value(True)
-    run(ui.at)
-    widget(ui.at, "selectbox", "2026 venue to inspect").set_value("BUF")
-    run(ui.at)
-    assert "Buffalo moved" in values(ui.at, "warning")
-    assert "retired stadium" in values(ui.at, "warning")
-    assert "42.77304" in values(ui.at, "caption")
-    assert "-78.79219" in values(ui.at, "caption")
-    assert "Offense's verified attacking end (research only)" not in [
-        x.label for x in ui.at.selectbox
-    ]
-    analyze(ui.at)
-    assert metrics(ui.at)["Recommendation"] == "GO FOR IT"
-    for state, _, _ in ui.engine.calls:
-        assert "venue_team" not in state
-        assert "field_lat" not in state
-
-
-
-def test_nine_official_2026_international_fixtures_never_use_us_home_axes(ui):
-    widget(
-        ui.at, "checkbox",
-        "Show stadium information (reference only)",
-    ).set_value(True)
-    run(ui.at)
-    widget(
-        ui.at, "radio", "2026 venue context",
-    ).set_value("Official 2026 international game")
-    run(ui.at)
-    assert "2026 venue to inspect" not in [x.label for x in ui.at.selectbox]
-    assert "Offense's verified attacking end (research only)" not in [
-        x.label for x in ui.at.selectbox
-    ]
-    widget(
-        ui.at, "selectbox", "2026 NFL international fixture",
-    ).set_value(0)
-    run(ui.at)
-    assert "Melbourne Cricket Ground" in values(ui.at, "warning")
-    assert "Do NOT use" in values(ui.at, "warning")
-    assert "NOT verified" in values(ui.at, "caption")
-    analyze(ui.at)
-    assert metrics(ui.at)["Recommendation"] == "GO FOR IT"
-    assert all(
-        "international" not in state and "stadium_id" not in state
-        and "offense_attack_heading_true_deg_approx" not in state
-        for state, _, _ in ui.engine.calls
-    )
-    widget(
-        ui.at, "selectbox", "2026 NFL international fixture",
-    ).set_value(4)
-    run(ui.at)
-    assert "Wembley Stadium" in values(ui.at, "warning")
-    assert "domestic" not in values(ui.at, "caption").lower() or (
-        "domestic-venue command rejects" in values(ui.at, "caption")
-    )
-
-
-
-def test_buffalo_north_south_is_documented_but_not_numeric_forecast(ui):
-    """Architect/AP stadium axis and unverified snap claim remain UI-only."""
-    widget(
-        ui.at, "checkbox",
-        "Show stadium information (reference only)",
-    ).set_value(True)
-    run(ui.at)
-    widget(ui.at, "selectbox", "2026 venue to inspect").set_value("BUF")
-    run(ui.at)
-    caption = values(ui.at, "caption")
-    assert "NORTH–SOUTH" in caption
-    assert "Populous" in caption
-    assert "Associated Press" in caption
-    assert "Exact azimuth remains unknown" in caption
-    assert "capture_buffalo_snap_direction_claim" in values(ui.at, "code")
-    assert "measure_buffalo_field_axis" in values(ui.at, "code")
-    assert "GOAL-LINE MIDPOINT" in values(ui.at, "caption")
-    widget(
-        ui.at, "selectbox",
-        "Buffalo offense attack-end claim (research only)",
-    ).set_value("Toward south end zone")
-    run(ui.at)
-    assert "Unverified user claim" in values(ui.at, "info")
-    analyze(ui.at)
-    assert metrics(ui.at)["Recommendation"] == "GO FOR IT"
-    for state, _, _ in ui.engine.calls:
-        assert "buffalo_attack_claim" not in state
-        assert "claimed_attack_end" not in state
-        assert "heading_true_deg" not in state
-        assert "headwind_mph_signed" not in state
-
-
-def test_unsigned_buffalo_direction_receipt_viewer_rejects_invented_trust(ui):
-    from src.nfl_2026_snap_direction_evidence import (
-        assess_2026_buffalo_snap_direction,
-    )
-    import json
-    raw = {
-        "source_id": "fictionalvideo01",
-        "witness_id": "observer01",
-        "source_type": "BROADCAST_FRAME",
-        "artifact_observed_at_utc": "2026-10-12T20:29:38Z",
-        "artifact_available_at_utc": "2026-10-12T20:35:00Z",
-        "attack_end_claim": "NORTH",
-        "location_landmark_observed": (
-            "user saw player run toward the north end zone"
-        ),
-        "source_url": "https://example.org/fictional-video",
-    }
-    result = assess_2026_buffalo_snap_direction(
-        season=2026, venue_team="BUF", opponent_team="NE",
-        offense_team="BUF", game_date_et="2026-10-12",
-        play_key="fictionalplay459", quarter=4,
-        game_clock_mmss="04:59",
-        decision_at_utc="2026-10-12T20:30:00Z",
-        witness_metadata=[raw],
-        original_artifacts={"fictionalvideo01": b"fake local artifact bytes"},
-    )
-    widget(
-        ui.at, "checkbox",
-        "Show stadium information (reference only)",
-    ).set_value(True)
-    run(ui.at)
-    widget(ui.at, "selectbox", "2026 venue to inspect").set_value("BUF")
-    run(ui.at)
-    widget(
-        ui.at, "checkbox",
-        "Inspect Buffalo snap-direction evidence receipt",
-    ).set_value(True)
-    run(ui.at)
-    widget(
-        ui.at, "text_area", "Buffalo snap-direction receipt JSON"
-    ).set_value(json.dumps(result))
-    run(ui.at)
-    assert "Source-hashed user claim" in values(ui.at, "caption")
-    assert "NORTH end zone" in values(ui.at, "caption")
-    assert "retrospective research" in values(ui.at, "info")
-    assert "Numeric attack bearing unavailable" in values(ui.at, "caption")
-    assert len(ui.engine.calls) == 0
-    analyze(ui.at)
-    assert metrics(ui.at)["Recommendation"] == "GO FOR IT"
-    assert all(
-        "claimed_attack_end" not in state and
-        "north_south" not in state and
-        "source_sha256" not in state
-        for state, _, _ in ui.engine.calls
-    )
-    result["numeric_headwind_crosswind_permitted"] = True
-    widget(
-        ui.at, "text_area", "Buffalo snap-direction receipt JSON"
-    ).set_value(json.dumps(result))
-    run(ui.at)
-    assert "Invalid, inconsistent or unapproved" in values(ui.at, "warning")
-    assert "Source-hashed user claim" not in values(ui.at, "caption")
