@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "study_status": "RETROSPECTIVE_PROVIDER_DISAGREEMENTS_REVIEWED_OFFICIAL_VENUES_NOT_SNAP_TIME_PROOF",
+  "meaning": "ESPN neutralSite=false can retain the designated-home convention even though a club played outside its usual home stadium. The frozen nflverse data classifies these four physically relocated games location=Neutral. Do not blindly overwrite either data provider's field or infer crowd/home advantage.",
+  "frozen_espn_site_flags_sha256": "cfb3406242e2c30baf09736bda9ab88de974f238fc043a31d4a9880ee7c3a76b",
+  "expected_reviewed_disagreements": [
+    {
+      "game_id": "2020_13_BUF_SF",
+      "year": 2020,
+      "week": 13,
+      "designated_home": "SF",
+      "designated_away": "BUF",
+      "stadium": "State Farm Stadium",
+      "city": "Glendale, Arizona",
+      "physical_relocation_reason": "Santa Clara County COVID-19 contact-sports restrictions",
+      "nflverse_location": "Neutral",
+      "espn_neutral_site": false,
+      "official_source": "https://www.49ers.com/news/statement-from-the-san-francisco-49ers-arizona-week-13-week-14"
+    },
+    {
+      "game_id": "2020_14_WAS_SF",
+      "year": 2020,
+      "week": 14,
+      "designated_home": "SF",
+      "designated_away": "WSH",
+      "stadium": "State Farm Stadium",
+      "city": "Glendale, Arizona",
+      "physical_relocation_reason": "Santa Clara County COVID-19 contact-sports restrictions",
+      "nflverse_location": "Neutral",
+      "espn_neutral_site": false,
+      "official_source": "https://www.49ers.com/news/statement-from-the-san-francisco-49ers-arizona-week-13-week-14"
+    },
+    {
+      "game_id": "2020_17_SEA_SF",
+      "year": 2020,
+      "week": 17,
+      "designated_home": "SF",
+      "designated_away": "SEA",
+      "stadium": "State Farm Stadium",
+      "city": "Glendale, Arizona",
+      "physical_relocation_reason": "Santa Clara County COVID-19 contact-sports restrictions",
+      "nflverse_location": "Neutral",
+      "espn_neutral_site": false,
+      "official_source": "https://www.nfl.com/games/seahawks-at-49ers-2020-reg-17"
+    },
+    {
+      "game_id": "2021_01_GB_NO",
+      "year": 2021,
+      "week": 1,
+      "designated_home": "NO",
+      "designated_away": "GB",
+      "stadium": "TIAA Bank Field",
+      "city": "Jacksonville, Florida",
+      "physical_relocation_reason": "Hurricane Ida displaced Saints from New Orleans",
+      "nflverse_location": "Neutral",
+      "espn_neutral_site": false,
+      "official_source": "https://www.neworleanssaints.com/news/september-12-new-orleans-saints-green-bay-packers-jacksonville-tiaa-bank-field"
+    }
+  ],
+  "review_limitations": [
+    "These primary sources document the physical stadium, not the 2027 prospective decision-time feature snapshot.",
+    "Being physically relocated does not imply zero home-field advantage or provide a calibrated site coefficient.",
+    "Discrepancies are left unchanged in both ESPN and nflverse historical data, without model retraining.",
+    "Future newly emerging, missing, or opposite-direction game-site disagreements require investigation."
+  ]
+}
