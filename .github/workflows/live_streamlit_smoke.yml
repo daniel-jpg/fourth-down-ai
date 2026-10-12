@@ -102,12 +102,28 @@ jobs:
                       "2025 kickoff scenario results", exact=True
                   ).first.wait_for(timeout=240000)
                   assert app.get_by_text("Recommendation", exact=True).count() > 0
-                  assert app.get_by_text(
-                      "Experimental strategy (not official)", exact=True
-                  ).count() > 0
-                  assert app.get_by_text(
-                      "optional kickoff scenario was unavailable", exact=False
-                  ).count() == 0
+                  # The scenario title renders before Monte Carlo finishes.
+                  # Wait for the result, or surface a real model error.
+                  deadline = time.monotonic() + 240
+                  while time.monotonic() < deadline:
+                      error = app.get_by_text(
+                          "optional kickoff scenario was unavailable", exact=False
+                      )
+                      if error.count():
+                          raise AssertionError(
+                              "Live scenario failed: " + error.first.inner_text()
+                          )
+                      result_metric = app.get_by_text(
+                          "Experimental strategy (not official)", exact=True
+                      )
+                      if result_metric.count():
+                          result_metric.first.scroll_into_view_if_needed()
+                          break
+                      page.wait_for_timeout(1500)
+                  else:
+                      raise AssertionError(
+                          "Live scenario did not finish within four minutes"
+                      )
                   print(
                       "LIVE PASS: official decision and optional observed-2025 "
                       "kickoff comparison both rendered in the hosted app.",
