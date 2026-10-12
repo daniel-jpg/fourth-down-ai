@@ -8,6 +8,8 @@ on:
     paths:
       - "src/historical_scoreboard_verification.py"
       - "src/independent_espn_margin_archive.py"
+      - "src/independent_espn_neutral_site_audit.py"
+      - "tests/test_independent_espn_neutral_site_audit.py"
       - "data/independent_espn_2014_2025_margin_archive.json"
       - "tests/test_independent_espn_margin_archive.py"
       - "tests/test_historical_scoreboard_verification.py"
@@ -34,10 +36,13 @@ jobs:
           python -m pip install -r requirements-dev.txt
       - name: Synthetic ESPN payload and PBP mismatch fail-closed tests
         run: |
-          PYTHONPATH=. python -m pytest -v tests/test_historical_scoreboard_verification.py tests/test_independent_espn_margin_archive.py
+          PYTHONPATH=. python -m pytest -v tests/test_historical_scoreboard_verification.py tests/test_independent_espn_margin_archive.py tests/test_independent_espn_neutral_site_audit.py
       - name: Replay entire 3151-game ESPN archive offline, no source requests
         run: |
           PYTHONPATH=. python -m src.independent_espn_margin_archive
+      - name: Count retrospectively different physical neutral-site flags
+        run: |
+          PYTHONPATH=. python -m src.independent_espn_neutral_site_audit --out artifacts/independent_espn_2014_2025_site_diagnostic.json
       - name: Cross-check ALL 2014-2025 REG final game margins against ESPN
         run: |
           set -o pipefail
@@ -52,6 +57,7 @@ jobs:
           name: independent-ESPN-2014-2025-final-score-audit
           path: |
             artifacts/independent_espn_2014_2025_scores.json
+            artifacts/independent_espn_2014_2025_site_diagnostic.json
             artifacts/independent_espn_2014_2025_scores_espn_scores.json
             independent-espn-2014-2025-audit.log
           retention-days: 30
