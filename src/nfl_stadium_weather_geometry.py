@@ -8,8 +8,10 @@ The original community data heading is treated as an *unoriented* axis.
 A user must supply attack-end selection for the specific play. NEVER infer
 from quarter, field-position yardline, HOME/AWAY, team identity or UI arrows.
 
-The upstream source maps 2026 Buffalo to an old Highmark Stadium, so BUF
-is deliberately blocked. Tennessee's 2026 mapping expires before 2027.
+The upstream source maps 2026 Buffalo to an old Highmark Stadium.
+An independent 2026 OpenStreetMap approximate center supersedes that old
+location, but there is NO verified new-field axis; BUF wind projection is
+still deliberately blocked. Tennessee's 2026 mapping expires before 2027.
 Neutral/relocated games require an explicit actual venue selection.
 """
 from __future__ import annotations
@@ -70,12 +72,27 @@ def load_stadium_reference(*, season: Any = SUPPORTED_SEASON) -> dict:
         if v.get("physical_game_roof_known") is not False:
             raise ValueError("Venue file cannot imply actual game-day roof state")
         if team == "BUF":
-            if (v.get("georeference_status") !=
-                    "BLOCKED_STALE_OLD_BUFFALO_STADIUM"
-                    or any(v.get(k) is not None for k in (
-                        "lat", "lon", "field_axis_bearing_degrees_approx"
-                    ))):
-                raise ValueError("Old Buffalo stadium location must remain blocked")
+            ev = v.get("location_evidence")
+            if (
+                v.get("georeference_status") !=
+                "NEW_2026_VENUE_APPROX_CENTER_DIRECTION_UNVERIFIED"
+                or v.get("venue_id") != "BUF_NEW_2026_OSM_W1339149058"
+                or v.get("field_axis_bearing_degrees_approx") is not None
+                or not isinstance(ev, dict)
+                or ev.get("locator") != "OpenStreetMap way/1339149058"
+                or ev.get("center_only") is not True
+                or ev.get("no_survey_or_field_axis") is not True
+            ):
+                raise ValueError(
+                    "Buffalo 2026 center cannot be paired with a guessed field axis"
+                )
+            # A coarse geographic consistency bound rejects reuse of the
+            # old Buffalo stadium west/east coordinate or a foreign venue.
+            lat = _finite(v.get("lat"), 42.772, 42.774, "new Buffalo latitude")
+            lon = _finite(v.get("lon"), -78.794, -78.791, "new Buffalo longitude")
+            if abs(lat - 42.77304) > .0004 or abs(lon + 78.79219) > .0004:
+                raise ValueError("Buffalo 2026 coordinate disagrees with cited map")
+
         else:
             if v.get("georeference_status") != PROVENANCE_STATUS:
                 raise ValueError("Stadium bearing not flagged as approximate")
@@ -89,14 +106,44 @@ def load_stadium_reference(*, season: Any = SUPPORTED_SEASON) -> dict:
 
 
 def stadium_menu(*, season: Any = SUPPORTED_SEASON) -> dict[str, str]:
-    """Show 32 team venues; Buffalo is displayed but not usable."""
+    """Show 32 team home-venue locations; Buffalo axis is unresolved."""
     records = load_stadium_reference(season=season)["venues"]
     return {
         team: (
             f"{v['venue_name']} — {team}"
-            + (" (new 2026 venue not yet mapped)" if team == "BUF" else "")
+            + (" (center mapped; field bearing unknown)" if team == "BUF" else "")
         )
         for team, v in records.items()
+    }
+
+
+def resolve_stadium_location(*, team: Any, season: Any) -> dict[str, Any]:
+    """Return approximate physical VENUE center; never infer offense heading.
+
+    The geographic coordinates are useful for airport station distance
+    filtering even when a stadium field bearing is unknown. Location
+    alone cannot issue a headwind/crosswind calculation.
+    """
+    _only_2026(season)
+    if type(team) is not str or team not in EXPECTED_TEAMS:
+        raise ValueError("Select an explicitly listed 2026 venue")
+    rec = load_stadium_reference(season=season)["venues"][team]
+    has_axis = rec["field_axis_bearing_degrees_approx"] is not None
+    return {
+        "season": 2026,
+        "team_venue_reference": team,
+        "stadium_name": rec["venue_name"],
+        "field_lat_approx": rec["lat"],
+        "field_lon_approx": rec["lon"],
+        "approximate_field_axis_available": has_axis,
+        "field_axis_degrees_approx": rec["field_axis_bearing_degrees_approx"],
+        "stadium_center_independently_surveyed": False,
+        "official_fourth_down_model_unchanged": True,
+        "no_2027_game_outcomes_used": True,
+        "location_source": (
+            "OSM_2026_NEW_BUFFALO_APPROX_CENTER" if team == "BUF"
+            else "PINNED_UNVERIFIED_COMMUNITY_GOOGLE_EARTH"
+        ),
     }
 
 
@@ -118,9 +165,10 @@ def resolve_stadium_geometry(
     record = load_stadium_reference(season=season)["venues"][team]
     if team == "BUF":
         raise ValueError(
-            "Buffalo moved to its new stadium in 2026; the 2026 new-field "
-            "coordinates/axis are NOT in the pinned registry. Enter "
-            "independently verified coordinates and attack bearing instead."
+            "Buffalo moved to its new Highmark Stadium in 2026; its "
+            "approximate coordinates are now mapped, but the NEW field "
+            "axis is NOT surveyed or direction-verified. Offense-relative "
+            "wind calculation stays BLOCKED until a bearing is audited."
         )
     axis_a = _finite(
         record["field_axis_bearing_degrees_approx"],
