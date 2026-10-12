@@ -125,7 +125,7 @@ def test_missing_game_or_pbp_final_result_is_never_reported_as_verified():
 
 
 @pytest.mark.parametrize("change,expected", [
-    (("season", {"year": 2026, "type": 2}), "Wrong ESPN"),
+    (("season", {"year": 2026, "type": 2}), "ESPN season"),
     (("week", {"number": 2}), "Wrong ESPN"),
     (("season", {"year": 2025, "type": 3}), "Wrong ESPN"),
 ])
