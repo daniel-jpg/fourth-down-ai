@@ -345,6 +345,34 @@ def replay_fabricated_pulse(envelope: Mapping[str, Any], *,
     }
 
 
+
+def _safe_exclusion_code(exc: Exception) -> str:
+    """Stable aggregate reason code; never log unsanitized vendor contents."""
+    detail = str(exc)
+    if "BEFORE synthetic snap" in detail:
+        return "ARRIVED_AT_OR_AFTER_SNAP"
+    if "Stale Pulse" in detail:
+        return "STALE_PLAY_STATE"
+    if "Stale physical_venue" in detail:
+        return "STALE_VENUE_CONTEXT"
+    if "Stale halftime_receiver" in detail:
+        return "STALE_COIN_TOSS_CONTEXT"
+    if "Post-play" in detail or "play details" in detail:
+        return "POST_SNAP_PAYLOAD_REJECTED"
+    if "players_lining_up" in detail or "event type, version" in detail:
+        return "NOT_VERIFIED_PREPLAY_PHASE"
+    if any(word in detail for word in (
+        "scoreboard", "clocks disagree", "quarters disagree",
+        "start situation", "possession", "yardline", "field-side",
+    )):
+        return "CONTRADICTORY_FOOTBALL_STATE"
+    if any(word in detail for word in (
+        "venue", "coin toss", "receiver", "roof",
+    )):
+        return "MISSING_OR_INVALID_CONTEXT"
+    return "INVALID_OR_UNTRUSTED_SOURCE"
+
+
 def audit_fabricated_opportunity_coverage(opportunities: Any) -> dict:
     """Account for every independently supplied FABRICATED fourth-down unit.
 
@@ -383,9 +411,9 @@ def audit_fabricated_opportunity_coverage(opportunities: Any) -> dict:
                 else:
                     reason="READY_FOR_SYNTHETIC_FORECAST"
             except (ValueError, RuntimeError, KeyError, TypeError) as exc:
-                # Include stable failure class, never user-supplied raw
-                # football values or potentially post-snap leaked data.
-                reason="INCOMPLETE_OR_INVALID_PRESNAP_SOURCE"
+                # Never expose untrusted provider text in audit output;
+                # stable codes make omission mechanisms measurable.
+                reason=_safe_exclusion_code(exc)
         row={
             "game_id":game_id, "play_id":play_id,
             "simulated_snap_at_utc":expected["snap_at_utc"],
