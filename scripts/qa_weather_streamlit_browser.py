@@ -233,36 +233,77 @@ def check_baseline_and_weather(frame, page) -> dict:
     assert metric(frame, "Weather what-if FG make") is None
     print("WEATHER_BASELINE_OFFICIAL", default, flush=True)
 
-    # No expander/checkbox is needed: both weather inputs must already
-    # be visible beside the interactive Ball Position field on desktop.
-    weather_heading = frame.get_by_text("Weather (optional)", exact=True)
-    weather_heading.wait_for(state="visible", timeout=25000)
-    assert frame.get_by_text("Weather observations (optional)", exact=True).count() == 0
+    # The optional weather boxes should sit on the SAME INPUT ROW
+    # as the field's LOS control; the entire field graphic stays wide.
+    assert frame.get_by_text(
+        "Weather observations (optional)", exact=True
+    ).count() == 0, "Old expander returned"
+    assert frame.get_by_text(
+        "Weather (optional)", exact=True
+    ).count() == 0, "Old separate weather section returned"
+
     temperature = frame.get_by_role("spinbutton", name="Temperature (°F)")
     wind = frame.get_by_role("spinbutton", name="Wind speed (mph)")
     temperature.wait_for(state="visible", timeout=25000)
     wind.wait_for(state="visible", timeout=25000)
 
-    ball_heading = frame.get_by_text("Ball Position", exact=True)
-    ball_box = ball_heading.bounding_box()
-    weather_box = weather_heading.bounding_box()
+    field_frame = None
+    for embedded in page.frames:
+        try:
+            if embedded.locator("#los-input").count() == 1:
+                field_frame = embedded
+                break
+        except Exception:
+            pass
+    assert field_frame is not None, (
+        "Custom ball-position field iframe / LOS input not found"
+    )
+    los_input = field_frame.locator("#los-input")
+    los_box = los_input.bounding_box()
+    field_box = field_frame.locator("#field").bounding_box()
+    frame_box = field_frame.frame_element().bounding_box()
     temperature_box = temperature.bounding_box()
     wind_box = wind.bounding_box()
     assert all(box is not None for box in (
-        ball_box, weather_box, temperature_box, wind_box,
-    )), "Ball-position or weather widget is not visible on desktop"
-    assert weather_box["x"] > ball_box["x"] + 250, (
-        "Weather controls are not in the right-hand Ball Position column"
+        los_box, field_box, frame_box, temperature_box, wind_box,
+    )), "Field or weather widget unexpectedly invisible"
+
+    assert frame_box["width"] >= 960, (
+        f"Football field squeezed into a narrow column: {frame_box}"
     )
-    assert abs(weather_box["y"] - ball_box["y"]) < 270, (
-        "Weather controls are not vertically near Ball Position"
+    assert field_box["width"] >= frame_box["width"] - 40, (
+        "Football field drawing does not span the full field component"
     )
-    assert wind_box["x"] > ball_box["x"] + 250
-    assert temperature_box["x"] > ball_box["x"] + 250
-    assert wind_box["y"] > temperature_box["y"] + 35, (
-        "Weather input fields should be stacked legibly"
+    assert temperature_box["x"] >= los_box["x"] + 240, (
+        f"Temperature is not to the right of LOS: {temperature_box} / {los_box}"
     )
-    print("WEATHER_BESIDE_BALL_POSITION_NO_EXPANDER_PASS", flush=True)
+    assert wind_box["x"] >= temperature_box["x"] + 150, (
+        "Wind input should share the row to the right of temperature"
+    )
+    assert abs(temperature_box["y"] - los_box["y"]) <= 38, (
+        f"Temperature is not on LOS input row: {temperature_box} / {los_box}"
+    )
+    assert abs(wind_box["y"] - los_box["y"]) <= 38, (
+        f"Wind is not on LOS input row: {wind_box} / {los_box}"
+    )
+    scroll = field_frame.evaluate(
+        "() => ({width: document.documentElement.scrollWidth,"
+        " viewportWidth: document.documentElement.clientWidth,"
+        " height: document.documentElement.scrollHeight,"
+        " viewportHeight: document.documentElement.clientHeight})"
+    )
+    assert scroll["width"] <= scroll["viewportWidth"] + 3, (
+        f"Unexpected horizontal scrollbar in field component: {scroll}"
+    )
+    assert scroll["height"] <= scroll["viewportHeight"] + 3, (
+        f"Unexpected vertical scrollbar in field component: {scroll}"
+    )
+    print(
+        "WEATHER_INLINE_WITH_LOS_FULL_FIELD_NO_SCROLL_PASS",
+        {"los": los_box, "temp": temperature_box, "wind": wind_box,
+         "field": frame_box, "scroll": scroll},
+        flush=True,
+    )
     assert temperature.input_value() == "", (
         "Temperature input must start blank, not assume 65 F"
     )
@@ -357,9 +398,9 @@ def main() -> None:
         try:
             page.goto(BASE_URL, wait_until="domcontentloaded", timeout=60000)
             frame = find_app(page)
-            assert frame.get_by_text(
-                "Weather (optional)", exact=True
-            ).count() == 1
+            frame.get_by_role(
+                "spinbutton", name="Temperature (°F)"
+            ).wait_for(state="visible", timeout=25000)
             assert frame.get_by_text(
                 "Weather observations (optional)", exact=True
             ).count() == 0
