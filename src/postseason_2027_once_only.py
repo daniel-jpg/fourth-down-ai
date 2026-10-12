@@ -116,11 +116,11 @@ def validate_label_free_forecasts(bundle: Any) -> dict:
         skip_counts[item["reason"]] += 1
     if dict(sorted(skip_counts.items())) != audit.get("skip_reason_counts"):
         raise ValueError("Missing or inaccurate source omission counts")
-    if _canonical_hash(forecasts) != audit.get("synthetic_prediction_sha256"):
-        raise ValueError("Synthetic forecast commitment hash mismatch")
     for item in forecasts:
         if not isinstance(item, dict) or set(item) != PRE_SNAP_KEYS:
             raise ValueError("Unexpected forecast input or post-play label leakage")
+    if _canonical_hash(forecasts) != audit.get("synthetic_prediction_sha256"):
+        raise ValueError("Synthetic forecast commitment hash mismatch")
     # Validate with the existing cohort builder on label-FREE empty suffixes
     # before ANY observed action or scoreboard input may be read.
     build_synthetic_cohort({
