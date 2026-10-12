@@ -1,0 +1,159 @@
+{
+  "source": "2014-2024 nflverse historical fourth-down data (2014-2022 train; 2023-2024 validation)",
+  "scope": "GO actual conversion Brier, PUNT same-play gross kick distance MAE; these are research comparator models, not frozen production models",
+  "provenance": {
+    "passing_ci_url": "https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38290647808",
+    "workflow_run_id": 38290647808,
+    "workflow_commit": "8d3725e98f0236bfd802a3feea875246f5378b82",
+    "ci_status": "success",
+    "full_report_archived_in_ci_artifact": "historical-go-punt-weather-text-direction-evidence"
+  },
+  "forecasts_not_pre_snap_witnessed": true,
+  "precision_note": "Game-cluster bootstrap uncertainty intervals include zero; observed text words do not independently verify precipitation at any play snap. No trusted wind vector is available.",
+  "validation_data_only": true,
+  "go": {
+    "coverage": {
+      "action": "GO",
+      "eligible_outdoor_rows": 4891,
+      "excluded_weather_or_missing_pregame_features": 424,
+      "text_labels_are_observed_at_snap": false,
+      "train_precip_text_counts": {
+        "EXPLICIT_DRY_WORD": 1315,
+        "RAIN_MENTION": 216,
+        "SNOW_ICE_MENTION": 41,
+        "UNSPECIFIED": 1959
+      },
+      "training_games": 1451,
+      "training_rows": 3531,
+      "unknown_precip_misclassified_as_dry": false,
+      "validation_games": 324,
+      "validation_precip_text_counts": {
+        "EXPLICIT_DRY_WORD": 315,
+        "RAIN_MENTION": 34,
+        "SNOW_ICE_MENTION": 23,
+        "UNSPECIFIED": 564
+      },
+      "validation_rows": 936,
+      "weather_complete_fraction": 0.9133101615211613,
+      "weather_covered_complete_rows": 4467
+    },
+    "models": {
+      "preplay_baseline": {
+        "actual_conversion_rate": 0.5544871794871795,
+        "brier": 0.21645960158853597,
+        "log_loss": 0.6208890820597911,
+        "mean_prediction": 0.5318271849258295
+      },
+      "weather_plus_precipitation_text": {
+        "actual_conversion_rate": 0.5544871794871795,
+        "brier": 0.21712348737429732,
+        "log_loss": 0.6221988046484302,
+        "mean_prediction": 0.5304361164089817
+      },
+      "weather_temperature_wind": {
+        "actual_conversion_rate": 0.5544871794871795,
+        "brier": 0.21698133555477506,
+        "log_loss": 0.6219783884371879,
+        "mean_prediction": 0.5312761950738375
+      }
+    },
+    "gains": {
+      "weather_plus_precipitation_text": {
+        "game_cluster_95pct_ci": [
+          -0.0016759774661815295,
+          0.00029405313302001727
+        ],
+        "improvement_baseline_minus_candidate": -0.0006638857857613478,
+        "improvement_sign": "WORSE",
+        "validation_ci_strictly_above_zero": false
+      },
+      "weather_temperature_wind": {
+        "game_cluster_95pct_ci": [
+          -0.0014508320953541848,
+          0.00027833610911173523
+        ],
+        "improvement_baseline_minus_candidate": -0.0005217339662390852,
+        "improvement_sign": "WORSE",
+        "validation_ci_strictly_above_zero": false
+      }
+    }
+  },
+  "punt": {
+    "coverage": {
+      "action": "PUNT",
+      "eligible_outdoor_rows": 18908,
+      "excluded_weather_or_missing_pregame_features": 1537,
+      "text_labels_are_observed_at_snap": false,
+      "train_precip_text_counts": {
+        "EXPLICIT_DRY_WORD": 5674,
+        "RAIN_MENTION": 992,
+        "SNOW_ICE_MENTION": 173,
+        "UNSPECIFIED": 7796
+      },
+      "training_games": 1663,
+      "training_rows": 14635,
+      "unknown_precip_misclassified_as_dry": false,
+      "validation_games": 338,
+      "validation_precip_text_counts": {
+        "EXPLICIT_DRY_WORD": 928,
+        "RAIN_MENTION": 219,
+        "SNOW_ICE_MENTION": 48,
+        "UNSPECIFIED": 1541
+      },
+      "validation_rows": 2736,
+      "weather_complete_fraction": 0.9187116564417178,
+      "weather_covered_complete_rows": 17371
+    },
+    "models": {
+      "preplay_baseline": {
+        "actual_mean_gross_punt_distance_yards": 47.358552631578945,
+        "mae_yards": 6.370365318818623,
+        "predicted_mean_gross_punt_distance_yards": 45.6318515703463,
+        "rmse_yards": 8.229592657246794
+      },
+      "weather_plus_precipitation_text": {
+        "actual_mean_gross_punt_distance_yards": 47.358552631578945,
+        "mae_yards": 6.338691228527344,
+        "predicted_mean_gross_punt_distance_yards": 45.62455206113676,
+        "rmse_yards": 8.16722227461026
+      },
+      "weather_temperature_wind": {
+        "actual_mean_gross_punt_distance_yards": 47.358552631578945,
+        "mae_yards": 6.339626111462747,
+        "predicted_mean_gross_punt_distance_yards": 45.62053490377813,
+        "rmse_yards": 8.175063858154715
+      }
+    },
+    "gains": {
+      "weather_plus_precipitation_text": {
+        "game_cluster_95pct_ci": [
+          -0.0205322799096886,
+          0.08017230766813684
+        ],
+        "improvement_baseline_minus_candidate": 0.0316740902912791,
+        "improvement_sign": "BETTER",
+        "validation_ci_strictly_above_zero": false
+      },
+      "weather_temperature_wind": {
+        "game_cluster_95pct_ci": [
+          -0.02097323585942339,
+          0.07562075640829222
+        ],
+        "improvement_baseline_minus_candidate": 0.030739207355876097,
+        "improvement_sign": "BETTER",
+        "validation_ci_strictly_above_zero": false
+      }
+    }
+  },
+  "wind_direction": {
+    "directional_effect_estimated": false,
+    "kick_relative_wind_direction_reconstructed": false,
+    "source_columns_matching_wind_or_direction": [
+      "wind"
+    ],
+    "trusted_snap_level_wind_direction_available": false,
+    "why_not": "Historical game-level wind speed and text do not establish the wind vector or its direction relative to the line of scrimmage at a specific fourth-down decision."
+  },
+  "production_promotion_authorized": false,
+  "real_2025_2026_2027_holdout_touched": false
+}
