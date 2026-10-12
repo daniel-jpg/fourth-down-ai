@@ -13,6 +13,18 @@ The project supports regulation, 2025+ NFL regular-season overtime, and postseas
 
 [Launch the NFL Fourth-Down Decision AI](https://fourth-down-ai.streamlit.app/)
 
+**Deployment notice (October 12, 2026):** The GitHub `main` branch
+contains the optional weather, NOAA METAR, 2026 stadium and Buffalo
+research controls, and source-level tests are passing. However, an
+[actual hosted-browser check](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38298774744)
+found that the public Streamlit Cloud app still serves an older UI
+without its `Weather observations (optional)` section, even after
+a comment-only requirements-file rebuild trigger. The current public
+demo's Q4 recommendation did render correctly, but **these newer
+weather/stadium UI controls must not be represented as publicly live**
+until a Streamlit Cloud app-owner reboot and a passing browser smoke.
+[Deployment issue, screenshots and owner steps](https://github.com/daniel-jpg/fourth-down-ai/issues/11).
+
 ## Demo
 
 ![NFL Fourth-Down Decision AI](assets/fourth-down-ai-demo.png)
@@ -204,7 +216,7 @@ genuine Buffalo end-zone survey has yet been supplied, no numerical
 bearing enters the approved registry, and **no NOAA wind or win-probability
 adjustment is enabled**. See [how to provide real physical midpoint
 evidence and interpret its uncertainty](reports/buffalo_2026_field_axis_measurement.md).
- The [offline evidence CLI](scripts/capture_buffalo_snap_direction_claim.py)
+The [offline evidence CLI](scripts/capture_buffalo_snap_direction_claim.py)
 records one or two locally supplied footage/observer witnesses, hashes
 their original files, checks direction conflicts and source availability
 relative to an explicitly declared decision UTC timestamp, and preserves
