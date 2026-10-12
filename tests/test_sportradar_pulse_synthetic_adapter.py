@@ -259,7 +259,7 @@ def test_missing_pulse_is_recorded_as_a_skipped_decision():
     assert out["missing_or_invalid"]==2
     assert out["readiness_fraction"]==round(1/3,6)
     assert out["reason_counts"]=={
-        "INCOMPLETE_OR_INVALID_PRESNAP_SOURCE":1,
+        "ARRIVED_AT_OR_AFTER_SNAP":1,
         "MISSING_PULSE_EVENT":1,
         "READY_FOR_SYNTHETIC_FORECAST":1,
     }
@@ -268,6 +268,38 @@ def test_missing_pulse_is_recorded_as_a_skipped_decision():
     assert out["real_prospective_approval"] is False
     assert out["externally_witnessed_chain_root"] is False
     assert len(out["local_chain_root_sha256"])==64
+
+
+
+
+def test_audit_classifies_stale_vs_post_snap_vs_wrong_event_with_safe_codes():
+    def case(tag, f):
+        candidate=pulse_fixture()
+        f(candidate)
+        return {
+            "game_id":"synthetic_doc-fixture-001",
+            "play_id":f"{tag}-candidate",
+            "snap_at_utc":"2027-09-09T20:00:08Z",
+            "candidate":candidate,
+        }
+    out=audit_fabricated_opportunity_coverage([
+        case("stale",lambda x:x["message"]["payload"]["pulse"].update({
+            "created_at":"2027-09-09T19:58:01+00:00",
+        })),
+        case("bad-event",lambda x:x["message"]["payload"]["pulse"].update({
+            "event_type":"rush",
+        })),
+        case("result",lambda x:x["message"]["payload"]["pulse"].update({
+            "observed_action":"PUNT",
+        })),
+    ])
+    assert out["synthetic_source_ready"]==0
+    assert out["reason_counts"]=={
+        "STALE_PLAY_STATE":1,
+        "NOT_VERIFIED_PREPLAY_PHASE":1,
+        "POST_SNAP_PAYLOAD_REJECTED":1,
+    }
+    assert all("observed_action" not in str(row) for row in out["rows"])
 
 
 def test_prospective_opportunity_ledger_deduplicates_and_requires_snap_order():
