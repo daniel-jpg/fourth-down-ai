@@ -160,8 +160,11 @@ venue**, from a pinned community Google-Earth geographic reference:
 **32 approximate team-venue centers, 31 community-estimated field
 axes**. The replacement 2026 Buffalo stadium center is mapped from
 OpenStreetMap-derived evidence at approximately **42.77304, -78.79219**
-and crosschecked to another map reference; the NEW field axis remains
-**unverified** and cannot generate headwind/crosswind values. The original
+and crosschecked to another map reference. **Populous (the stadium
+architect) and an independent Associated Press report now establish a
+qualitative north–south field orientation**, but the exact new-stadium
+true-north azimuth remains **unsurveyed/unverified** and deliberately NULL;
+no numerical headwind/crosswind is inferred. The original
 community source still contains the retired stadium location. Tennessee's
 2026 stadium map does not carry forward to its planned 2027 replacement.
 [Full source provenance and venue-year caveats](reports/2026_nfl_stadium_weather_geometry.md).
@@ -186,6 +189,17 @@ now requires an explicit game date and opponent in live mode and
 refuses a known international matchup **before making HTTP requests**.
 Other nonmatching games remain unverified, rather than presumed
 domestic. [Read the venue exception study](reports/2026_nfl_stadium_weather_geometry.md).
+
+Buffalo's weather panel now shows the source-backed **north/south**
+end-zone orientation and an optional **specific-play direction claim /
+receipt viewer**. The [offline evidence CLI](scripts/capture_buffalo_snap_direction_claim.py)
+records one or two locally supplied footage/observer witnesses, hashes
+their original files, checks direction conflicts and source availability
+relative to an explicitly declared decision UTC timestamp, and preserves
+only metadata—not the photo/video contents. Source provenance remains
+**USER-ASSERTED**, even if two witnesses agree. A source supplied after
+the decision is retrospective only, and neither the claim nor its hash
+can change the official model. [Research and verification details](reports/buffalo_2026_attack_direction_source_evidence.md).
 
 The [stadium geometry tests](tests/test_nfl_stadium_weather_geometry.py)
 and [dedicated synthetic 2026 GitHub workflow](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38293909282)
