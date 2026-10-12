@@ -2097,6 +2097,20 @@ if situation_valid:
         and fg_encoding_probe.get("material", False)
     )
 
+    # Only a model-side winner, NOT reliable coaching advice, when the
+    # empirical GO cohort has effectively no matching short-yardage plays.
+    # This narrow display-only abstention keeps all simulator outputs intact.
+    from src.situational_support import (
+        deep_own_short_go_notice,
+        supported_recommendation_display,
+    )
+    go_support_notice = deep_own_short_go_notice(
+        state, best["strategy"],
+    )
+    displayed_recommendation = supported_recommendation_display(
+        state, best["strategy"],
+    )
+
     recommendation_col, wp_col, edge_col = (
         st.columns(3)
     )
@@ -2106,7 +2120,7 @@ if situation_valid:
 
         st.metric(
             "Recommendation",
-            best["strategy"],
+            displayed_recommendation,
         )
 
 
@@ -2133,7 +2147,11 @@ if situation_valid:
         with edge_col:
 
             st.metric(
-                f"Advantage over {second['strategy']}",
+                (
+                    f"Modeled edge over {second['strategy']}"
+                    if go_support_notice else
+                    f"Advantage over {second['strategy']}"
+                ),
                 f"+{strategy_edge:.2f} pp",
             )
 
@@ -2199,11 +2217,13 @@ if situation_valid:
     # A narrow, evidence-backed caution for an extreme location with
     # almost no comparable 2014-2022 normal-GO training examples.
     # This does NOT change the frozen recommendation or action WPs.
-    from src.situational_support import deep_own_short_go_notice
-    go_support_notice = deep_own_short_go_notice(
-        state, best["strategy"],
-    )
     if go_support_notice:
+        st.info(
+            "**No supported play recommendation in this situation.** "
+            "The GO result is only a simulation extrapolation; the "
+            "field-goal/punt alternatives have not been shown inferior. "
+            "The model's ranked action probabilities remain visible below."
+        )
         st.info(go_support_notice)
 
     if qtr != 5:
