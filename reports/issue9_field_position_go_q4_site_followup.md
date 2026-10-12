@@ -53,3 +53,18 @@ No data support a tuned correction of the 11pp model difference or an automatic 
 - Independent future WP calibration and causal action-policy studies remain required. Preserve the original 2026 Step 66/83 automatic once-only gates and the separately registered 2027 action-policy study. Do not promote based on retrospective development, modified gates or selected scenario results.
 
 A passing software test verifies behavior, not optimal on-field coaching. This app is a qualified research demo, not a prospectively validated coaching policy.
+
+
+## Independent component-testing readiness (2027 prospective; no outcomes yet)
+
+A separate fixed-spec [constrained WP development benchmark](../scripts/evaluate_constrained_wp_2014_2024.py) fitted the existing football-monotonic candidate on **2014–2022** and compared it with the frozen three-class model on **2023–2024 previously examined** regulation, non-neutral scrimmage states. [GitHub Actions benchmark passed](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38204241572); 341,819 training states across 2,299 games, 78,127 evaluation states across 534 games.
+
+| 2023–24 development Brier (lower better) | Frozen | Constrained | Frozen-minus-candidate 95% game-cluster CI |
+| --- | ---: | ---: | --- |
+| Regulation all | 0.161844 | **0.160611** | **[+0.000517, +0.001999]** |
+| Q4 all | 0.092426 | **0.092035** | [-0.000808, +0.001464] |
+| Q4 final 5 min | 0.082445 | **0.081850** | [-0.001061, +0.002225] |
+
+The constrained challenger improves Brier over the frozen model overall in this exploratory developmental cohort, **but Q4 and final-five-minute confidence intervals overlap zero**. At Q4 own-10/leading-four with just 7 states and 3 games, the candidate actually has higher Brier (0.039012 versus frozen 0.027167); this extremely sparse subgroup cannot establish direction. No candidate or published model was promoted.
+
+To make future independent factual comparisons reproducible, a separate [2027 component-validation preregistration](2027_component_candidates_prospective_protocol.md), [pure offline scorer](../src/prospective_component_comparison.py) and [fabricated-only tests](../tests/test_prospective_component_comparison.py) now require: (a) frozen pre-snap GO RUN/PASS **hypotheses** before knowing which play the coach actually chooses; (b) independently joined factual conversion/outcome labels; (c) source/model/prediction SHA-256 seals; (d) whole-game paired Brier inference and adequate **own-5** plus **site-balanced Q4 own-10/leading-four** support. The scorer cannot fetch 2026/2027 football data or automatically promote a challenger. **No 2027 prospective results exist yet.**
