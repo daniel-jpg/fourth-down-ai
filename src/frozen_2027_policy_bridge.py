@@ -338,13 +338,20 @@ def build_synthetic_policy_forecast(
     # Q1-3 adaptive budget escalation is action-level; close_call metadata
     # must compare GO (best of run/pass) against FG or PUNT, as in app.py.
     go_calls = [a for a in ("NORMAL_GO_RUN", "NORMAL_GO_PASS") if a in eligible]
-    top_go = max(go_calls, key=lambda a: eligible[a]) if go_calls else None
+    # Preserve the actual frozen engine result ordering when two GO calls
+    # have exactly equal Monte Carlo estimates. Python max()'s default
+    # first-action tie break could otherwise disagree with its sorted table.
+    top_go = next((a for a in ranked if a in go_calls), None)
     strategic = ([top_go] if top_go is not None else []) + [
         a for a in ("FIELD_GOAL", "PUNT") if a in eligible
     ]
     strategic.sort(key=lambda a: eligible[a], reverse=True)
-    if not strategic or strategic[0] != best:
-        raise RuntimeError("Frozen strategy leader and normal action leader differ")
+    # Different sort implementations can break an exactly tied GO/FG
+    # strategy in different directions. Both maximize the pinned WP;
+    # do not invent an unsupported strict action tie-break assertion.
+    if (not strategic or
+            eligible[strategic[0]] < eligible[best] - 1e-12):
+        raise RuntimeError("Frozen strategy leader not max-WP action")
     close_call = False
     if len(strategic) >= 2:
         top, second = strategic[:2]
