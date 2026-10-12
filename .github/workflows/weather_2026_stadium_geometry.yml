@@ -8,9 +8,12 @@ on:
     branches: [main]
     paths:
       - src/stadium_weather_2026_reference.json
+      - src/2026_nfl_international_venue_schedule.json
+      - src/nfl_2026_international_venue_guard.py
       - src/nfl_stadium_weather_geometry.py
       - scripts/capture_nfl_venue_awc_context.py
       - tests/test_nfl_stadium_weather_geometry.py
+      - tests/test_nfl_2026_international_venue_guard.py
       - tests/test_streamlit_app_integration.py
       - app.py
       - .github/workflows/weather_2026_stadium_geometry.yml
@@ -37,10 +40,12 @@ jobs:
         run: |
           python -m py_compile \
             src/nfl_stadium_weather_geometry.py \
+            src/nfl_2026_international_venue_guard.py \
             scripts/capture_nfl_venue_awc_context.py \
             app.py
           PYTHONPATH=. python -m pytest -q \
             tests/test_nfl_stadium_weather_geometry.py \
+            tests/test_nfl_2026_international_venue_guard.py \
             tests/test_streamlit_app_integration.py
       - name: Fabricated SEA stadium / KBFI airport receipt without NFL or NOAA traffic
         run: |
@@ -67,6 +72,22 @@ jobs:
             --station KBFI --decision-utc 2026-10-12T18:35:00Z \
             --roof outdoors \
             --out artifacts/FICTIONAL_SEATTLE_RESEARCH_WEATHER.json
+      - name: Refuse published 2026 overseas matchup before any weather file read
+        shell: bash
+        run: |
+          if PYTHONPATH=. python -m scripts.capture_nfl_venue_awc_context \
+            --source-json artifacts/NONEXISTENT_WEATHER_FILE.json \
+            --captured-utc 2026-09-10T18:45:00Z \
+            --venue-team LAR --opponent-team SF \
+            --game-date-et 2026-09-10 --season 2026 --attack-end A \
+            --station KSEA --decision-utc 2026-09-10T18:35:00Z \
+            --roof outdoors --out artifacts/SHOULD_NOT_EXIST.json \
+            >international_deny.log 2>&1; then
+              echo "ERROR: wrongly used SoFi Stadium for Melbourne game" && exit 1
+          fi
+          grep -q "INTERNATIONAL_VENUE_CONFLICT" international_deny.log
+          test ! -f artifacts/SHOULD_NOT_EXIST.json
+          echo "PASS: NFL official international venue prevents home coordinate inference"
       - name: Assert compass geometry remains unsigned and never changes policy
         run: |
           python - <<'PY'
