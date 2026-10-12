@@ -8,9 +8,12 @@ on:
     paths:
       - "src/historical_fourth_down_cohort.py"
       - "src/historical_coach_nuisances.py"
+      - "src/historical_nuisance_portable.py"
+      - "data/historical_nuisance_2014_2025_development_parameters.json"
       - "scripts/train_2027_historical_nuisances.py"
       - "tests/test_historical_fourth_down_cohort.py"
       - "tests/test_historical_coach_nuisances.py"
+      - "tests/test_historical_nuisance_portable.py"
       - ".github/workflows/2027_historical_nuisance_development.yml"
   workflow_dispatch:
 
@@ -33,7 +36,7 @@ jobs:
           python -m pip install -r requirements-dev.txt
       - name: Test row-level cohorts, time boundaries and no feature/outcome leaks
         run: |
-          PYTHONPATH=. python -m pytest -v tests/test_historical_fourth_down_cohort.py tests/test_historical_coach_nuisances.py
+          PYTHONPATH=. python -m pytest -v tests/test_historical_fourth_down_cohort.py tests/test_historical_coach_nuisances.py tests/test_historical_nuisance_portable.py
       - name: Audit checked-in 2014-25 fourth downs and fit developmental e/mu
         run: |
           set -o pipefail
