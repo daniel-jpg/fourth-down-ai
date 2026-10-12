@@ -1,0 +1,82 @@
+name: Docker weather and research-context end-to-end QA
+
+# Actual production Streamlit app / frozen engine in the tested Docker host.
+# No live weather fetches, model tuning, future-play records or deployment.
+on:
+  push:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - app.py
+      - requirements.txt
+      - data/fg_weather_2014_2024_research_only.json
+      - src/weather_fg_sensitivity.py
+      - src/metar_decision_weather.py
+      - src/nfl_stadium_weather_geometry.py
+      - src/nfl_2026_international_venue_guard.py
+      - scripts/qa_weather_streamlit_browser.py
+      - .github/workflows/docker_weather_browser_qa.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  weather-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build unchanged frozen-model Docker runtime
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          load: true
+          tags: fourth-down-ai-weather:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run the app with resource limits
+        run: |
+          docker run --detach --name fourth-down-weather-qa \
+            --memory=1g --cpus=2 \
+            --publish 127.0.0.1:8531:8501 \
+            --env PORT=8501 \
+            fourth-down-ai-weather:ci
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install browser test driver
+        run: |
+          python -m pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+
+      - name: Verify weather controls, isolation, METAR and roof in Chromium
+        env:
+          FOURTH_DOWN_SMOKE_BASE_URL: http://127.0.0.1:8531
+        run: |
+          PYTHONPATH=. python scripts/qa_weather_streamlit_browser.py
+
+      - name: Report container health and model memory limit
+        if: always()
+        run: |
+          docker logs --tail 130 fourth-down-weather-qa || true
+          docker inspect --format '{{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' \
+            fourth-down-weather-qa || true
+          docker rm --force fourth-down-weather-qa || true
+
+      - name: Retain weather browser screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: streamlit-weather-chromium-evidence
+          path: docker-streamlit-weather-qa.png
+          if-no-files-found: ignore
+          retention-days: 7
