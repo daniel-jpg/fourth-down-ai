@@ -1,0 +1,44 @@
+{
+  "2025_heldout_data_used": false,
+  "2026_or_2027_data_used": false,
+  "baseline_validation": {
+    "brier": 0.10206774648912939,
+    "log_loss": 0.3277155044448063
+  },
+  "brier_gain_95pct_game_cluster_ci": [
+    -0.0005522493501836867,
+    0.0005098998446628744
+  ],
+  "brier_improvement_baseline_minus_weather": -0.00004619927583471295,
+  "calibrated_official_decision_effect": false,
+  "condition_rain_snow_fitted": false,
+  "effect_coefficients": {
+    "per_10mph_log_odds": -0.18775435144324187,
+    "per_20f_log_odds": -0.025996385508617124
+  },
+  "forecast_scope": "OUTDOOR_OR_OPEN_ROOF_CLEAN_FIELD_GOALS_ONLY",
+  "independent_live_forecast_issued": false,
+  "interpretation": "Game-level outdoor temperature/wind are exploratory inputs for an optional clean-field-goal sensitivity only. Do not infer causality or a validated effect on GO, PUNT, drive value or precipitation. Frozen official recommendations remain unchanged.",
+  "log_loss_improvement_baseline_minus_weather": 0.0003879649590341483,
+  "may_change_frozen_production": false,
+  "number_training": 5705,
+  "number_validation": 1186,
+  "source_seasons": {
+    "train": "2014-2022",
+    "validation": "2023-2024"
+  },
+  "source_weather": "nflverse stadium game-level temperature F / wind mph",
+  "status": "HISTORICAL_DEVELOPMENT_WEATHER_RESEARCH_ONLY",
+  "train_median_temperature_f": 59,
+  "train_median_wind_mph": 7,
+  "training_games": 1626,
+  "validation_games": 332,
+  "weather_candidate_validation": {
+    "brier": 0.1021139457649641,
+    "log_loss": 0.32732753948577215
+  },
+  "weather_coefficients_shrinkage_capped": true,
+  "validation_supports_official_weather_use": false,
+  "research_sensitivity_not_production": true,
+  "experiment_pre_snap_weather_reading_required": true
+}
