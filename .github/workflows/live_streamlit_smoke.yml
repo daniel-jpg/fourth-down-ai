@@ -104,6 +104,52 @@ jobs:
                       exact=True
                   ).count() == 0, "Removed scenario checkbox is still visible"
 
+                  # The main GitHub app.py has exposed this section since
+                  # earlier weather commits. If hosted Streamlit still shows
+                  # a form that jumps directly from Stadium/roof to Analyze,
+                  # that is a DEPLOYMENT SYNC problem, not a policy failure.
+                  # Give Community Cloud time to finish any triggered
+                  # dependency-file rebuild; never misreport older UI as
+                  # successful because the Q4 model still returns results.
+                  deployment_deadline = time.monotonic() + 180
+                  reloads = 0
+                  while app.get_by_text(
+                      "Weather observations (optional)", exact=True
+                  ).count() == 0:
+                      body = app.locator("body").inner_text(timeout=10000)
+                      print(
+                          "HOSTED UI BEHIND EXPECTED GITHUB MAIN? ",
+                          {
+                              "reloads": reloads,
+                              "weather_heading_present": False,
+                              "model_analyze_present":
+                                  "Analyze Fourth Down" in body,
+                              "visible_form_tail":
+                                  body.split("Game site")[-1][:550],
+                          },
+                          flush=True,
+                      )
+                      if time.monotonic() > deployment_deadline:
+                          raise AssertionError(
+                              "HOSTED_DEPLOYMENT_NOT_SYNCED_WITH_MAIN: "
+                              "Public Streamlit app renders Q4 but lacks "
+                              "Weather observations (optional), which is "
+                              "present in main/app.py. Check Streamlit Cloud "
+                              "deployment's repo/branch/entrypoint and "
+                              "reboot it; do not claim weather controls live."
+                          )
+                      page.wait_for_timeout(12000)
+                      page.reload(wait_until="domcontentloaded", timeout=60000)
+                      app = find_app_frame(page, seconds=65)
+                      assert app is not None, "Cloud app unavailable after reload"
+                      reloads += 1
+                  print(
+                      "LIVE PASS: Hosted application includes weather "
+                      "section from latest post-weather main, after "
+                      f"{reloads} reload(s)",
+                      flush=True,
+                  )
+
                   # The Q4 HOME default state is known to be sensitive
                   # to the old synthetic kickoff representation. Select
                   # HOME before analyzing so Streamlit can finish its rerun.
