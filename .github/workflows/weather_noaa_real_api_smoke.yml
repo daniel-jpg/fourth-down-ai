@@ -1,0 +1,67 @@
+name: Live NOAA weather API format smoke (once, no NFL data)
+
+# An explicit, ONE-SHOT real NOAA GET to test source-schema assumptions.
+# Push trigger only fires when this workflow file is first added/modified.
+# No schedule and no app runtime NOAA calls; future manual dispatch available.
+# No model/policy/football data writes. This smoke uses the AIRPORT ITSELF
+# as an artificial "field" and an invented 0-degree football attack heading.
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/weather_noaa_real_api_smoke.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  single-real-noaa-metar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Single actual HTTPS read from NOAA (not an NFL weather observation)
+        run: |
+          PYTHONPATH=. python -m scripts.smoke_awc_live_format --real-noaa-only \
+            > weather_smoke_report.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path("weather_smoke_report.json").read_text())
+          assert result["status"] == "LIVE_NOAA_REAL_API_SCHEMA_RESEARCH_SMOKE_PASSED"
+          assert result["real_public_noaa_source_used"] is True
+          assert result["football_stadium_location_used"] is False
+          assert result["real_offense_attack_heading_used"] is False
+          assert result["heldout_nfl_outcomes_accessed"] is False
+          assert result["official_fourth_down_model_modified"] is False
+          assert result["snap_level_conditions_proven"] is False
+          assert result["validated_weather_prediction"] is False
+          assert len(result["source_response_sha256"]) == 64
+          assert len(result["airport_metar_sha256"]) == 64
+          print("NOAA status:", result["status"])
+          print("Observed:", result["observed_utc"])
+          print("Received:", result["noaa_receipt_utc"])
+          print("Retrieval:", result["retrieved_utc"])
+          print("Weather:", result["airport_weather_code"])
+          print("Speed MPH:", result["wind_speed_mph"])
+          print("Wind FROM true north:", result["wind_from_true_degrees"])
+          print("PASS: real NOAA schema, no verified on-field weather or NFL outcomes")
+          PY
+      - name: Confirm frozen model and all reserved 2026 data files untouched
+        run: |
+          git diff --exit-code -- app.py models data \
+            src/42_build_decision_engine.py \
+            src/66_forward_2026_continuation_wp.py \
+            src/83_forward_2026_native_challenger_once.py
+      - name: Keep only weather-source metadata, no raw reports
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-noaa-weather-api-format-no-nfl-game
+          path: weather_smoke_report.json
+          retention-days: 14
+          if-no-files-found: error
