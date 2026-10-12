@@ -1,0 +1,77 @@
+name: "Shadow model historical-data snapshot - isolated 2014-2025 only"
+
+# Explicit source SHA gate before ANY parquet open. Safe for replay only.
+# No scheduling, external NFL calls, 2026/2027 outcomes, release promotion,
+# model refitting, or protected Step 66/83 evaluation.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/shadow_historical_data_refresh.py"
+      - "src/historical_fourth_down_cohort.py"
+      - "tests/test_shadow_historical_data_refresh.py"
+      - "data/independent_espn_2014_2025_margin_archive.json"
+      - ".github/workflows/shadow_historical_data_refresh.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  locked-source-staging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install pinned dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Prove future-outcome isolation and exact cohort boundary
+        run: |
+          PYTHONPATH=. python -m pytest -v tests/test_shadow_historical_data_refresh.py tests/test_historical_fourth_down_cohort.py
+      - name: Stage research-only historical snapshot and signed-source replay
+        run: |
+          set -o pipefail
+          PYTHONPATH=. python -m src.shadow_historical_data_refresh 2>&1 | tee shadow-historical-stage.log
+      - name: Validate all output hashes, non-overlap and no approval claim
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root=Path("artifacts/shadow_historical_2014_2025")
+          obj=json.loads((root/"manifest.json").read_text())
+          assert obj["status"] == "SHADOW_HISTORICAL_DEVELOPMENT_NOT_A_NEW_EVALUATION"
+          assert obj["source"]["git_blob_sha1"] == "d7230df63cad1c24579ee40cabaacd0b330e4784"
+          assert obj["source_fourth_down_candidates"] == 47942
+          assert obj["independent_final_scores"]["games"] == 3151
+          assert obj["training_years"] == list(range(2014,2023))
+          assert obj["validation_years"] == [2023,2024]
+          assert obj["previously_seen_development_years"] == [2025]
+          assert not obj["contains_2026_or_2027_rows"]
+          assert not obj["approved_for_production"]
+          assert not obj["approved_for_new_future_training"]
+          assert not obj["approved_for_2027_prospective_evaluation"]
+          assert not obj["real_time_decision_provenance_proved"]
+          for name, metadata in obj["staged_tables"].items():
+              assert hashlib.sha256((root/name).read_bytes()).hexdigest() == metadata["sha256"]
+          assert len(obj["staged_tables"]) == 5
+          print("SHADOW ONLY: complete and hash-verified, no protected evaluation or model change")
+          PY
+      - name: Confirm no frozen data/model/code was rewritten
+        run: |
+          git diff --exit-code -- app.py src/42_build_decision_engine.py models data
+      - name: Archive only manifest and execution log, not outcome data files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isolated-2014-2025-shadow-source-provenance
+          path: |
+            artifacts/shadow_historical_2014_2025/manifest.json
+            shadow-historical-stage.log
+          retention-days: 30
+          if-no-files-found: ignore
