@@ -157,7 +157,7 @@ def test_forecast_hash_invalid_or_input_contains_outcome_before_sealing(
         run_fabricated_postseason_once(obj, dest, mode=MODE)
     assert not dest.exists()
     obj = deepcopy(fixture)
-    obj["forecast_bundle"]["synthetic_forecasts"][0]["q_wp_policy"] = 1.
+    obj["forecast_bundle"]["synthetic_forecasts"][0]["q_wp_by_action"]["FIELD_GOAL"] = .33
     with pytest.raises(ValueError, match="commitment hash mismatch"):
         run_fabricated_postseason_once(obj, dest, mode=MODE)
     assert not dest.exists()
