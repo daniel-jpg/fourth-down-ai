@@ -139,12 +139,42 @@ def select_choice(frame, page, label: str, value: str) -> None:
     assert combobox.count() == 1, (
         f"{label} selectbox inaccessible; count={combobox.count()}"
     )
-    combobox.click(timeout=15000)
     option = frame.get_by_role("option", name=value, exact=True)
-    if option.count() != 1:
-        option = frame.get_by_text(value, exact=True).last
-    option.click(timeout=15000)
-    page.wait_for_timeout(1400)
+    for attempt in range(2):
+        combobox.click(timeout=15000)
+        try:
+            # The Streamlit combobox menu mounts asynchronously after click.
+            # An immediate .count() can report zero and send the test to a
+            # locator that never appeared, even though the widget is correct.
+            option.wait_for(state="visible", timeout=4500)
+            option.click(timeout=12000)
+            page.wait_for_timeout(1400)
+            return
+        except Exception as exc:
+            options = frame.get_by_role("option").all_inner_texts()
+            print(
+                "WEATHER_SELECT_RETRY",
+                {
+                    "label": label, "value": value, "attempt": attempt + 1,
+                    "expanded": combobox.get_attribute("aria-expanded"),
+                    "available_options": options[:10],
+                    "error": str(exc)[:160],
+                },
+                flush=True,
+            )
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(600)
+    if label == "Stadium / roof" and value == "Fixed dome":
+        # Keyboard fallback for the four-option roof widget, which starts
+        # at outdoor/open-air. We validate the covered-roof panel below.
+        combobox.click(timeout=12000)
+        combobox.press("Home")
+        combobox.press("ArrowDown")
+        combobox.press("Enter")
+        page.wait_for_timeout(1700)
+        print("WEATHER_ROOF_KEYBOARD_FALLBACK_USED", flush=True)
+        return
+    raise AssertionError(f"Cannot select {value} from {label}")
 
 
 def analyze(frame, page, *, weather: bool) -> dict:
