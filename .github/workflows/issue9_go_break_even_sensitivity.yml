@@ -1,0 +1,74 @@
+name: "Issue 9 deep-own GO/PUNT conversion break-even research"
+
+# Pure read-only 2014-2024 development evidence and simulated Q1 outcomes.
+# No 2026+ outcomes, no protected Step 66/83 dispatch, no new fit,
+# no policy or production app modification.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/deep_own_go_break_even_audit.py"
+      - "tests/test_deep_own_go_break_even_audit.py"
+      - ".github/workflows/issue9_go_break_even_sensitivity.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fixed-model-break-even:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install pinned research dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Check original frozen engine and real historical support boundary
+        run: |
+          PYTHONPATH=. python -m pytest -v tests/test_deep_own_go_break_even_audit.py
+      - name: Compute conditional frozen-model GO/PUNT break-even at four fixed own-yardlines
+        run: |
+          set -o pipefail
+          PYTHONPATH=. python -m src.deep_own_go_break_even_audit \
+            --simulations 1200 \
+            --out artifacts/issue9_deep_own_go_break_even.json \
+            2>&1 | tee issue9-go-break-even.log
+      - name: Verify output is model sensitivity and no protected-data claim
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          obj=json.loads(Path("artifacts/issue9_deep_own_go_break_even.json").read_text())
+          assert obj["status"] == "ISSUE9_HISTORICAL_ONLY_MODEL_BREAK_EVEN_SENSITIVITY"
+          assert obj["seeds"] == [43,101]
+          assert obj["scenarios"] == [5,10,20,35]
+          assert obj["simulation_draws_per_conditional_arm"] == 1200
+          assert len(obj["model_conditional_sensitivity"]) == 16
+          assert len(obj["empirical_support"]) == 8
+          assert obj["frozen_public_policy_unchanged"]
+          assert not obj["contains_2026_2027_outcomes"]
+          assert obj["does_not_estimate_causal_choice_of_go"]
+          assert obj["does_not_provide_model_specification_uncertainty_ci"]
+          assert obj["2025_not_used_for_development_metrics"]
+          assert obj["requires_independent_future_validation"]
+          print("PASS: frozen-model conversion break-even only, not coaching performance")
+          PY
+      - name: Verify no model, public UI or frozen dataset was modified
+        run: |
+          git diff --exit-code -- models data app.py src/42_build_decision_engine.py
+      - name: Preserve only original historic support counts and model sensitivity
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue9-go-punt-model-break-even-historical-only
+          path: |
+            artifacts/issue9_deep_own_go_break_even.json
+            issue9-go-break-even.log
+          retention-days: 30
+          if-no-files-found: ignore
