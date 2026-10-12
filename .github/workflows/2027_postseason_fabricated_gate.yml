@@ -1,0 +1,103 @@
+name: 2027 postseason gate - fabricated season and once-only rehearsal
+
+# NO weekly schedule. NO real 2027 load or ESPN HTTP call. No PR, no push
+# permissions, no production model changes and NO 2026 Step 66/83 execution.
+# The future real holdout is unconditionally disabled in this code.
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/postseason_2027_admission.py
+      - src/postseason_2027_once_only.py
+      - scripts/rehearse_2027_postseason_once.py
+      - tests/test_postseason_2027_once_only.py
+      - .github/workflows/2027_postseason_fabricated_gate.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fake-once-only-postseason:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install existing development requirements
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Verify fake full-season completeness and failure guards
+        run: |
+          PYTHONPATH=. python -m pytest -q tests/test_postseason_2027_once_only.py
+      - name: Independently replay PINNED 2014-2025 ESPN-vs-PBP margins
+        run: |
+          mkdir -p artifacts
+          PYTHONPATH=. python -m src.independent_espn_margin_archive \
+            > artifacts/pinned_2014_2025_independent_scorecheck.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path("artifacts/pinned_2014_2025_independent_scorecheck.json").read_text())
+          assert report["status"] == "ALL_HISTORICAL_FINAL_SCORES_MATCH"
+          assert report["source_game_count"] == 3151
+          assert report["prospective_or_causal_claims_authorized"] is False
+          PY
+      - name: Seal a synthetic forecast BEFORE joining artificial game outcomes
+        run: |
+          PYTHONPATH=. python -m scripts.rehearse_2027_postseason_once \
+            --fabricated-only --outdir artifacts/fake_2027_postseason_once
+      - name: Confirm 272 fabricated games and no future scoring authorization
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path("artifacts/fake_2027_postseason_once")
+          seal=json.loads((root/"forecast_seal.json").read_text())
+          result=json.loads((root/"synthetic_evaluation.json").read_text())
+          done=json.loads((root/"done.json").read_text())
+          assert seal["trial"] == "SYNTHETIC_ONLY_NO_REAL_2027_OUTCOMES"
+          assert result["source_crosscheck"]["score_matches"] == 272
+          assert result["source_crosscheck"]["authentic_espn_response_verified"] is False
+          assert result["source_crosscheck"]["external_source_independence_certified"] is False
+          assert result["source_fourth_down_candidates"] == 2
+          assert result["joined_decisions"] == 1
+          assert result["evaluated_synthetic_only"]["mode"] == "synthetic"
+          assert result["real_2027_evaluated"] is False
+          assert result["real_holdout_release_authorized"] is False
+          assert done["status"] == "FABRICATED_ONCE_COMPLETE"
+          assert done["real_release_approved"] is False
+          print("PASS: 272 synthetic score matches; one-use seal and labels separate")
+          PY
+      - name: A second scoring attempt must fail instead of peeking twice
+        shell: bash
+        run: |
+          if PYTHONPATH=. python -m scripts.rehearse_2027_postseason_once \
+            --fabricated-only --outdir artifacts/fake_2027_postseason_once \
+            > second_attempt.log 2>&1; then
+            echo "ERROR: second evaluation unexpectedly succeeded"
+            exit 1
+          fi
+          grep -q "FileExistsError" second_attempt.log
+          echo "PASS: second local execution blocked"
+      - name: Prove production models and protected 2026 gates unchanged
+        run: |
+          git diff --exit-code -- app.py data models \
+            src/66_forward_2026_continuation_wp.py \
+            src/83_forward_2026_native_challenger_once.py
+      - name: Save ONLY simulated gate and fixed historical audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-postseason-2027-admission-once
+          path: |
+            artifacts/fake_2027_postseason_once/forecast_seal.json
+            artifacts/fake_2027_postseason_once/synthetic_evaluation.json
+            artifacts/fake_2027_postseason_once/done.json
+            artifacts/pinned_2014_2025_independent_scorecheck.json
+          retention-days: 14
+          if-no-files-found: ignore
