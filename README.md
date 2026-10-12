@@ -143,14 +143,16 @@ The displayed Monte Carlo standard error measures simulation noise only. It does
 
 ## Optional temperature, wind and weather context (research-only)
 
-The [public Streamlit app](https://fourth-down-ai-nfl.onrender.com/) has **two
-optional, initially empty fields** under **Weather observations (optional)**:
-temperature (°F) and wind speed (mph). Enter values directly, without
-enabling a checkbox. Leave either field blank to skip the experimental
-comparison; both are required to run it. The normal recommendation works
-with no weather values. These fields are hidden for closed-roof games.
-No paid weather API, precipitation selector or wind-direction selector
-is part of the public interface.
+The [public Streamlit app](https://fourth-down-ai-nfl.onrender.com/) shows
+**two optional, initially empty fields beside Ball Position**: temperature (°F)
+and wind speed (mph). They are visible immediately for outdoor/open-roof
+games, without an expander, dropdown or checkbox. The ball-position field
+remains draggable. Enter values directly, or leave either field blank to skip
+the experimental field-goal comparison; both are required to run it.
+The normal recommendation works with no weather values, and the fields are
+hidden for closed-roof games. On narrow screens the layout stacks for
+readability. No paid weather API, precipitation selector or wind-direction
+selector is part of the public interface.
 
 These inputs drive a separate **Weather-adjusted field goal comparison
 (experimental)**, NOT the official win-probability ranking. The
