@@ -76,11 +76,18 @@ def run_browser() -> None:
             frame = find_app(page)
             print("LOCAL_FORM_READY", flush=True)
 
-            weather = frame.get_by_text("Weather observations (optional)", exact=True)
-            # Streamlit renders the heading before the optional controls;
-            # on Render Free that render gap can be several seconds.
+            weather = frame.get_by_text("Weather (optional)", exact=True)
+            # The two optional inputs must be directly visible, with no
+            # expander step, beside Ball Position when the page loads.
             weather.wait_for(state="visible", timeout=35000)
-            assert weather.count() == 1, "Weather UI missing after full render"
+            assert weather.count() == 1, "Weather heading missing after full render"
+            for name in ("Temperature (°F)", "Wind speed (mph)"):
+                frame.get_by_role("spinbutton", name=name).wait_for(
+                    state="visible", timeout=35000
+                )
+            assert frame.get_by_text(
+                "Weather observations (optional)", exact=True
+            ).count() == 0, "Removed weather expander still visible"
 
             # The default Q4 state is 7:38, 4th-and-3 at opponent 30,
             # down 24-27. Change the site as real users do.
