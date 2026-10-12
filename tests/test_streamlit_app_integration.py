@@ -118,6 +118,7 @@ def ui(monkeypatch):
     st.cache_resource.clear()
     engine = FixedEngine()
     original_spec = importlib.util.spec_from_file_location
+    loaded_engine_modules = []
 
     class Loader(importlib.abc.Loader):
         def create_module(self, spec):
@@ -129,6 +130,7 @@ def ui(monkeypatch):
     def engine_spec(name, location, *args, **kwargs):
         if name == "fourth_down_engine":
             assert Path(location).name == "42_build_decision_engine.py"
+            loaded_engine_modules.append(str(location))
             return importlib.util.spec_from_loader(name, Loader())
         return original_spec(name, location, *args, **kwargs)
 
@@ -164,9 +166,36 @@ def ui(monkeypatch):
     clone = Mock(return_value=private)
     monkeypatch.setattr(preview, "isolated_engine_from_loaded_engine", clone)
     at = run(AppTest.from_file(str(ROOT / "app.py"), default_timeout=15))
-    yield SimpleNamespace(at=at, engine=engine, probe=probe, previews=previews)
+    yield SimpleNamespace(
+        at=at, engine=engine, probe=probe, previews=previews,
+        loaded_engine_modules=loaded_engine_modules,
+    )
     # Do not leak the fake cached module to real-engine tests or another session.
     st.cache_resource.clear()
+
+
+def test_engine_is_not_loaded_until_analyze_and_is_cached_through_reruns(ui):
+    at = ui.at
+    assert ui.loaded_engine_modules == []
+    # Normal interactions, including HOME-site changes, must remain cheap.
+    widget(at, "radio", "Game site").set_value("Home")
+    run(at)
+    widget(at, "number_input", "Yards to go").set_value(4)
+    run(at)
+    assert ui.loaded_engine_modules == []
+    analyze(at)
+    assert len(ui.loaded_engine_modules) == 1
+    assert metrics(at).get("Recommendation")
+    run(at)
+    assert len(ui.loaded_engine_modules) == 1
+
+    # Different quarters still use the same cached frozen engine.
+    widget(at, "radio", "Quarter").set_value(1)
+    run(at)
+    assert len(ui.loaded_engine_modules) == 1
+    analyze(at)
+    assert len(ui.loaded_engine_modules) == 1
+    assert metrics(at).get("Recommendation")
 
 
 def test_result_persists_across_same_state_rerun_and_invalidates_on_change(ui):

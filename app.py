@@ -854,7 +854,9 @@ def load_engine():
     return engine
 
 
-engine = load_engine()
+# The ~300 MiB frozen engine is intentionally loaded only when the user
+# requests a prediction. Cached model artifacts remain shared read-only
+# across reruns; opening the input form never needs to import them.
 
 
 # =========================================================
@@ -1291,6 +1293,7 @@ def go_playcall_gap_z(go):
 
 def adaptive_recommend(
     state,
+    engine,
 ):
 
     initial = engine.recommend(
@@ -2388,6 +2391,10 @@ if situation_valid:
             "Running fourth-down decision simulation..."
         ):
 
+            # Lazy, cached load keeps fresh/idle Streamlit sessions light.
+            # It does not change any model weights, inputs or RNG seeds.
+            engine = load_engine()
+
             if qtr == 4:
                 # Native Q4 kickoff-feature correction runs in an isolated
                 # model namespace: weights and future-data gates unchanged.
@@ -2416,7 +2423,8 @@ if situation_valid:
                     st.stop()
             else:
                 result = adaptive_recommend(
-                    state
+                    state,
+                    engine,
                 )
 
 
