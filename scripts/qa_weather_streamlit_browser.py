@@ -245,33 +245,48 @@ def check_baseline_and_weather(frame, page) -> dict:
     temperature.wait_for(state="visible", timeout=25000)
     wind.wait_for(state="visible", timeout=25000)
 
-    field_frame = None
-    for embedded in page.frames:
+    # Streamlit can recreate components.v2 iframes during a rerender.
+    # Reacquire the current frame and measure its DOM in a short retry
+    # loop rather than holding a stale Frame.frame_element handle.
+    geometry = None
+    last_error = None
+    for attempt in range(16):
         try:
-            if embedded.locator("#los-input").count() == 1:
-                field_frame = embedded
+            for embedded in page.frames:
+                if embedded.locator("#los-input").count() != 1:
+                    continue
+                current_los = embedded.locator("#los-input").bounding_box()
+                current_field = embedded.locator("#field").bounding_box()
+                current_scroll = embedded.evaluate(
+                    "() => ({width: document.documentElement.scrollWidth,"
+                    " viewportWidth: document.documentElement.clientWidth,"
+                    " height: document.documentElement.scrollHeight,"
+                    " viewportHeight: document.documentElement.clientHeight})"
+                )
+                if current_los is not None and current_field is not None:
+                    geometry = (current_los, current_field, current_scroll)
+                    break
+            if geometry is not None:
                 break
-        except Exception:
-            pass
-    assert field_frame is not None, (
-        "Custom ball-position field iframe / LOS input not found"
+        except Exception as exc:
+            last_error = repr(exc)[:180]
+        page.wait_for_timeout(350)
+    assert geometry is not None, (
+        "Stable ball-position field frame not found; last error "
+        + repr(last_error)
     )
-    los_input = field_frame.locator("#los-input")
-    los_box = los_input.bounding_box()
-    field_box = field_frame.locator("#field").bounding_box()
-    frame_box = field_frame.frame_element().bounding_box()
+    los_box, field_box, scroll = geometry
     temperature_box = temperature.bounding_box()
     wind_box = wind.bounding_box()
     assert all(box is not None for box in (
-        los_box, field_box, frame_box, temperature_box, wind_box,
+        los_box, field_box, temperature_box, wind_box,
     )), "Field or weather widget unexpectedly invisible"
-
-    assert frame_box["width"] >= 960, (
-        f"Football field squeezed into a narrow column: {frame_box}"
+    assert field_box["width"] >= 960, (
+        f"Football field squeezed into a narrow column: {field_box}"
     )
-    assert field_box["width"] >= frame_box["width"] - 40, (
-        "Football field drawing does not span the full field component"
-    )
+    assert field_box["x"] + field_box["width"] >= (
+        wind_box["x"] + wind_box["width"] - 20
+    ), "Field drawing does not extend beneath rightmost weather control"
     assert temperature_box["x"] >= los_box["x"] + 240, (
         f"Temperature is not to the right of LOS: {temperature_box} / {los_box}"
     )
@@ -284,12 +299,6 @@ def check_baseline_and_weather(frame, page) -> dict:
     assert abs(wind_box["y"] - los_box["y"]) <= 38, (
         f"Wind is not on LOS input row: {wind_box} / {los_box}"
     )
-    scroll = field_frame.evaluate(
-        "() => ({width: document.documentElement.scrollWidth,"
-        " viewportWidth: document.documentElement.clientWidth,"
-        " height: document.documentElement.scrollHeight,"
-        " viewportHeight: document.documentElement.clientHeight})"
-    )
     assert scroll["width"] <= scroll["viewportWidth"] + 3, (
         f"Unexpected horizontal scrollbar in field component: {scroll}"
     )
@@ -299,7 +308,7 @@ def check_baseline_and_weather(frame, page) -> dict:
     print(
         "WEATHER_INLINE_WITH_LOS_FULL_FIELD_NO_SCROLL_PASS",
         {"los": los_box, "temp": temperature_box, "wind": wind_box,
-         "field": frame_box, "scroll": scroll},
+         "field": field_box, "scroll": scroll},
         flush=True,
     )
     assert temperature.input_value() == "", (
