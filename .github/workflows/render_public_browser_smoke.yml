@@ -1,7 +1,12 @@
 name: Verify public Render Q4 and weather in Chromium
 
-# Manual after the final URL rename; avoid smoke at an obsolete hostname.
+# Current Render Free public trial: test the already-deployed hostname.
+# Keep workflow_dispatch for the provider-assigned URL after any migration.
 on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/render_public_browser_smoke.yml
   workflow_dispatch:
     inputs:
       public_base_url:
