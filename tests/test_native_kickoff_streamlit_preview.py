@@ -72,12 +72,14 @@ def test_research_candidate_requires_q4_and_real_simulation_count():
         preview_native_kickoff_feature_candidate(HOME,simulations=199)
 
 
-def test_deployed_streamlit_wires_opt_in_only_and_no_official_reassignment():
+def test_deployed_streamlit_keeps_native_research_out_of_public_ui():
     app=(ROOT/"app.py").read_text()
     ast.parse(app)
-    assert "experimental_native_candidate_enabled = False" in app
-    assert "preview_native_kickoff_feature_candidate(" in app
-    assert "Additional model-input comparison (research-only)" in app
-    assert "The official selection above" in app
-    assert "away kicking teams" in app
-    assert "candidate_result = preview_native_kickoff_feature_candidate(" in app
+    # The native candidate remains tested in this module's research API,
+    # but its opt-in Streamlit controls were intentionally removed.
+    assert "experimental_native_candidate_enabled" not in app
+    assert "preview_native_kickoff_feature_candidate(" not in app
+    assert "Additional model-input comparison (research-only)" not in app
+    # The independent automatic Q4 reliability guard must stay in place.
+    assert "inspect_made_fg_kickoff_encoding(" in app
+    assert "st.warning(fg_encoding_warning)" in app

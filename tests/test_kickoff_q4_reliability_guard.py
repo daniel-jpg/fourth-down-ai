@@ -139,7 +139,10 @@ def test_streamlit_guard_is_automatic_but_requires_eligible_fg_and_q4():
     assert "st.warning(fg_encoding_warning)" in app
     assert "if len(fg_eligible_rows) == 1:" in app
     before=app.index("fg_encoding_probe = inspect_made_fg_kickoff_encoding(")
-    assert before<app.index("if qtr == 4 and experimental_kickoff_enabled:")
+    # The automatic guard remains part of the official decision path,
+    # preceding ordinary play-call advice; no optional kickoff UI remains.
+    assert before < app.index("    # GO play call")
+    assert "experimental_kickoff_enabled" not in app
     src=(ROOT/"src/kickoff_q4_reliability_guard.py").read_text()
     assert "2026" in src
     assert "load_pbp([2026])" not in src
