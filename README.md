@@ -281,6 +281,30 @@ See also
 [Step 81 analysis](src/81_broader_post_score_kickoff_calibration.py),
 and the [initial site-defect report](reports/2025_q4_kickoff_site_model_defect.md).
 
+## Independent 2027 Fourth-Down Action-Policy Study
+
+The separate [preregistered 2027 decision study](reports/2027_fourth_down_action_policy_protocol.md)
+asks whether action-specific win-probability estimates are calibrated
+when NFL teams **actually choose** pass/run, FG or punt, and whether
+historical coaching choices offer enough overlap for a cautious
+observational one-decision comparison. This is **different from** the
+2026 kickoff-input validation and does not replace it.
+
+The [pure offline evaluator](src/fourth_down_policy_study.py) and
+[synthetic-only CI tests](tests/test_fourth_down_policy_study.py) are
+installed without changing the live app, frozen model or protected 2026
+data gates. The future holdout is **2027 regular-season regulation fourth
+downs**. A prospective audit requires final 2027 game outcomes,
+pre-snap-only features, separate propensity and reward models trained
+using seasons no later than 2025, and recorded model/source provenance.
+No 2027 outcomes are available yet, and **no causal fourth-down coaching
+advantage has been established**.
+
+Passing the original once-only 2026 native-kickoff test may eventually
+allow narrowing the phrase *"kickoff inputs not yet validated on future
+games"*; even a positive 2027 observational result would not by itself
+justify removing all uncertainty about an unchosen FG versus GO decision.
+
 ## Installation
 
 Clone the repository:
