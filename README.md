@@ -101,6 +101,20 @@ wind direction, rain/snow effects, pass/run/punt weather response, or
 actual pre-snap weather provenance. The official frozen model, 2026
 one-time gates and 2027 future holdout remain unchanged.
 
+**Historical GO/PUNT weather evidence is now available:** the
+[2014–2024 identical-cohort study](reports/weather_go_punt_2014_2024_findings.md)
+tested observed GO conversion and recorded gross PUNT distance. Adding
+temperature/wind **worsened GO conversion validation Brier** from 0.216460
+to 0.216981; for PUNT it changed gross-distance MAE from **6.3704 yards
+to 6.3396 yards**, an inconclusive 0.031-yard improvement with a
+game-cluster interval crossing zero. Parsing rain/snow words from
+game-level historical weather text did not meaningfully improve these
+results. The original source exposes **wind speed but no verified
+play-relative direction**, so the new manual Headwind/Tailwind/Crosswind
+selector is strictly descriptive and does not change any probability.
+These exploratory comparators are not the deployed models and cannot
+justify promoting weather into the official GO/PUNT strategy ranking.
+
 ## Overtime Support
 
 The engine supports both **regular-season** and **postseason** overtime.
