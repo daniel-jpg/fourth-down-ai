@@ -69,3 +69,6 @@ models/*
 
 # Frozen, verified 2025 historical kickoff evidence for Streamlit previews.
 !data/kickoff_2025_reg_q4_ordinary.csv
+
+# Ephemeral, independently audited shadow research outputs, never committed.
+artifacts/
