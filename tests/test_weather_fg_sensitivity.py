@@ -98,7 +98,7 @@ def test_probability_redistribution_preserves_broken_and_block_ratios():
     assert weather.adjust_fg_probability_distribution(
         initial, log_odds_shift=0.0,
     ) == initial
-    with pytest.raises(ValueError, match="sum"):
+    with pytest.raises(ValueError, match="Invalid frozen FG distribution"):
         weather.adjust_fg_probability_distribution(
             {**initial, "made": 1.01}, log_odds_shift=-.2,
         )
