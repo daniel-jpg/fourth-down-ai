@@ -172,6 +172,11 @@ def test_own5_and_q2_half_receiver_without_assuming_missing_data(snapshot):
         nuisance_snapshot=snapshot, n_simulations=32,
     )
     assert out["pre_snap"]["policy_action"] == "NORMAL_GO_RUN"
+    # RUN/PASS are nearly tied, which escalates the app's action-level
+    # Monte Carlo budget; it must NOT flag the GO-vs-PUNT strategy
+    # comparison as a close call.
+    assert out["audit"]["adaptive_escalated"] is True
+    assert out["pre_snap"]["close_call"] is False
     assert "PUNT" in out["pre_snap"]["eligible_actions"]
     assert "FIELD_GOAL" not in out["pre_snap"]["eligible_actions"]
 
