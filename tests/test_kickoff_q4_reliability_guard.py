@@ -48,7 +48,8 @@ def test_known_home_site_anomaly_triggers_automatic_conditional_warning():
     message = reliability_warning_markdown(home)
     assert "conditional post-FG" in message
     assert "NOT the" in message
-    assert "official recommendation is unchanged" in message
+    assert "frozen-model outputs are unchanged" in message
+    assert "separate experimental panel" not in message
 
 
 def test_small_away_site_delta_does_not_spam_user():

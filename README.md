@@ -183,6 +183,16 @@ defaults to the training-data median unless supplied in the engine.
 See [the presentation-only explainer](src/fourth_down_action_explainer.py)
 and [its tests](tests/test_fourth_down_action_explainer.py).
 
+**Q4 decision reliability:** In some late-game states the original
+field-goal continuation is materially sensitive to how a hypothetical
+post-made-FG kickoff is encoded. When the frozen model ranks **FIELD GOAL**
+first *and* this existing check detects a material discrepancy (or fails),
+the public app shows **INCONCLUSIVE** instead of a confident recommendation.
+It still displays the unchanged official WP figures and their model-only
+gap for inspection. This does **not** mean GO FOR IT is known to be better.
+There is no extra experimental checkbox or scenario panel; the research
+candidate remains unpromoted.
+
 ## Q4 Kickoff Feature-Encoding Audit (Research)
 
 A [14-situation Q4 robustness audit](reports/2025_q4_kickoff_site_model_defect.md)

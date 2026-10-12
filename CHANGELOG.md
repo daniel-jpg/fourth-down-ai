@@ -19,8 +19,11 @@ and the frozen official model remain unchanged.
   not as interactive public app features.
 - Added immediate modeled conversion, field-goal and punt outcome
   explanations alongside win probability or overtime game value.
-- Preserved the **automatic Q4 post-FG model-reliability warning**, with
-  no experimental model promotion.
+- Preserved the **automatic Q4 post-FG model-reliability warning**, and
+  now mark a material model-sensitive FIELD GOAL leader as
+  **INCONCLUSIVE**, keeping the frozen WP numbers visible. The warning
+  no longer points to a deleted experimental panel. No alternate model
+  promotion or extra checkbox was added.
 - Excluded unsupported fake punt and fake field-goal probabilities from
   public rankings and removed intrusive deployment revision UI.
 - Clarified overtime tie valuation, regulation clock validation and

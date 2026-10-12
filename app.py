@@ -1990,6 +1990,58 @@ if run_model:
         )
 
 
+    # =====================================================
+    # Automatic Q4 post-FG input-representation reliability check.
+    # Run it before choosing how to PRESENT the model leader.
+    # The underlying production result/weights are never changed.
+    # There is no second scenario, checkbox, or extra simulation.
+    # =====================================================
+
+    fg_encoding_probe = None
+    fg_encoding_warning = None
+    fg_guard_unavailable = False
+
+    if (
+        qtr == 4
+        and 45 < float(state["game_seconds_remaining"]) <= 900
+    ):
+        fg_eligible_rows = result["results"].loc[
+            result["results"]["action"].eq("FIELD_GOAL")
+            & result["results"]["eligible"].eq(True)
+        ]
+
+        if len(fg_eligible_rows) == 1:
+            try:
+                from src.kickoff_q4_reliability_guard import (
+                    inspect_made_fg_kickoff_encoding,
+                    reliability_warning_markdown,
+                )
+
+                fg_encoding_probe = inspect_made_fg_kickoff_encoding(
+                    state,
+                )
+                fg_encoding_warning = reliability_warning_markdown(
+                    fg_encoding_probe,
+                )
+            except Exception:
+                fg_guard_unavailable = True
+
+    # A known material post-FG input discrepancy cannot be called a
+    # verified action-level FG edge. Flag the FG pick, not the
+    # unmodified engine probability or any other action's WP.
+    fg_leader_sensitive = (
+        best["strategy"] == "FIELD GOAL"
+        and (
+            fg_guard_unavailable
+            or (
+                fg_encoding_probe is not None
+                and fg_encoding_probe.get("applicable", False)
+                and fg_encoding_probe.get("material", False)
+            )
+        )
+    )
+
+
     recommendation_col, wp_col, edge_col = (
         st.columns(3)
     )
@@ -1999,14 +2051,14 @@ if run_model:
 
         st.metric(
             "Recommendation",
-            best["strategy"],
+            "INCONCLUSIVE" if fg_leader_sensitive else best["strategy"],
         )
 
 
     with wp_col:
 
         st.metric(
-            value_metric_label,
+            "Frozen-model FG WP" if fg_leader_sensitive else value_metric_label,
             f"{100 * best['wp']:.2f}%",
         )
 
@@ -2026,8 +2078,11 @@ if run_model:
         with edge_col:
 
             st.metric(
-                f"Advantage over "
-                f"{second['strategy']}",
+                (
+                    f"Unverified FG lead vs {second['strategy']}"
+                    if fg_leader_sensitive
+                    else f"Advantage over {second['strategy']}"
+                ),
                 f"+{strategy_edge:.2f} pp",
             )
 
@@ -2057,7 +2112,20 @@ if run_model:
         )
 
 
-        if near_tie:
+        if fg_leader_sensitive:
+
+            st.info(
+                "**No dependable pick from this model.** "
+                f"The frozen calculation ranks FIELD GOAL above "
+                f"{second['strategy']} by {strategy_edge:.2f} pp, "
+                "but its Q4 post-field-goal kickoff representation is "
+                "materially sensitive (or cannot be verified). "
+                "The percentages are shown for transparency, "
+                "not as a validated coaching edge. "
+                "This does not establish that GO FOR IT is better."
+            )
+
+        elif near_tie:
 
             st.info(
                 f"**Near tie:** "
@@ -2087,58 +2155,20 @@ if run_model:
         )
 
     # =====================================================
-    # Automatic deterministic warning for a KNOWN WP input-
-    # encoding sensitivity after an eligible hypothetical FG.
-    #
-    # This NEVER changes the displayed official recommendation,
-    # probabilities, or MC simulations. It compares two feature
-    # representations using the SAME frozen WP model in a
-    # separate private engine and a made-FG/5-second assumption.
-    #
-    # This guard appears automatically when its materiality condition
-    # is met, independently of the removed research comparison UI.
+    # Show the already-computed Q4 reliability diagnostic.
+    # Do not reference a removed experimental panel.
     # =====================================================
 
-    if (
-        qtr == 4
-        and 45 < float(state["game_seconds_remaining"]) <= 900
-    ):
+    if fg_guard_unavailable:
+        st.caption(
+            "Q4 made-field-goal kickoff reliability check "
+            "is unavailable. Treat the frozen model's post-score "
+            "continuation as unverified; the underlying "
+            "calculation is unchanged."
+        )
 
-        fg_eligible_rows = result["results"].loc[
-            result["results"]["action"].eq("FIELD_GOAL")
-            & result["results"]["eligible"].eq(True)
-        ]
-
-        if len(fg_eligible_rows) == 1:
-
-            try:
-
-                from src.kickoff_q4_reliability_guard import (
-                    inspect_made_fg_kickoff_encoding,
-                    reliability_warning_markdown,
-                )
-
-                fg_encoding_probe = inspect_made_fg_kickoff_encoding(
-                    state,
-                )
-                fg_encoding_warning = reliability_warning_markdown(
-                    fg_encoding_probe,
-                )
-
-            except Exception:
-
-                st.caption(
-                    "Q4 made-field-goal kickoff reliability check "
-                    "is unavailable. Treat the frozen model's "
-                    "post-score continuation as unverified; the "
-                    "official calculation above is unchanged."
-                )
-
-            else:
-
-                if fg_encoding_warning is not None:
-
-                    st.warning(fg_encoding_warning)
+    elif fg_encoding_warning is not None:
+        st.warning(fg_encoding_warning)
 
     # =====================================================
     # GO play call

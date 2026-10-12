@@ -39,12 +39,14 @@ class FixedEngine:
         self.unavailable = set()
         self.close = False
         self.bad_detail = False
+        self.wp_overrides = {}
         self.calls = []
         self.outputs = []
 
     def result(self, *, experimental=False):
         rows = []
         for action, (label, wp, detail) in NORMAL.items():
+            wp = self.wp_overrides.get(action, wp)
             eligible = action not in self.unavailable
             if self.close and action == "NORMAL_GO_RUN":
                 wp = .639
@@ -314,7 +316,7 @@ def test_q4_material_warning_is_automatic_and_does_not_change_official_results(u
     analyze(ui.at)
     assert "Model reliability warning" in values(ui.at, "warning")
     assert "conditional post-FG win probabilities" in values(ui.at, "warning")
-    assert "official recommendation is unchanged" in values(ui.at, "warning")
+    assert "frozen-model outputs are unchanged" in values(ui.at, "warning")
     assert metrics(ui.at)["Win probability if chosen"] == "64.00%"
     assert not any("experimental" in c.label.lower() for c in ui.at.checkbox)
     ui.probe.assert_called_once_with(ui.engine.calls[0][0])
@@ -336,6 +338,76 @@ def test_warning_probe_failure_has_visible_fallback_and_preserves_result(ui):
     analyze(ui.at)
     assert "reliability check is unavailable" in values(ui.at, "caption")
     assert metrics(ui.at)["FIELD GOAL"] == "40.00%"
+
+
+def test_q4_459_trailing_four_fg_sensitivity_is_not_a_confident_pick(ui):
+    # Real historical reproducibility state: 4th-and-4 at opponent 6,
+    # trailing 27-31 with 4:59 and both teams holding three timeouts.
+    # Fixed estimates mirror the observed live official model output;
+    # the reliability probe is mocked to avoid a second live engine.
+    at = AppTest.from_file(str(ROOT / "app.py"), default_timeout=15)
+    at.session_state["football_field"] = {"yardline_100": 6}
+    ui.engine.wp_overrides = {
+        "NORMAL_GO_PASS": .3545,
+        "FIELD_GOAL": .4157,
+    }
+    ui.engine.unavailable = {"NORMAL_GO_RUN", "PUNT"}
+    ui.probe.return_value = {
+        "applicable": True, "material": True,
+        "legacy_conditional_made_fg_wp": .4244,
+        "native_conditional_made_fg_wp": .3743,
+        "absolute_difference_pp": 5.01,
+        "assumed_fg_execution_seconds": 5.,
+    }
+    run(at)
+    widget(at, "text_input", "Time remaining (MM:SS)").set_value("04:59")
+    widget(at, "number_input", "Yards to go").set_value(4)
+    widget(at, "number_input", "Offense score").set_value(27)
+    widget(at, "number_input", "Defense score").set_value(31)
+    run(at)
+    analyze(at)
+
+    observed_state = ui.engine.calls[0][0]
+    assert observed_state["game_seconds_remaining"] == 299.
+    assert observed_state["yardline_100"] == 6
+    assert observed_state["ydstogo"] == 4.
+    assert observed_state["score_differential"] == -4.
+    assert observed_state["site"] == "AWAY"
+    assert ui.probe.call_count == 1
+    assert len(ui.engine.calls) == 1
+    assert metrics(at)["Recommendation"] == "INCONCLUSIVE"
+    assert metrics(at)["Frozen-model FG WP"] == "41.57%"
+    assert metrics(at)["Unverified FG lead vs GO FOR IT"] == "+6.12 pp"
+    assert metrics(at)["FIELD GOAL"] == "41.57%"
+    assert metrics(at)["PASS / DROPBACK"] == "35.45%"
+    assert "No dependable pick" in values(at, "info")
+    assert "Model reliability warning" in values(at, "warning")
+    assert "separate experimental panel" not in values(at, "warning")
+    assert "2025 kickoff comparison" not in [w.label for w in at.expander]
+    assert not any(fn.called for fn in ui.previews.values())
+
+
+def test_q4_nonmaterial_fg_leader_retains_original_recommendation(ui):
+    ui.engine.wp_overrides = {"NORMAL_GO_PASS": .35, "FIELD_GOAL": .41}
+    ui.probe.return_value = {"applicable": True, "material": False}
+    analyze(ui.at)
+    assert metrics(ui.at)["Recommendation"] == "FIELD GOAL"
+    assert metrics(ui.at)["Win probability if chosen"] == "41.00%"
+    assert metrics(ui.at)["Advantage over GO FOR IT"] == "+6.00 pp"
+    assert "Frozen-model FG WP" not in metrics(ui.at)
+    assert "Model reliability warning" not in values(ui.at, "warning")
+
+
+def test_q4_fg_leader_probe_failure_fails_closed_without_changing_wp(ui):
+    ui.engine.wp_overrides = {"NORMAL_GO_PASS": .35, "FIELD_GOAL": .41}
+    ui.probe.side_effect = RuntimeError("probe unavailable")
+    analyze(ui.at)
+    assert metrics(ui.at)["Recommendation"] == "INCONCLUSIVE"
+    assert metrics(ui.at)["Frozen-model FG WP"] == "41.00%"
+    assert metrics(ui.at)["FIELD GOAL"] == "41.00%"
+    assert "reliability check is unavailable" in values(ui.at, "caption")
+    assert "No dependable pick" in values(ui.at, "info")
+    assert len(ui.engine.calls) == 1
 
 
 def test_public_q4_analysis_uses_only_official_model(ui):
