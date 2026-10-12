@@ -1,0 +1,48 @@
+name: Historical GO field-position challenger audit
+
+# Development-only 2014-2024 rows from checked-in parquet.
+# No 2025+ outcome access, future gate dispatch, model promotion or UI edits.
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/field_position_go_research.py
+      - scripts/audit_go_field_position_challenger.py
+      - tests/test_field_position_go_research.py
+      - .github/workflows/audit_go_field_position_challenger.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install pinned existing development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Verify conversion challenger and eligibility guards
+        run: python -m pytest -v tests/test_field_position_go_research.py
+      - name: Compare candidate and frozen conversion on historical development
+        run: |
+          set -o pipefail
+          PYTHONPATH=. python scripts/audit_go_field_position_challenger.py | tee go-challenger-audit.txt
+      - name: Preserve research-only report and unpromoted candidate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-field-position-development-only
+          path: |
+            go-challenger-audit.txt
+            artifacts/go_field_position_challenger_development.json
+            artifacts/go_field_position_challenger.joblib
+          retention-days: 21
+          if-no-files-found: ignore
