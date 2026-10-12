@@ -199,8 +199,17 @@ jobs:
                   # The Q4 HOME default state is known to be sensitive
                   # to the old synthetic kickoff representation. Select
                   # HOME before analyzing so Streamlit can finish its rerun.
-                  app.get_by_text("Home", exact=True).first.click()
+                  home_radio = app.get_by_role("radio", name="Home")
+                  assert home_radio.count() == 1, "HOME radio absent"
+                  # Click the styled label (not the input hidden beneath it).
+                  app.get_by_text("Home", exact=True).first.click(
+                      timeout=15000
+                  )
                   page.wait_for_timeout(3500)
+                  assert home_radio.is_checked(), (
+                      "HOME selection did not persist after Streamlit rerun"
+                  )
+                  print("Confirmed Q4 HOME selected", flush=True)
                   app.get_by_role(
                       "button", name="Analyze Fourth Down"
                   ).click()

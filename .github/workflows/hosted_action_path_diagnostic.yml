@@ -121,7 +121,12 @@ jobs:
                       assert selected.count() == 1, (
                           f"Cannot uniquely resolve the {site} site radio"
                       )
-                      selected.check(timeout=15000)
+                      # The actual radio input is covered by Streamlit's
+                      # styled label; click the visible label, then verify
+                      # the underlying input state (locally browser-verified).
+                      app.get_by_text(site, exact=True).first.click(
+                          timeout=15000
+                      )
                       page.wait_for_timeout(4500)
                       assert selected.is_checked(), (
                           f"Site {site} not checked after Streamlit rerun"
