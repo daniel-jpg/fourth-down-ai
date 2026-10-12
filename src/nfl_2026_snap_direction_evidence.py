@@ -14,9 +14,8 @@ decision are explicitly retrospective, never a live pre-snap forecast.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, date
 import hashlib
-import math
 import re
 from typing import Any, Mapping
 
@@ -160,6 +159,9 @@ def assess_2026_buffalo_snap_direction(
         raise ValueError("Play ID and regulation quarter must be explicit")
     remaining = _clock(game_clock_mmss)
     decision = utc_time(decision_at_utc)
+    schedule_day = date.fromisoformat(game_date_et)
+    if not 0 <= (decision.date()-schedule_day).days <= 1:
+        raise ValueError("UTC decision must fall on game schedule day or following UTC day")
     if (
         not isinstance(witness_metadata, list)
         or not 1 <= len(witness_metadata) <= 2
@@ -178,8 +180,10 @@ def assess_2026_buffalo_snap_direction(
         or len(set(x["witness_id"] for x in sightings)) != len(sightings)
         or len(set(x["original_local_artifact_sha256"] for x in sightings))
             != len(sightings)
+        or len(set(x["source_url_user_asserted"] for x in sightings))
+            != len(sightings)
     ):
-        raise ValueError("Duplicate witness, source or file is not corroboration")
+        raise ValueError("Duplicate witness, source, URL or file is not corroboration")
     claimed_ends = {x["claim_north_south_end"] for x in sightings}
     if len(claimed_ends) > 1:
         raise ValueError("Conflicting north/south snap direction claims: abstain")
