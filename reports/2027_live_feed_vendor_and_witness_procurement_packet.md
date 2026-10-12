@@ -56,6 +56,35 @@ Thank you.
 
 Contact paths: [Sportradar Pulse documentation / sales direction](https://developer.sportradar.com/football/reference/nfl-push-pulse); [SportsDataIO contact form](https://sportsdata.io/contact-us); [SportsDataIO testing options](https://sportsdata.io/developers). Contact forms/subscriptions require the human account owner; **no outreach has been sent**.
 
+## Implemented: synthetic-only RFC 3161 timestamp client and verifier
+
+The independent-receipt proof-of-concept is now in [src/rfc3161_synthetic_tsa_trial.py](../src/rfc3161_synthetic_tsa_trial.py) with [five offline cryptographic regression tests](../tests/test_rfc3161_synthetic_tsa_trial.py). These use an **ephemeral locally issued test CA** and local OpenSSL RFC 3161 signer, proving only that the *mechanics* work. They never call a real TSA, collect live games or approve real-world provenance. Both the signed response against the original nonce-bearing RFC 3161 query **and** the signed response against the exact canonical synthetic commitment are verified, under an explicitly supplied PEM trust anchor. A mismatched commitment, altered token, changed request nonce or wrong CA fails closed. The API always returns **false** for independently approved trust, independent actual snap proof and 2027 prospective approval.
+
+Sigstore's public-good [timestamp authority](https://docs.sigstore.dev/cosign/verifying/timestamps/) exposes a [documented RFC 3161 API](https://github.com/sigstore/timestamp-authority/blob/main/README.md). This is a *candidate* option for a single operator-approved technical test, not contracted production latency/custody, especially during NFL games. The CLI refuses network requests unless the operator explicitly supplies \`--allow-public-network-test\`; even a successful response must be cryptographically checked using a trust root obtained and reviewed **independently** of the timestamp response, such as via Sigstore's TUF trusted-root process. Never trust an arbitrary certificate downloaded from the response issuer simply because it verifies that issuer's own signature. No external test request has been made by this project.
+
+Reproducible commands using **fabricated source packet hash only** (not any 2026/2027 game records):
+
+\`\`\`bash
+python -m pytest -q tests/test_rfc3161_synthetic_tsa_trial.py
+python -m src.rfc3161_synthetic_tsa_trial create \
+  --synthetic-sha256 "$(printf 'FABRICATED FORECAST ONLY' | sha256sum | cut -d' ' -f1)" \
+  --commitment-out artifacts/rfc3161_fake_commitment.bin \
+  --query-out artifacts/rfc3161_fake_query.tsq
+# OPTIONAL external HTTPS POST, only after human approval of TSA policy:
+# python -m src.rfc3161_synthetic_tsa_trial request \
+#   --query artifacts/rfc3161_fake_query.tsq \
+#   --response-out artifacts/rfc3161_fake_reply.tsr \
+#   --allow-public-network-test
+# After independently obtaining and approving TSA root.pem and chain.pem:
+# python -m src.rfc3161_synthetic_tsa_trial verify \
+#   --commitment artifacts/rfc3161_fake_commitment.bin \
+#   --query artifacts/rfc3161_fake_query.tsq \
+#   --response artifacts/rfc3161_fake_reply.tsr \
+#   --trust-anchor artifacts/tsa_root.pem --chain artifacts/tsa_chain.pem
+\`\`\`
+
+**Security/identification boundary:** This does not integrate into the frozen 2027 game-input or policy outputs. A legitimate signed external timestamp could establish an approximate existence time of a committed hash, *not* truth of source features, independent real snap timing, or an unbiased missing-play denominator. Production use requires independent trust-root review, separate actual-snap source, vendor license, paired game/play identifiers, latency/accuracy tests and formal preseason authorization.
+
 ## Third-party witness requirement: what a signed hash can and cannot establish
 
 An RFC 3161 [Time-Stamp Authority](https://www.rfc-editor.org/info/rfc3161/) can sign evidence that a particular **hash** existed by a claimed trusted time. We should request a quote/implementation proof for a TSP service that can return signed response tokens fast enough in a football pre-snap window, preserves certificate trust chains, and echoes nonce plus message imprint with correctly verifiable token signatures. Ideally the externally administered service archives tokens, and a separate independently sourced snap marker exists for the *same* provider game/play ID.
