@@ -1,0 +1,45 @@
+name: "2027 fabricated full-budget decision-engine latency profile"
+
+# EXACT existing policy simulations on synthetic 2027-shaped snapshots ONLY.
+# No live feeds, no reserved 2026 game results, no forecast promotion.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/frozen_2027_policy_latency_rehearsal.py"
+      - "tests/test_frozen_2027_policy_latency_rehearsal.py"
+      - ".github/workflows/2027_fabricated_policy_latency.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  full-precision-latency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install pinned project dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Verify frozen full-budget synthetic runtime rules
+        run: |
+          PYTHONPATH=. python -m pytest -v tests/test_frozen_2027_policy_latency_rehearsal.py
+      - name: Record hardware-dependent full-budget computation latency only
+        run: |
+          PYTHONPATH=. python -m src.frozen_2027_policy_latency_rehearsal \
+            --repeats 3 --out artifacts/2027_fabricated_frozen_policy_latency.json
+      - name: Archive research-only machine timings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 2027-fabricated-policy-full-budget-runtime-only
+          path: artifacts/2027_fabricated_frozen_policy_latency.json
+          retention-days: 30
+          if-no-files-found: ignore
