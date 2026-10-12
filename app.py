@@ -1776,8 +1776,9 @@ with col5:
     )
 
 
-# Outdoor weather is an optional, unvalidated FIELD GOAL what-if.
-# The official decision never uses these observations.
+# Weather is optional, and the separate FG sensitivity has NOT passed
+# out-of-sample validation. No weather inputs enter the official model.
+# Streamlit's value=None leaves these number fields genuinely blank.
 weather_inputs = None
 with st.expander("Weather observations (optional)", expanded=False):
     if roof not in ("outdoors", "open"):
@@ -1787,486 +1788,52 @@ with st.expander("Weather observations (optional)", expanded=False):
         )
     else:
         st.caption(
-            "The official recommendation does not use weather. "
-            "Select temperature and wind separately below. Both values "
-            "are needed for an optional experimental FIELD GOAL comparison; "
-            "one value alone does not run that comparison."
+            "Optional: enter observed temperature and wind speed. "
+            "Leave either box empty to skip the experimental field-goal "
+            "comparison. The official recommendation never uses weather."
         )
         weather_left, weather_right = st.columns(2)
         with weather_left:
-            use_temp = st.checkbox(
-                "Include temperature", value=False,
-                help="Outdoor temperature before the play. Does not alter the official decision.",
+            current_temp_f = st.number_input(
+                "Temperature (°F)",
+                min_value=-25,
+                max_value=115,
+                value=None,
+                step=1,
+                placeholder="Optional, e.g. 65",
+                help="Observed outdoor temperature in degrees Fahrenheit.",
             )
-            if use_temp:
-                current_temp_f = st.number_input(
-                    "Temperature (°F)", min_value=-25, max_value=115,
-                    value=65, step=1,
-                )
         with weather_right:
-            use_wind = st.checkbox(
-                "Include wind speed", value=False,
-                help="Outdoor wind speed before the play. Does not alter the official decision.",
+            current_wind_mph = st.number_input(
+                "Wind speed (mph)",
+                min_value=0,
+                max_value=40,
+                value=None,
+                step=1,
+                placeholder="Optional, e.g. 5",
+                help=(
+                    "Observed outdoor wind speed in miles per hour. "
+                    "Direction is not modeled."
+                ),
             )
-            if use_wind:
-                current_wind_mph = st.number_input(
-                    "Wind speed (mph)", min_value=0, max_value=40,
-                    value=5, step=1,
-                    help="Wind speed only. Direction is not modeled.",
-                )
-        if use_temp and use_wind:
-            st.caption(
-                "Both values are selected: an experimental field-goal "
-                "comparison will appear after analysis. It did not improve "
-                "validation accuracy and never changes the recommended play."
-            )
-            current_conditions = st.selectbox(
-                "Weather conditions",
-                ["Unknown", "Clear / dry", "Cloudy", "Rain",
-                 "Snow", "Mixed precipitation", "Fog"],
-                help="For display only. Rain, snow and fog do not change any probability.",
-            )
-            current_relative_wind = st.selectbox(
-                "Wind direction relative to offense",
-                ["Unknown", "Headwind", "Tailwind", "Crosswind", "Variable"],
-                help="For display only. Wind direction does not change any probability.",
-            )
-            st.caption(
-                "Rain, snow, fog and wind direction are descriptive only. "
-                "The optional what-if uses temperature and wind speed."
-            )
+        if current_temp_f is not None and current_wind_mph is not None:
             weather_inputs = {
                 "roof": roof,
                 "temperature_f": current_temp_f,
                 "wind_mph": current_wind_mph,
-                "conditions": current_conditions,
-                "wind_relative_direction": current_relative_wind,
+                "conditions": "Unknown",
             }
-            if current_conditions in ("Rain", "Snow", "Mixed precipitation", "Fog"):
-                st.caption(
-                    "The selected condition is recorded for context; "
-                    "no unvalidated rain/snow/fog probability penalty is applied."
-                )
-        elif use_temp or use_wind:
-            missing = "wind speed" if use_temp else "temperature"
             st.caption(
-                f"Only one weather value is enabled. Select {missing} too "
-                "to run the optional experimental comparison. "
-                "You can still analyze the fourth down normally."
+                "Experimental field-goal comparison enabled. "
+                "It did not improve validation accuracy and cannot "
+                "change the official recommended play."
             )
-        else:
+        elif current_temp_f is not None or current_wind_mph is not None:
             st.caption(
-                "Leave both options off to use the normal recommendation."
+                "Add the other weather value to see the experimental "
+                "field-goal comparison. You can still analyze normally."
             )
 
-
-with st.expander(
-    "Advanced reference: stadiums and saved airport data (does not affect predictions)",
-    expanded=False,
-):
-    st.caption(
-        "Reference information only: neither option changes the predicted "
-        "win probabilities. No live stadium weather is fetched."
-    )
-    # Venue metadata are research context ONLY: not a team-to-site
-    # inference, a physical-roof determination or a signed bearing.
-    # In particular, Buffalo's new 2026 stadium has no defensible
-    # location/axis in the pinned older community dataset.
-    show_stadium_geometry = st.checkbox(
-        "Show stadium information (reference only)",
-        value=False,
-        help=(
-            "Explore approximate NFL home-stadium locations and "
-            "field orientations, plus scheduled 2026 international "
-            "game venues. A field's axis does not establish which "
-            "end zone the offense is attacking or the wind at the "
-            "stadium; Buffalo's new field direction is unknown. "
-            "This lookup never changes the prediction."
-        ),
-    )
-    st.caption(
-        "Browse approximate NFL stadium locations and which way "
-        "the field runs, including 2026 international venues. "
-        "It cannot determine the wind or the offense's direction."
-    )
-    if show_stadium_geometry:
-        from src.nfl_stadium_weather_geometry import (
-            ATTACK_ENDS,
-            load_stadium_reference,
-            resolve_stadium_geometry,
-            resolve_stadium_location,
-            stadium_menu,
-        )
-        from src.nfl_2026_international_venue_guard import (
-            load_international_schedule,
-        )
-        venue_context_mode = st.radio(
-            "2026 venue context",
-            [
-                "Team home-stadium reference",
-                "Official 2026 international game",
-            ],
-            help=(
-                "An NFL team's usual domestic home venue is NOT "
-                "automatically correct for a neutral, relocated, "
-                "or overseas game. Only the selected scheduled "
-                "international fixtures are explicitly identified."
-            ),
-        )
-        if venue_context_mode == "Official 2026 international game":
-            fixtures = load_international_schedule()["events"]
-            fixture_number = st.selectbox(
-                "2026 NFL international fixture",
-                ["Not selected", *range(len(fixtures))],
-                format_func=lambda k: (
-                    "Select an international fixture"
-                    if k == "Not selected" else (
-                        f"{fixtures[k]['nfl_schedule_date_et']} — "
-                        f"{' vs '.join(fixtures[k]['participants'])} — "
-                        f"{fixtures[k]['venue_name']}"
-                    )
-                ),
-            )
-            if fixture_number != "Not selected":
-                game_info = fixtures[fixture_number]
-                st.warning(
-                    "INTERNATIONAL VENUE: "
-                    f"{game_info['venue_name']}, "
-                    f"{game_info['city_country']}. "
-                    "Do NOT use a participant team's default "
-                    "U.S. home-stadium coordinates or field axis."
-                )
-                st.caption(
-                    "NFL official 2026 scheduled venue; actual play, "
-                    "field direction, stadium coordinates and "
-                    "on-field weather are NOT verified. The NOAA "
-                    "domestic-venue command rejects this known "
-                    "dated fixture if the opponent is provided."
-                )
-        else:
-            venue_menu = stadium_menu(season=2026)
-            venue_choice = st.selectbox(
-                "2026 venue to inspect",
-                ["Not selected", *venue_menu],
-                format_func=lambda team: (
-                    "Choose actual 2026 game venue"
-                    if team == "Not selected" else venue_menu[team]
-                ),
-                help=(
-                    "Pick the stadium where THIS game actually "
-                    "occurred; not based on who is the home team. "
-                    "For official international fixtures, use "
-                    "the international-game tab instead."
-                ),
-            )
-            if venue_choice == "BUF":
-                buffalo = resolve_stadium_location(
-                    team="BUF", season=2026
-                )
-                st.caption(
-                    "New Highmark Stadium 2026 approximate OSM center: "
-                    f"{buffalo['field_lat_approx']:.5f}°, "
-                    f"{buffalo['field_lon_approx']:.5f}°; "
-                    "the old building's position is NOT used."
-                )
-                st.warning(
-                    "Buffalo moved to a new Highmark Stadium in "
-                    "2026. The prior community source mapped the "
-                    "retired stadium. The new location is mapped, "
-                    "but its FIELD BEARING is unverified. "
-                    "Offense-relative wind calculation remains "
-                    "blocked; no attack-end selector is offered."
-                )
-                st.caption(
-                    "New Highmark field orientation: approximately "
-                    "NORTH–SOUTH, documented by stadium architect "
-                    "Populous and independently by the Associated "
-                    "Press in August 2026. This is a qualitative "
-                    "stadium fact, NOT a surveyed true-north azimuth."
-                )
-                st.caption(
-                    "Source: populous.com/highmarkstadium · "
-                    "AP / Washington Post, August 7, 2026. "
-                    "Exact azimuth remains unknown, so numerical "
-                    "headwind/crosswind remains BLOCKED."
-                )
-                st.caption(
-                    "Optional measurement tool: with actual local "
-                    "north and south GOAL-LINE MIDPOINT survey evidence, "
-                    "compute a WGS84 candidate field azimuth and an "
-                    "uncertainty bound. Stadium center coordinates "
-                    "alone are NOT sufficient. The survey files "
-                    "must be independently verified before use."
-                )
-                st.code(
-                    "PYTHONPATH=. python -m "
-                    "scripts.measure_buffalo_field_axis "
-                    "--manifest-json evidence/buffalo_goal_lines.json "
-                    "--landmark-type GOAL_LINE_MIDPOINTS_100YDS "
-                    "--out artifacts/untrusted_field_axis_candidate.json",
-                    language="bash",
-                )
-                buffalo_attack_claim = st.selectbox(
-                    "Buffalo offense attack-end claim (research only)",
-                    [
-                        "Unknown — no witnessed direction",
-                        "Toward north end zone",
-                        "Toward south end zone",
-                    ],
-                    help=(
-                        "Choosing an end zone is a user assertion, "
-                        "not evidence of this play's orientation. "
-                        "Neither the live official model nor its "
-                        "separate weather what-if uses this choice."
-                    ),
-                )
-                if buffalo_attack_claim != (
-                    "Unknown — no witnessed direction"
-                ):
-                    st.info(
-                        f"Unverified user claim: {buffalo_attack_claim}. "
-                        "Record the specific play's source evidence "
-                        "and observed/available UTC times separately. "
-                        "No numeric bearing or model adjustment."
-                    )
-                st.code(
-                    "PYTHONPATH=. python -m "
-                    "scripts.capture_buffalo_snap_direction_claim "
-                    "--season 2026 --opponent-team OPPONENT_CODE "
-                    "--offense-team BUF --game-date-et YYYY-MM-DD "
-                    "--play-key SYNTHETIC_PLAY_ID "
-                    "--quarter 4 --game-clock 04:59 "
-                    "--decision-utc YYYY-MM-DDTHH:MM:SSZ "
-                    "--witness-manifest-json "
-                    "evidence/witness_metadata.json "
-                    "--out artifacts/buffalo_direction_claim.json",
-                    language="bash",
-                )
-                st.caption(
-                    "The local CLI hashes original observer/video "
-                    "files but never includes media in its receipt; "
-                    "two matching witnesses are still NOT proof of "
-                    "true snap direction, and evidence collected "
-                    "after a decision is retrospective only."
-                )
-                inspect_buffalo_direction = st.checkbox(
-                    "Inspect Buffalo snap-direction evidence receipt",
-                    value=False,
-                )
-                if inspect_buffalo_direction:
-                    raw_direction_receipt = st.text_area(
-                        "Buffalo snap-direction receipt JSON",
-                        value="",
-                        height=120,
-                        placeholder="Paste a source-hashed research receipt",
-                    )
-                    if raw_direction_receipt.strip():
-                        try:
-                            import json as _snap_json
-                            from src.nfl_2026_snap_direction_evidence import (
-                                validate_buffalo_direction_receipt_for_display,
-                            )
-                            if len(raw_direction_receipt) > 24000:
-                                raise ValueError(
-                                    "Snap-direction receipt is too large"
-                                )
-                            direction_receipt = (
-                                validate_buffalo_direction_receipt_for_display(
-                                    _snap_json.loads(raw_direction_receipt)
-                                )
-                            )
-                        except (ValueError, TypeError, KeyError):
-                            st.warning(
-                                "Invalid, inconsistent or unapproved "
-                                "Buffalo direction receipt. No "
-                                "directional evidence was accepted "
-                                "and the official model is unchanged."
-                            )
-                        else:
-                            st.caption(
-                                "Source-hashed user claim: offense "
-                                f"attacking toward the "
-                                f"{direction_receipt['claimed_attack_end']} "
-                                "end zone. "
-                                f"{direction_receipt['source_count']} "
-                                "local source(s); "
-                                f"{direction_receipt['claim_consistency']}. "
-                                "Neither source contents nor their "
-                                "claimed attribution are independently verified."
-                            )
-                            if direction_receipt[
-                                "retrospective_source_present"
-                            ]:
-                                st.info(
-                                    "At least one witness file was "
-                                    "asserted available AFTER the "
-                                    "decision: retrospective research, "
-                                    "NOT a live pre-snap forecast."
-                                )
-                            st.caption(
-                                "Numeric attack bearing unavailable. "
-                                "Never changes the frozen official "
-                                "fourth-down recommendation or any "
-                                "FG/GO/PUNT probability."
-                            )
-            elif venue_choice != "Not selected":
-                selected_venue = load_stadium_reference(
-                    season=2026
-                )["venues"][venue_choice]
-                axis_a = selected_venue[
-                    "field_axis_bearing_degrees_approx"
-                ]
-                axis_b = (axis_a + 180.0) % 360.0
-                st.caption(
-                    f"{selected_venue['venue_name']} — community-estimated "
-                    f"position {selected_venue['lat']:.5f}°, "
-                    f"{selected_venue['lon']:.5f}°. "
-                    "Two opposite approximate compass attack bearings: "
-                    f"{axis_a:.0f}° / {axis_b:.0f}° true north."
-                )
-                st.caption(
-                    "These are NOT independently surveyed field bearings; "
-                    "roof state and actual game location are NOT verified. "
-                    "Do not guess the offense's end zone from quarter, "
-                    "HOME/AWAY, or the left-facing field diagram."
-                )
-                attack_choice = st.selectbox(
-                    "Offense's verified attacking end (research only)",
-                    ["Unknown", "A", "B"],
-                    format_func=lambda end: (
-                        "Unknown — select a direction only if verified"
-                        if end == "Unknown" else
-                        f"Toward approximate {axis_a:.0f}° true (end A)"
-                        if end == "A" else
-                        f"Toward approximate {axis_b:.0f}° true (end B)"
-                    ),
-                )
-                if attack_choice != "Unknown":
-                    context = resolve_stadium_geometry(
-                        team=venue_choice, season=2026,
-                        offense_attack_end=ATTACK_ENDS[
-                            0 if attack_choice == "A" else 1
-                        ],
-                    )
-                    st.caption(
-                        "Approximate selected attack bearing: "
-                        f"{context['offense_attack_heading_true_deg_approx']:.0f}° "
-                        "clockwise from true north; YOUR independent "
-                        "on-field direction confirmation is required."
-                    )
-                    st.code(
-                        "PYTHONPATH=. python -m "
-                        "scripts.capture_nfl_venue_awc_context "
-                        f"--venue-team {venue_choice} --season 2026 "
-                        f"--attack-end {attack_choice} "
-                        "--opponent-team OPPONENT_CODE "
-                        "--game-date-et YYYY-MM-DD "
-                        "--station ICAO_CODE "
-                        "--decision-utc YYYY-MM-DDTHH:MM:SSZ "
-                        f"--roof {roof} --live-noaa-awc "
-                        "--out artifacts/research_venue_weather.json",
-                        language="bash",
-                    )
-                    st.caption(
-                        "Live NOAA research now requires an actual "
-                        "date and opponent for an international "
-                        "site-mismatch check BEFORE accessing NOAA. "
-                        "An unmatched fixture is NOT proof the "
-                        "usual domestic venue was used. "
-                        "No result changes official FG/GO/PUNT odds."
-                    )
-
-    inspect_metar = st.checkbox(
-        "Open saved airport report (JSON required)",
-        value=False,
-        help=(
-            "METAR means an airport weather observation. This "
-            "viewer requires a saved JSON research receipt made "
-            "with scripts/capture_awc_decision_weather.py. "
-            "It does not retrieve live weather or change any "
-            "official or experimental prediction."
-        ),
-    )
-    st.caption(
-        "For researchers who ALREADY saved an airport report: "
-        "shows its time, location, and wind. You must paste a "
-        "special JSON receipt; no live weather is fetched. "
-        "Airport conditions may differ from the field."
-    )
-    if inspect_metar:
-        st.caption(
-            "Optional evidence viewer: capture a recent NOAA METAR "
-            "with scripts/capture_awc_decision_weather.py, "
-            "then paste its saved JSON receipt below. The source "
-            "station, timestamps, airport-to-stadium distance and "
-            "offense attacking compass bearing must be provided "
-            "for the research receipt. The receipt is unsigned and "
-            "never feeds the official or experimental model."
-        )
-        raw_metar_receipt = st.text_area(
-            "METAR research receipt JSON",
-            value="",
-            height=120,
-            placeholder="Paste an existing weather evidence JSON receipt",
-        )
-        if raw_metar_receipt.strip():
-            try:
-                import json as _weather_json
-                from src.metar_decision_weather import (
-                    validate_metar_receipt_for_display,
-                )
-                if len(raw_metar_receipt) > 16000:
-                    raise ValueError("METAR receipt exceeds size limit")
-                evidence = validate_metar_receipt_for_display(
-                    _weather_json.loads(raw_metar_receipt)
-                )
-            except (ValueError, TypeError, KeyError):
-                st.warning(
-                    "Invalid, inconsistent or unsupported METAR receipt. "
-                    "No weather evidence was accepted, and the frozen "
-                    "decision model remains unchanged."
-                )
-            else:
-                st.caption(
-                    f"Airport {evidence['airport']} "
-                    f"({evidence['distance_km']:.1f} km from supplied "
-                    f"field location); observation "
-                    f"{evidence['observed_at_utc']} UTC format, "
-                    f"{evidence['age_minutes']:.0f} minutes "
-                    "before the stated decision."
-                )
-                if evidence["headwind_mph_signed"] is None:
-                    st.caption(
-                        "Airport wind direction was variable or "
-                        "not resolvable into headwind/crosswind."
-                    )
-                else:
-                    st.caption(
-                        "METAR wind vector: "
-                        f"{evidence['headwind_mph_signed']:.1f} mph "
-                        "signed headwind (+ headwind, - tailwind); "
-                        f"{evidence['crosswind_from_right_mph_signed']:.1f} "
-                        "mph signed crosswind (+ from offense right). "
-                        "Direction is calculated from the supplied "
-                        "offense attack bearing, not NFL play-by-play."
-                    )
-                st.caption(
-                    "Airport present-weather report: "
-                    f"{evidence['airport_precipitation'].replace('_', ' ').lower()}. "
-                    "No on-field rainfall/snowfall intensity is measured."
-                )
-                if evidence["captured_after_decision"]:
-                    st.info(
-                        "This receipt was downloaded after the "
-                        "claimed decision time: RETROSPECTIVE context "
-                        "only, not a before-snap forecast record."
-                    )
-                st.caption(
-                    "Unsigned airport research evidence, not an on-field "
-                    "sensor or independent live-weather witness. "
-                    "Neither the official recommendation nor the "
-                    "field-goal what-if automatically uses this receipt."
-                )
 
 
 second_half_receiver = None
@@ -2822,12 +2389,11 @@ if situation_valid:
             expanded=True,
         ):
             st.caption(
-                f"Observed: {weather_inputs['temperature_f']}°F, "
-                f"{weather_inputs['wind_mph']} mph wind, "
-                f"{weather_inputs['conditions'].lower()}; "
-                f"relative wind: {weather_inputs['wind_relative_direction'].lower()}. "
-                "Wind direction and precipitation effects are NOT modeled; "
-                "these selections are descriptive only."
+                f"Entered: {weather_inputs['temperature_f']}°F and "
+                f"{weather_inputs['wind_mph']} mph wind speed. "
+                "Only these two measurements affect this experimental "
+                "FIELD GOAL scenario; rain/snow and wind direction are "
+                "not modeled."
             )
             if weather_error or weather_preview is None:
                 st.warning(
