@@ -19,11 +19,15 @@ Offline example, with a historical *fabricated* KBFI METAR JSON file:
 Real NOAA airport report, only with user-confirmed venue and direction:
   PYTHONPATH=. python -m scripts.capture_nfl_venue_awc_context \
     --live-noaa-awc --venue-team SEA --season 2026 --attack-end B \
+    --game-date-et YYYY-MM-DD --opponent-team OPPONENT_CODE \
     --station KBFI --decision-utc <recent-UTC-date-time> --roof outdoors \
     --out artifacts/station_context.json
 
 In BOTH modes the community-derived field axis and the physical roof
 remain UNVERIFIED; manual team selection never establishes an NFL game.
+In LIVE mode, a 2026 schedule date and opponent are mandatory to reject
+known NFL international games before HTTP I/O. A nonmatching fixture
+does NOT certify that the actual game used its normal domestic venue.
 """
 from __future__ import annotations
 
