@@ -1745,6 +1745,80 @@ with col5:
     )
 
 
+# Weather is a separate, clearly experimental FG-only sensitivity.
+# It never modifies the frozen production state or action ranking.
+weather_inputs = None
+with st.expander(
+    "Weather observations (optional)", expanded=False,
+):
+    if roof not in ("outdoors", "open"):
+        st.caption(
+            "The roof is closed or domed. Outside temperature and wind "
+            "do not enter the field-goal weather sensitivity in this venue."
+        )
+    else:
+        st.caption(
+            "Enter conditions known at decision time; no automatic weather "
+            "service or historical postgame conditions are used. The "
+            "official model does not adjust for these inputs. A separate "
+            "research comparison adjusts FIELD GOAL only, and has not "
+            "improved held-out Brier score."
+        )
+        has_weather = st.checkbox(
+            "Enter observed temperature and wind",
+            value=False,
+            help="Only for outdoor/open-roof games, not indoor stadiums.",
+        )
+        if has_weather:
+            weather_left, weather_right = st.columns(2)
+            with weather_left:
+                current_temp_f = st.number_input(
+                    "Temperature (°F)",
+                    min_value=-25,
+                    max_value=115,
+                    value=65,
+                    step=1,
+                )
+            with weather_right:
+                current_wind_mph = st.number_input(
+                    "Wind speed (mph)",
+                    min_value=0,
+                    max_value=40,
+                    value=5,
+                    step=1,
+                    help="Speed only: wind direction is not modeled.",
+                )
+            current_conditions = st.selectbox(
+                "Weather conditions",
+                [
+                    "Unknown",
+                    "Clear / dry",
+                    "Cloudy",
+                    "Rain",
+                    "Snow",
+                    "Mixed precipitation",
+                    "Fog",
+                ],
+                help=(
+                    "Rain, snow and fog are descriptive only until a "
+                    "separately validated precipitation model exists."
+                ),
+            )
+            weather_inputs = {
+                "roof": roof,
+                "temperature_f": current_temp_f,
+                "wind_mph": current_wind_mph,
+                "conditions": current_conditions,
+            }
+            if current_conditions in (
+                "Rain", "Snow", "Mixed precipitation", "Fog",
+            ):
+                st.caption(
+                    "The selected condition is recorded for context; "
+                    "no unvalidated rain/snow/fog probability penalty is applied."
+                )
+
+
 second_half_receiver = None
 
 
@@ -1918,11 +1992,16 @@ if situation_valid:
 
         st.session_state["fourth_down_completed_result"] = {
             "state": dict(state),
+            "weather_inputs": weather_inputs,
             "result": result,
         }
     else:
         prior = st.session_state.get("fourth_down_completed_result")
-        if prior is None or prior.get("state") != state:
+        if (
+            prior is None
+            or prior.get("state") != state
+            or prior.get("weather_inputs") != weather_inputs
+        ):
             st.stop()
         result = prior["result"]
 
@@ -2256,6 +2335,84 @@ if situation_valid:
         )
         if site_reliability_notice:
             st.caption(site_reliability_notice)
+
+    # =====================================================
+    # Weather sensitivity: research-only, weather influences only FG
+    # clean-make probabilities in a per-request isolated engine.
+    # OFFICIAL headline above never uses or inherits the preview.
+    # =====================================================
+    if weather_inputs is not None:
+        cached = st.session_state["fourth_down_completed_result"]
+        if run_model:
+            try:
+                from src.weather_fg_sensitivity import compare_weather_scenario
+                with st.spinner("Evaluating experimental weather sensitivity..."):
+                    weather_preview = compare_weather_scenario(
+                        state,
+                        weather=weather_inputs,
+                        live_engine=engine,
+                    )
+                weather_error = False
+            except Exception:
+                weather_preview = None
+                weather_error = True
+            cached["weather_preview"] = weather_preview
+            cached["weather_error"] = weather_error
+        else:
+            weather_preview = cached.get("weather_preview")
+            weather_error = cached.get("weather_error", True)
+
+        with st.expander(
+            "Weather-adjusted field goal comparison (experimental)",
+            expanded=True,
+        ):
+            st.caption(
+                f"Observed: {weather_inputs['temperature_f']}°F, "
+                f"{weather_inputs['wind_mph']} mph wind, "
+                f"{weather_inputs['conditions'].lower()}. "
+                "Wind direction and precipitation effects are not modeled."
+            )
+            if weather_error or weather_preview is None:
+                st.warning(
+                    "The optional weather comparison is unavailable. "
+                    "The frozen official recommendation above is unchanged."
+                )
+            elif not weather_preview.get("applicable", False):
+                st.caption(
+                    weather_preview.get(
+                        "reason", "This weather scenario is unsupported."
+                    )
+                )
+            else:
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.metric(
+                        "Frozen-model FG make estimate",
+                        f"{100 * weather_preview['original_made_probability']:.1f}%",
+                    )
+                with c2:
+                    st.metric(
+                        "Weather what-if FG make",
+                        f"{100 * weather_preview['weather_made_probability']:.1f}%",
+                    )
+                with c3:
+                    st.metric(
+                        "Weather what-if FG win probability",
+                        f"{100 * weather_preview['weather_fg_win_probability']:.1f}%",
+                    )
+                st.caption(
+                    "Research-only clean-kick sensitivity from 2014–2022 "
+                    "training and 2023–2024 validation. No changes to GO/PUNT "
+                    "weather outcomes, official model weights, or the "
+                    "headline recommendation. Q4 scenarios keep native "
+                    "standard-35 kickoff inputs and 1,200 simulations."
+                )
+                st.warning(
+                    "Not validated for coaching decisions: adding weather "
+                    "did not improve held-out Brier score. "
+                    "The what-if numbers are not a replacement for the "
+                    "official fourth-down recommendation."
+                )
 
     # =====================================================
     # GO play call
