@@ -155,3 +155,20 @@ def test_no_future_data_network_or_workflow_auto_run():
     ).read_text()
     assert "synthetic_only" in source
     assert "real_2027_prospective_collection_approved" in source
+
+def test_nonce_less_timestamp_is_rejected_even_if_signature_is_valid(local_tsa):
+    commitment = commitment_bytes("b" * 64)
+    (local_tsa / "no-nonce-source.bin").write_bytes(commitment)
+    openssl(
+        "ts", "-query", "-sha256", "-cert", "-no_nonce",
+        "-data", "no-nonce-source.bin", "-out", "without-nonce.tsq",
+        cwd=local_tsa,
+    )
+    query = (local_tsa / "without-nonce.tsq").read_bytes()
+    response = issue_local_token(local_tsa, query)
+    with pytest.raises(ValueError, match="nonce"):
+        verify_response(
+            commitment=commitment, query=query, response=response,
+            trust_anchor_pem=(local_tsa / "root.pem").read_bytes(),
+            intermediate_chain_pem=(local_tsa / "tsa.pem").read_bytes(),
+        )
