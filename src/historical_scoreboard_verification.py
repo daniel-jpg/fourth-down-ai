@@ -150,7 +150,12 @@ def parse_espn_week(payload: Mapping[str, Any], season: int, week: int) -> list[
                 }
                 if nonfinal_sides == {"home":"CIN", "away":"BUF"}:
                     continue
-            raise ValueError("Historical ESPN game is not final")
+            raise ValueError(
+                "Historical ESPN game is not final: "
+                f"{season} W{week} event={event.get('id')} "
+                f"status={status['type'].get('name')} "
+                f"matchup={event.get('shortName')!r}"
+            )
         team_rows = competition.get("competitors")
         if not isinstance(team_rows, list) or len(team_rows) != 2:
             raise ValueError("ESPN competition must have two competitors")
