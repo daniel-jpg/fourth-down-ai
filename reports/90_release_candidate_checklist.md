@@ -34,14 +34,23 @@ For the specific Step 85 implementation, [GitHub Actions run 38182568146](https:
 | Gate | Status as of 2026-10-11 | Evidence or remaining action |
 | --- | --- | --- |
 | Frozen decision artifacts | Protected | No model, decision-engine, or simulation algorithm changes made for Steps 85–90; Step 85 report lists model/spec hashes |
-| Regression and UI tests | Passed on Step 85 implementation | 339-test CI run linked above; recheck latest candidate head before tagging |
+| Regression and UI tests | Latest user-confirmed CI green | User confirmed the GitHub Actions run for `9a0427028d0fb4adb62204f32ffba96ce9c92204` passed; the suite covers the opt-in 2025 kickoff comparison through Streamlit AppTest. GitHub connector cannot independently read push-triggered run conclusions |
 | Live immediate-odds UI | Observed working | User-supplied current hosted screenshot |
 | Live overtime game-value wording | Observed working | User-supplied current hosted OT output |
 | Clock max | Observed working | Q4 15:01 rejected and 15:00 accepted |
-| Live mobile/narrow layout | Not verified | [Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5) |
-| Hosted deployed commit identity | Not verified | [Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5) |
+| Live mobile/narrow layout | User accepted | User explicitly confirmed the mobile layout is fine; no independent device-farm testing claimed |
+| Hosted deployed commit identity | Not verified for latest `9a04270` | Earlier user screenshot showed a deployed Git SHA, but the diagnostic UI was intentionally removed. The hosted URL is inaccessible to available browser tooling; do not infer current deployed SHA from CI |
 | Independent 2026 kickoff reliability | Pending future gate | Do not run Step 66 or Step 83 early; do not promote any challenger |
 | New stable tag/GitHub Release | **Not created** | Must be separately reviewed after gates |
+
+## Stabilization verification — 2026-10-11
+
+- Latest candidate source: `9a0427028d0fb4adb62204f32ffba96ce9c92204`. User reports its GitHub Actions tests are **green**.
+- Streamlit AppTest exercises the single opt-in 2025 observed-kickoff comparison and verifies that the official recommended action and probability metrics are not replaced by scenario results. This is headless app integration evidence, **not** a separately verified hosted click-through.
+- The hosted Streamlit page cannot be accessed by the available browser tools. Live behavior after this exact commit, including the rendered kickoff result, therefore remains **unverified**. Do not claim otherwise.
+- The unwanted deployment-revision sidebar was removed and the user confirmed the clean full-width app in a prior deployment screenshot; mobile layout was explicitly accepted.
+- Experimental kickoff donor results are research scenarios, not calibrated 2026+ forecasts. Advanced toggles have been removed from the public app, not from the frozen research code.
+- Release remains untagged. No reason to alter weights, prospective evaluation gates, or the interface solely to close a verification item.
 
 ## Model limitations that must remain visible
 
