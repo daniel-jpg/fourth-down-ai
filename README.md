@@ -192,7 +192,19 @@ domestic. [Read the venue exception study](reports/2026_nfl_stadium_weather_geom
 
 Buffalo's weather panel now shows the source-backed **north/south**
 end-zone orientation and an optional **specific-play direction claim /
-receipt viewer**. The [offline evidence CLI](scripts/capture_buffalo_snap_direction_claim.py)
+receipt viewer**.
+A separate [Buffalo WGS84 field-axis measurement CLI](scripts/measure_buffalo_field_axis.py)
+now accepts TWO original, independently sourced, user-supplied **north
+and south goal-line (100 yd) or back end-line (120 yd) midpoint**
+measurements. It checks NFL playing-field separation, correct new
+stadium vicinity, documented north/south orientation, source hash
+uniqueness, measured-point uncertainty, and the calculated true-north
+bearing. Outputs are explicitly **UNVERIFIED geometry candidates**: no
+genuine Buffalo end-zone survey has yet been supplied, no numerical
+bearing enters the approved registry, and **no NOAA wind or win-probability
+adjustment is enabled**. See [how to provide real physical midpoint
+evidence and interpret its uncertainty](reports/buffalo_2026_field_axis_measurement.md).
+ The [offline evidence CLI](scripts/capture_buffalo_snap_direction_claim.py)
 records one or two locally supplied footage/observer witnesses, hashes
 their original files, checks direction conflicts and source availability
 relative to an explicitly declared decision UTC timestamp, and preserves
