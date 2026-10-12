@@ -7,7 +7,14 @@ on:
     branches: [main]
     paths:
       - .github/workflows/render_public_browser_smoke.yml
+      - app.py
+      - src/**
       - scripts/qa_weather_streamlit_browser.py
+      - scripts/qa_local_streamlit_home_browser.py
+      - requirements.txt
+      - requirements-dev.txt
+  schedule:
+    - cron: "17 19 * * 1,4"
   workflow_dispatch:
     inputs:
       public_base_url:
@@ -78,7 +85,7 @@ jobs:
                       os.environ["TARGET_URL"],
                       wait_until="domcontentloaded", timeout=60000,
                   )
-                  deadline = time.monotonic() + 125
+                  deadline = time.monotonic() + 540
                   found = None
                   weather_ui = False
                   while time.monotonic() < deadline:
@@ -98,9 +105,10 @@ jobs:
                                   break
                           except Exception:
                               pass
-                      if found is not None:
+                      if found == expected:
                           break
-                      page.wait_for_timeout(1000)
+                      page.wait_for_timeout(10000)
+                      page.reload(wait_until="domcontentloaded", timeout=60000)
                   assert found is not None, "No hosted app/source marker"
                   assert len(found) == 64
                   assert found == expected, (
