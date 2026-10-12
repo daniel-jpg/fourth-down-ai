@@ -324,6 +324,19 @@ physical stadiums only; real decision-time roof, halftime-receiver,
 action intent, kicker and forecast-timestamp provenance still need
 independent review.
 
+The [retrospective pre-snap field gap inventory](reports/2027_historical_prespnap_data_gap_audit.md)
+inspected **47,626 historical Q1–Q4 fourth downs**. Stadium, roof,
+clock and field state are populated, but direct second-half receiver
+data, trusted source observation/receipt timestamps, and independently
+witnessed forecast timestamps are **absent**. The new
+[synthetic-only two-key signing rehearsal](reports/2027_decision_time_provenance_and_witness_rehearsal.md)
+binds three fabricated data-source feeds to a frozen policy forecast
+and verifies separate collector/witness Ed25519 receipts before a
+separate fabricated snap timestamp; factual labels can only be joined
+after receipt verification. It does **not** certify real NFL snap-time
+availability, an external trusted timestamp authority or 2027
+prospective performance. A real source-and-witness freeze remains open.
+
 Passing the original once-only 2026 native-kickoff test may eventually
 allow narrowing the phrase *"kickoff inputs not yet validated on future
 games"*; even a positive 2027 observational result would not by itself
