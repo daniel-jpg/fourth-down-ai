@@ -243,7 +243,7 @@ def validate_source_bundle(bundle: Any) -> dict:
         venue["physical_stadium_id"] != venue["nominal_home_stadium_id"]
     ):
         raise ValueError("Physical venue and nominal-home venue conflict")
-    if raw["site"] == "NEUTRAL" != physical_neutral:
+    if (raw["site"] == "NEUTRAL") != physical_neutral:
         raise ValueError("Neutral-site flag must use physical stadium, not nominal home designation")
     offense = raw["offense_team"]
     expected_site = (
@@ -356,8 +356,9 @@ def witness_collector(
         raise ValueError("Collector signature not bound to this forecast bundle")
     sealed=_timestamp(collector["sealed_at_utc"],"sealed_at_utc")
     witness_time=_timestamp(witnessed_at_utc,"witnessed_at_utc")
-    if witness_time < sealed:
-        raise ValueError("Witness cannot attest before receipt of collector seal")
+    issued=_timestamp(collected["bundle"]["forecast_issued_at_utc"],"forecast_issued_at_utc")
+    if not issued <= sealed <= witness_time:
+        raise ValueError("Witness cannot attest before receipt or issuance of sealed forecast")
     receipt={
         "type":"fabricated_independent_witness_v1",
         "collected_sha256":digest(collected),
