@@ -33,7 +33,7 @@ site, including source fingerprint, weather UI and a Q4 recommendation.
 A green **Tests** badge verifies offline code only; it cannot establish
 hosted availability or calculation completion.
 
-## Optional Docker fallback (not publicly deployed)
+## Portable Docker fallback
 
 Streamlit Community Cloud has shown intermittent startup failures even
 though the [independent local Chromium test](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38306046798)
@@ -53,18 +53,20 @@ raw/evaluation/prospective play data, and unreviewed candidate models.
 
 [Portable Docker browser QA](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/portable_docker_streamlit.yml)
 builds the image and tests a full Q4 HOME recommendation in Chromium.
-This is **not** a second live website, deployment migration, or proof that
-Streamlit Community Cloud is healthy. Publishing the image to another hosting
-provider would require the appropriate account and configuration. The
+A separate **Render Free** trial now hosts the same image. A public
+Chromium test completed Q4 HOME and a cold/snow weather comparison, but the
+full live weather-controls smoke has not yet passed. This does not establish
+that Streamlit Community Cloud is healthy. The
 [hosted reliability issue](https://github.com/daniel-jpg/fourth-down-ai/issues/11)
-stays open until the public-app end-to-end tests are stable.
+remains open until the new public URL passes end-to-end.
 
 ## Optional Render Free trial (no paid compute approved)
 
-The owner has declined paid hosting. Our [Render Blueprint](render.yaml)
-now specifies the **Free** web tier (0.1 CPU / 512 MB), rather than the
-previous $25/month option. The ML app passed Docker testing with a 1 GiB
-limit; **the smaller free tier has not yet been validated**. It spins down
+The owner declined paid hosting. Our [Render Blueprint](render.yaml)
+specifies the **Free** web tier (512 MB), rather than the former
+$25/month option. The Render Free site has successfully run the official
+Q4 HOME prediction and the cold/snow research what-if in a real browser;
+complete live weather-interaction coverage is still pending. It spins down
 after 15 minutes idle and shares monthly free instance-hours with other
 services in the workspace. Render can bill excess bandwidth/build minutes
 if a payment method is on file, so verify usage and spend limits.
@@ -74,8 +76,9 @@ Automatic deployments remain disabled.
 [Try the free Render deployment](https://render.com/deploy?repo=https://github.com/daniel-jpg/fourth-down-ai/tree/main) ·
 [Run Q4 and weather tests against the assigned public URL](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/render_public_browser_smoke.yml).
 
-Keep the current Streamlit demo link unchanged until the Render URL is
-actually deployed and the separate public-browser tests pass.
+Keep the current Streamlit demo link unchanged until the Render service
+is renamed (without its temporary suffix) and its final URL passes the
+complete public-browser tests.
 
 ## Demo
 

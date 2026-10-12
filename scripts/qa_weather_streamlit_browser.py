@@ -186,6 +186,22 @@ def select_choice(frame, page, label: str, value: str) -> None:
     raise AssertionError(f"Cannot select {value} from {label}")
 
 
+def await_metric_cleared(frame, page, label: str, timeout: int = 40) -> None:
+    # Remote Streamlit reruns are asynchronous after selecting weather.
+    # Wait for stale metrics to disappear instead of racing the UI.
+    deadline = time.monotonic() + timeout
+    consecutive = 0
+    while time.monotonic() < deadline:
+        consecutive = consecutive + 1 if metric(frame, label) is None else 0
+        if consecutive >= 2:
+            return
+        page.wait_for_timeout(700)
+    raise AssertionError(
+        f"Changed weather controls left stale {label} visible after "
+        f"{timeout} seconds: " + body_text(frame)[-700:]
+    )
+
+
 def analyze(frame, page, *, weather: bool) -> dict:
     button = frame.get_by_role("button", name="Analyze Fourth Down")
     button.wait_for(state="visible", timeout=30000)
@@ -263,9 +279,7 @@ def check_baseline_and_weather(frame, page) -> dict:
     # Precipitation was NOT fitted: with the same temp/wind/seed,
     # changing Snow to Rain must not change the what-if numbers.
     select_choice(frame, page, "Weather conditions", "Rain")
-    assert metric(frame, "Weather what-if FG make") is None, (
-        "Changed weather controls must invalidate the previous scenario"
-    )
+    await_metric_cleared(frame, page, "Weather what-if FG make")
     rain = analyze(frame, page, weather=True)
     for label in (
         "Recommendation", "Win probability if chosen",
@@ -279,7 +293,7 @@ def check_baseline_and_weather(frame, page) -> dict:
     select_choice(
         frame, page, "Wind direction relative to offense", "Tailwind"
     )
-    assert metric(frame, "Weather what-if FG make") is None
+    await_metric_cleared(frame, page, "Weather what-if FG make")
     tailwind = analyze(frame, page, weather=True)
     for label in (
         "Recommendation", "Win probability if chosen",
@@ -329,8 +343,8 @@ def check_baseline_and_weather(frame, page) -> dict:
     assert frame.get_by_text(
         "Enter observed temperature and wind", exact=True
     ).count() == 0, "Dome offered outdoor weather adjustment"
-    assert metric(frame, "Weather what-if FG make") is None
-    assert metric(frame, "Recommendation") is None
+    await_metric_cleared(frame, page, "Weather what-if FG make")
+    await_metric_cleared(frame, page, "Recommendation")
     dome = analyze(frame, page, weather=False)
     assert dome["Recommendation"], "Dome official result missing"
     assert metric(frame, "Weather what-if FG make") is None

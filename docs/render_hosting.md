@@ -1,6 +1,11 @@
-# Publish the verified Fourth-Down AI Docker app on Render
+# Fourth-Down AI Render Free deployment and verification
 
-These steps deploy the **same frozen-model container** that passed the local and Docker-hosted Q4 HOME and weather browser tests. The original [Streamlit Community Cloud app](https://fourth-down-ai.streamlit.app/) is unchanged. This page does not claim a second public URL already exists.
+The Render Free web service is now deployed with the **same frozen-model
+container** that passed Docker browser tests. A real public browser
+successfully calculated Q4 HOME and the 32°F / 25 mph snow what-if.
+The complete weather-interaction suite has not yet passed, so the
+[original Streamlit link](https://fourth-down-ai.streamlit.app/) remains
+the README's primary demo until the service has its final name and URL.
 
 ## Free-only trial: no paid instance authorized
 

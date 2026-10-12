@@ -1,14 +1,7 @@
 name: Verify public Render Q4 and weather in Chromium
 
-# Initial smoke also triggers automatically when this workflow changes.
-# A manual dispatch remains available after a service URL rename.
+# Manual after the final URL rename; avoid smoke at an obsolete hostname.
 on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/render_public_browser_smoke.yml
-      - scripts/qa_weather_streamlit_browser.py
-      - scripts/qa_local_streamlit_home_browser.py
   workflow_dispatch:
     inputs:
       public_base_url:
