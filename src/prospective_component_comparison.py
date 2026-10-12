@@ -251,6 +251,16 @@ def _fixed_buckets(rows: list[dict], name: str) -> dict[str, list[dict]]:
                 q4(r) and 45 <= r["game_seconds_remaining"] <= 300
                 and own10(r) and r["offense_score_margin"] == 4
             ),
+            "Q4_FINAL_FIVE_OWN10_LEADING4_HOME": lambda r: (
+                q4(r) and 45 <= r["game_seconds_remaining"] <= 300
+                and own10(r) and r["offense_score_margin"] == 4
+                and r["site"] == "HOME"
+            ),
+            "Q4_FINAL_FIVE_OWN10_LEADING4_AWAY": lambda r: (
+                q4(r) and 45 <= r["game_seconds_remaining"] <= 300
+                and own10(r) and r["offense_score_margin"] == 4
+                and r["site"] == "AWAY"
+            ),
             "HOME": lambda r: r["site"] == "HOME",
             "AWAY": lambda r: r["site"] == "AWAY",
             "NEUTRAL": lambda r: r["site"] == "NEUTRAL",
@@ -262,6 +272,7 @@ def _fixed_buckets(rows: list[dict], name: str) -> dict[str, list[dict]]:
             "GO_PASS": lambda r: r["observed_go_action"] == "NORMAL_GO_PASS",
             "FOURTH_2_OR_3": short,
             "OWN10_FOURTH_2_OR_3": lambda r: own10(r) and short(r),
+            "OWN5_FOURTH_2_OR_3": lambda r: r["yardline_100"] >= 95 and short(r),
             "Q4": q4,
             "HOME": lambda r: r["site"] == "HOME",
             "AWAY": lambda r: r["site"] == "AWAY",
@@ -318,6 +329,9 @@ def evaluate(
     wp_all = result["wp"]["ALL"]
     go_all = result["go"]["ALL"]
     own_go = result["go"]["OWN10_FOURTH_2_OR_3"]
+    own5_go = result["go"]["OWN5_FOURTH_2_OR_3"]
+    own10_q4_lead4_home = result["wp"]["Q4_FINAL_FIVE_OWN10_LEADING4_HOME"]
+    own10_q4_lead4_away = result["wp"]["Q4_FINAL_FIVE_OWN10_LEADING4_AWAY"]
     def positive_ci(r) -> bool:
         ci = r.get("paired_gain_95pct_cluster_ci")
         return ci is not None and ci[0] > 0
@@ -326,7 +340,9 @@ def evaluate(
         and wp_all["games"] >= 100 and positive_ci(wp_all)
         and wp_q4["games"] >= 100 and positive_ci(wp_q4)
         and go_all["games"] >= 100 and positive_ci(go_all)
-        and own_go["games"] >= 20
+        and own_go["games"] >= 20 and own5_go["games"] >= 20
+        and own10_q4_lead4_home["games"] >= 20
+        and own10_q4_lead4_away["games"] >= 20
         and result["wp"]["HOME"]["games"] >= 20
         and result["wp"]["AWAY"]["games"] >= 20
     )
