@@ -38,3 +38,17 @@ def deep_own_short_go_notice(
         "edge relies on extrapolation and is not a dependable coaching "
         "advantage."
     )
+
+def supported_recommendation_display(
+    state: Mapping, selected_strategy: str
+) -> str:
+    """Abstain from a supported coaching pick when the selected GO lacks data.
+
+    This is a DISPLAY-only reliability decision, not a PUNT substitution:
+    unchanged engine action rows and probabilities remain inspectable.
+    Historical development has 0 comparable own-5 and only 1 own-10
+    fourth-and-2/3 normal GO training examples.
+    """
+    if deep_own_short_go_notice(state, selected_strategy):
+        return "INSUFFICIENT DATA"
+    return selected_strategy
