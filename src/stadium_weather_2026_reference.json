@@ -14,7 +14,7 @@
     "Physical roof state must be input separately; upstream roof_type is not authoritative for retractable roofs.",
     "True offensive attack end must be confirmed for each play: score, quarter, field position, home/away cannot resolve geographic direction.",
     "Manually estimated axis bearings are approximate, not independently surveyed true-north readings.",
-    "Buffalo 2026 new stadium intentionally blocked because upstream maps the retired building.",
+    "Buffalo 2026 new stadium center approximate coordinates are recorded from current OSM; its unsurveyed field axis is still MISSING. Never use retired stadium 2025 coordinates/direction.",
     "Tennessee existing 2026 stadium mapping expires before planned 2027 move.",
     "No real current live weather is fetched or inferred from this registry.",
     "Never feeds the frozen fourth-down model or validates on-field wind or precipitation."
@@ -52,14 +52,23 @@
     },
     "BUF": {
       "team": "BUF",
-      "venue_id": "BUF_NEW_2026_UNMAPPED",
-      "venue_name": "New Highmark Stadium (opened 2026)",
-      "lat": null,
-      "lon": null,
+      "venue_id": "BUF_NEW_2026_OSM_W1339149058",
+      "venue_name": "Highmark Stadium (new 2026)",
+      "lat": 42.77304,
+      "lon": -78.79219,
       "field_axis_bearing_degrees_approx": null,
-      "georeference_status": "BLOCKED_STALE_OLD_BUFFALO_STADIUM",
+      "georeference_status": "NEW_2026_VENUE_APPROX_CENTER_DIRECTION_UNVERIFIED",
       "physical_game_roof_known": false,
-      "note": "2026 Buffalo home stadium changed; upstream current row BUF00 is the old stadium. Exact new stadium center and field axis have not been independently remeasured. Refuse use."
+      "location_evidence": {
+        "locator": "OpenStreetMap way/1339149058",
+        "reference_page": "https://mapcarta.com/es/W1339149058",
+        "independent_crosscheck": "https://www.latlong.net/place/new-highmark-stadium-new-york-34252.html",
+        "center_only": true,
+        "crosschecked_2026_10_12": true,
+        "no_survey_or_field_axis": true,
+        "caution": "Approximate map feature center, not stadium playing-field center; do not reuse previous Highmark Stadium coordinate or field axis."
+      },
+      "note": "Replacement 2026 stadium center (~42.77304,-78.79219), west of old field. Verified approximate venue site from OSM-derived mapping and independent coordinate reference; physical end-zone compass axis NOT verified. Direction-aware METAR calculation remains BLOCKED."
     },
     "CAR": {
       "team": "CAR",
@@ -342,5 +351,9 @@
       "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
       "physical_game_roof_known": false
     }
+  },
+  "location_evidence_addendum": {
+    "BUF_2026": "New Highmark Stadium 2026 OpenStreetMap way 1339149058 mapped center approx 42.77304/-78.79219, crosschecked against independent latlong.net (~42.772999/-78.792305). OSM data Open Database License (ODbL); attribute OpenStreetMap contributors. No playing-surface axis measurement.",
+    "openstreetmap_attribution": "© OpenStreetMap contributors, data available under the Open Database License, https://www.openstreetmap.org/copyright"
   }
 }
