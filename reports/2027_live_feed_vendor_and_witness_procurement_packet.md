@@ -67,7 +67,7 @@ Reproducible commands using **fabricated source packet hash only** (not any 2026
 \`\`\`bash
 python -m pytest -q tests/test_rfc3161_synthetic_tsa_trial.py
 python -m src.rfc3161_synthetic_tsa_trial create \
-  --synthetic-sha256 "$(printf 'FABRICATED FORECAST ONLY' | sha256sum | cut -d' ' -f1)" \
+  --synthetic-sha256 "$(python -c 'import hashlib; print(hashlib.sha256(b"FABRICATED FORECAST ONLY").hexdigest())')" \
   --commitment-out artifacts/rfc3161_fake_commitment.bin \
   --query-out artifacts/rfc3161_fake_query.tsq
 # OPTIONAL external HTTPS POST, only after human approval of TSA policy:
