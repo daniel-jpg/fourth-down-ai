@@ -338,3 +338,105 @@ def build_metar_decision_evidence(
             "are NOT authentic pre-decision model-issued weather forecasts."
         ),
     }
+
+
+
+def validate_metar_receipt_for_display(receipt: Any) -> dict[str, Any]:
+    """Validate structure/arithmetic before showing a pasted UNSIGNED receipt.
+
+    Source response authenticity and field heading are still unverified.
+    Never use this record as an input to frozen or experimental models.
+    """
+    if not isinstance(receipt, dict) or len(receipt) > 60:
+        raise ValueError("Expected a single bounded weather research receipt")
+    if receipt.get("status") != NO_REAL_POLICY:
+        raise ValueError("Only non-production station METAR receipts are allowed")
+    for key in (
+        "user_supplied_field_direction_independently_verified",
+        "source_received_by_user_before_decision_independently_verified",
+        "on_field_sensor_verified", "snap_specific_weather_verified",
+        "real_time_model_weather_provenance_certified",
+        "may_change_official_go_fg_or_punt_model",
+        "real_2027_outcomes_accessed",
+    ):
+        if receipt.get(key) is not False:
+            raise ValueError("Unapproved METAR authority or model claim")
+    station = receipt.get("station_id")
+    parsed = parse_raw_metar(receipt.get("raw_metar"))
+    if parsed["station_id"] != station:
+        raise ValueError("Receipt METAR airport differs from reported airport")
+    digest = hashlib.sha256(receipt["raw_metar"].encode("utf-8")).hexdigest()
+    if digest != receipt.get("raw_metar_sha256"):
+        raise ValueError("Pasted raw METAR was modified since hashing")
+    observed = utc_time(receipt.get("observed_at_utc"))
+    receipt_time = utc_time(receipt.get("noaa_receipt_at_utc"))
+    decision = utc_time(receipt.get("decision_at_utc"))
+    captured = utc_time(receipt.get("captured_at_utc"))
+    if (observed.day, observed.hour, observed.minute) != (
+        parsed["metar_day"], parsed["metar_hour"], parsed["metar_minute"]
+    ):
+        raise ValueError("Pasted METAR and time do not match")
+    if not (
+        observed <= receipt_time <= decision
+        and 0 <= (decision-observed).total_seconds()/60 <= MAX_OBSERVATION_AGE_MINUTES
+        and receipt_time <= captured
+    ):
+        raise ValueError("METAR time provenance was modified or is stale")
+    if receipt.get("source_downloaded_after_decision") is not (
+        captured > decision
+    ):
+        raise ValueError("METAR capture timing contradicts receipt")
+    km = _number(
+        receipt.get("station_distance_km"),
+        0, MAX_AIRPORT_TO_FIELD_KM,
+        "distance to stadium",
+    )
+    if km > MAX_AIRPORT_TO_FIELD_KM:
+        raise ValueError("Reported airport outside proximity cap")
+    heading = _number(
+        receipt.get("offense_attack_heading_true_deg"),
+        0, 360, "offense bearing",
+    )
+    if parsed["wind_knots"] != receipt.get("wind_speed_knots"):
+        raise ValueError("Pasted METAR wind knots and raw do not agree")
+    if (
+        receipt.get("wind_from_true_degrees")
+        != parsed["wind_from_true_degrees"]
+        or receipt.get("wind_direction_variable")
+        is not parsed["wind_direction_variable"]
+        or receipt.get("airport_present_weather_code")
+        != parsed["present_weather_class"]
+    ):
+        raise ValueError("Pasted METAR wind/weather conflicts with coded report")
+    projected = _project_wind(
+        wind_knots=parsed["wind_knots"],
+        wind_from_degrees=parsed["wind_from_true_degrees"],
+        wind_direction_variable=parsed["wind_direction_variable"],
+        offense_heading=heading,
+    )
+    for field in (
+        "orientation_status", "headwind_mph_signed",
+        "crosswind_from_right_mph_signed", "tailwind_mph",
+    ):
+        if receipt.get(field) != projected[field]:
+            raise ValueError("Pasted METAR wind-vector arithmetic changed")
+    if receipt.get("precipitation_mm_per_hour_at_field") is not None:
+        raise ValueError("Airport METAR does not certify field precipitation rate")
+    return {
+        "airport": station,
+        "distance_km": km,
+        "observed_at_utc": _iso(observed),
+        "age_minutes": round((decision-observed).total_seconds()/60, 1),
+        "captured_after_decision": captured > decision,
+        "heading_true_deg": heading,
+        "wind_speed_mph": round(parsed["wind_knots"]*KNOT_TO_MPH, 2),
+        "orientation_status": projected["orientation_status"],
+        "headwind_mph_signed": projected["headwind_mph_signed"],
+        "crosswind_from_right_mph_signed": projected[
+            "crosswind_from_right_mph_signed"
+        ],
+        "airport_precipitation": parsed["present_weather_class"],
+        "unsigned_manual_import_not_source_authenticated": True,
+        "field_precipitation_intensity_verified": False,
+        "changes_official_recommendation": False,
+    }
