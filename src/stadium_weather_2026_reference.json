@@ -1,0 +1,346 @@
+{
+  "schema_version": "2026_unofficial_field_axis_lookup_v1",
+  "season": 2026,
+  "source": {
+    "repository": "https://github.com/greerreNFL/stadiums",
+    "commit": "0f3876437ab9c798b3482efb712acd54b27cb2b3",
+    "path": "data/team_stadiums.csv",
+    "blob_sha1": "12b15041d31b181fe7a2ef06551e046042141158",
+    "method": "Community-maintained Google Earth manual estimates. Original upstream directions treated as unoriented modulo-180 FIELD AXIS, never current offense attack.",
+    "license_notice": "The upstream GitHub repository does not specify a software/data license; curated geographic reference facts only. Check primary coordinates independently before any operational use."
+  },
+  "limitations": [
+    "Do not infer stadium from game home team for neutral or relocated games.",
+    "Physical roof state must be input separately; upstream roof_type is not authoritative for retractable roofs.",
+    "True offensive attack end must be confirmed for each play: score, quarter, field position, home/away cannot resolve geographic direction.",
+    "Manually estimated axis bearings are approximate, not independently surveyed true-north readings.",
+    "Buffalo 2026 new stadium intentionally blocked because upstream maps the retired building.",
+    "Tennessee existing 2026 stadium mapping expires before planned 2027 move.",
+    "No real current live weather is fetched or inferred from this registry.",
+    "Never feeds the frozen fourth-down model or validates on-field wind or precipitation."
+  ],
+  "venues": {
+    "ARI": {
+      "team": "ARI",
+      "venue_id": "PHO00",
+      "venue_name": "State Farm Stadium",
+      "lat": 33.5277555,
+      "lon": -112.2625948,
+      "field_axis_bearing_degrees_approx": 148,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "ATL": {
+      "team": "ATL",
+      "venue_id": "ATL97",
+      "venue_name": "Mercedes-Benz Stadium",
+      "lat": 33.7555052,
+      "lon": -84.4008484,
+      "field_axis_bearing_degrees_approx": 80,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "BAL": {
+      "team": "BAL",
+      "venue_id": "BAL00",
+      "venue_name": "M&T Bank Stadium",
+      "lat": 39.277958,
+      "lon": -76.6227221,
+      "field_axis_bearing_degrees_approx": 110,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "BUF": {
+      "team": "BUF",
+      "venue_id": "BUF_NEW_2026_UNMAPPED",
+      "venue_name": "New Highmark Stadium (opened 2026)",
+      "lat": null,
+      "lon": null,
+      "field_axis_bearing_degrees_approx": null,
+      "georeference_status": "BLOCKED_STALE_OLD_BUFFALO_STADIUM",
+      "physical_game_roof_known": false,
+      "note": "2026 Buffalo home stadium changed; upstream current row BUF00 is the old stadium. Exact new stadium center and field axis have not been independently remeasured. Refuse use."
+    },
+    "CAR": {
+      "team": "CAR",
+      "venue_id": "CAR00",
+      "venue_name": "Bank of America Stadium",
+      "lat": 35.2258152,
+      "lon": -80.8528376,
+      "field_axis_bearing_degrees_approx": 140,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "CHI": {
+      "team": "CHI",
+      "venue_id": "CHI98",
+      "venue_name": "Soldier Field",
+      "lat": 41.8624598,
+      "lon": -87.6167762,
+      "field_axis_bearing_degrees_approx": 176,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "CIN": {
+      "team": "CIN",
+      "venue_id": "CIN00",
+      "venue_name": "Paycor Stadium",
+      "lat": 39.0954306,
+      "lon": -84.5160435,
+      "field_axis_bearing_degrees_approx": 141,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "CLE": {
+      "team": "CLE",
+      "venue_id": "CLE00",
+      "venue_name": "Huntington Bank Field",
+      "lat": 41.5060371,
+      "lon": -81.699586,
+      "field_axis_bearing_degrees_approx": 56,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "DAL": {
+      "team": "DAL",
+      "venue_id": "DAL00",
+      "venue_name": "AT&T Stadium",
+      "lat": 32.7479723,
+      "lon": -97.0928461,
+      "field_axis_bearing_degrees_approx": 69,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "DEN": {
+      "team": "DEN",
+      "venue_id": "DEN00",
+      "venue_name": "Empower Field at Mile High",
+      "lat": 39.7439402,
+      "lon": -105.0201065,
+      "field_axis_bearing_degrees_approx": 0,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "DET": {
+      "team": "DET",
+      "venue_id": "DET00",
+      "venue_name": "Ford Field",
+      "lat": 42.3401334,
+      "lon": -83.0456783,
+      "field_axis_bearing_degrees_approx": 154,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "GB": {
+      "team": "GB",
+      "venue_id": "GNB00",
+      "venue_name": "Lambeau Field",
+      "lat": 44.5014769,
+      "lon": -88.0621617,
+      "field_axis_bearing_degrees_approx": 179,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "HOU": {
+      "team": "HOU",
+      "venue_id": "HOU00",
+      "venue_name": "NRG Stadium",
+      "lat": 29.6849239,
+      "lon": -95.41082,
+      "field_axis_bearing_degrees_approx": 0,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "IND": {
+      "team": "IND",
+      "venue_id": "IND00",
+      "venue_name": "Lucas Oil Stadium",
+      "lat": 39.7602037,
+      "lon": -86.1638068,
+      "field_axis_bearing_degrees_approx": 26,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "JAX": {
+      "team": "JAX",
+      "venue_id": "JAX00",
+      "venue_name": "EverBank Stadium",
+      "lat": 30.3239164,
+      "lon": -81.6373486,
+      "field_axis_bearing_degrees_approx": 14,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "KC": {
+      "team": "KC",
+      "venue_id": "KAN00",
+      "venue_name": "GEHA Field at Arrowhead Stadium",
+      "lat": 39.0489275,
+      "lon": -94.4839962,
+      "field_axis_bearing_degrees_approx": 136,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "LAC": {
+      "team": "LAC",
+      "venue_id": "LAX01",
+      "venue_name": "SoFi Stadium",
+      "lat": 33.953485,
+      "lon": -118.3390307,
+      "field_axis_bearing_degrees_approx": 155,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "LAR": {
+      "team": "LAR",
+      "venue_id": "LAX01",
+      "venue_name": "SoFi Stadium",
+      "lat": 33.953485,
+      "lon": -118.3390307,
+      "field_axis_bearing_degrees_approx": 155,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "LV": {
+      "team": "LV",
+      "venue_id": "VEG00",
+      "venue_name": "Allegiant Stadium",
+      "lat": 36.0908515,
+      "lon": -115.1833441,
+      "field_axis_bearing_degrees_approx": 25,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "MIA": {
+      "team": "MIA",
+      "venue_id": "MIA00",
+      "venue_name": "Hard Rock Stadium",
+      "lat": 25.9579623,
+      "lon": -80.2388423,
+      "field_axis_bearing_degrees_approx": 121,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "MIN": {
+      "team": "MIN",
+      "venue_id": "MIN01",
+      "venue_name": "U.S. Bank Stadium",
+      "lat": 44.9736273,
+      "lon": -93.2574111,
+      "field_axis_bearing_degrees_approx": 132,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "NE": {
+      "team": "NE",
+      "venue_id": "BOS00",
+      "venue_name": "Gillette Stadium",
+      "lat": 42.0909217,
+      "lon": -71.2643321,
+      "field_axis_bearing_degrees_approx": 162,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "NO": {
+      "team": "NO",
+      "venue_id": "NOR00",
+      "venue_name": "Caesars Superdome",
+      "lat": 29.9511425,
+      "lon": -90.0810779,
+      "field_axis_bearing_degrees_approx": 112,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "NYG": {
+      "team": "NYG",
+      "venue_id": "NYC01",
+      "venue_name": "MetLife Stadium",
+      "lat": 40.813507465,
+      "lon": -74.074342406,
+      "field_axis_bearing_degrees_approx": 166,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "NYJ": {
+      "team": "NYJ",
+      "venue_id": "NYC01",
+      "venue_name": "MetLife Stadium",
+      "lat": 40.813507465,
+      "lon": -74.074342406,
+      "field_axis_bearing_degrees_approx": 166,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "PHI": {
+      "team": "PHI",
+      "venue_id": "PHI00",
+      "venue_name": "Lincoln Financial Field",
+      "lat": 39.9007914,
+      "lon": -75.1674645,
+      "field_axis_bearing_degrees_approx": 172,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "PIT": {
+      "team": "PIT",
+      "venue_id": "PIT00",
+      "venue_name": "Acrisure Stadium",
+      "lat": 40.4467883,
+      "lon": -80.0157692,
+      "field_axis_bearing_degrees_approx": 155,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "SEA": {
+      "team": "SEA",
+      "venue_id": "SEA00",
+      "venue_name": "Lumen Field",
+      "lat": 47.5951513,
+      "lon": -122.3316259,
+      "field_axis_bearing_degrees_approx": 0,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "SF": {
+      "team": "SF",
+      "venue_id": "SFO01",
+      "venue_name": "Levi's Stadium",
+      "lat": 37.4031837,
+      "lon": -121.9698094,
+      "field_axis_bearing_degrees_approx": 151,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "TB": {
+      "team": "TB",
+      "venue_id": "TAM00",
+      "venue_name": "Raymond James Stadium",
+      "lat": 27.9759691,
+      "lon": -82.503356,
+      "field_axis_bearing_degrees_approx": 0,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    },
+    "TEN": {
+      "team": "TEN",
+      "venue_id": "NAS00",
+      "venue_name": "Nissan Stadium",
+      "lat": 36.1664774,
+      "lon": -86.7712938,
+      "field_axis_bearing_degrees_approx": 155,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false,
+      "note": "Existing Nissan Stadium used for 2026; replacement enclosed stadium planned to open 2027. Do not reapply these coordinates in 2027."
+    },
+    "WAS": {
+      "team": "WAS",
+      "venue_id": "WAS00",
+      "venue_name": "Northwest Stadium",
+      "lat": 38.907703,
+      "lon": -76.8645083,
+      "field_axis_bearing_degrees_approx": 119,
+      "georeference_status": "UNVERIFIED_GOOGLE_EARTH_COMMUNITY_ESTIMATE",
+      "physical_game_roof_known": false
+    }
+  }
+}
