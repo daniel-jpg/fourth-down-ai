@@ -1762,7 +1762,9 @@ with st.expander(
             "service or historical postgame conditions are used. The "
             "official model does not adjust for these inputs. A separate "
             "research comparison adjusts FIELD GOAL only, and has not "
-            "improved held-out Brier score."
+            "improved held-out Brier score. Historical GO/PUNT weather "
+            "comparisons also did not establish reliable predictive gains; "
+            "their official probabilities remain unchanged."
         )
         has_weather = st.checkbox(
             "Enter observed temperature and wind",
