@@ -44,6 +44,28 @@ Run local regression tests with:
 
 The CI workflow runs the full CLI with a deliberately **fictional** METAR and verifies that the receipt cannot claim real station authentication, on-field rain intensity or a validated weather-aware prediction.
 
+## Live NOAA integration check (October 12, 2026)
+
+**Live API success is now verified—not just synthetic parser tests.**
+
+A real, opt-in [GitHub Actions NOAA format smoke run](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38292972017) completed successfully using the public Aviation Weather Center KSEA METAR endpoint. The initial one-shot [attempt](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38292699726) timed out after 12 seconds, so the weather HTTP adapter now applies **one bounded retry** on an actual read timeout (20 seconds per attempt and a 2-second pause). There is **no retry** on a NOAA 403/429 block, absent 204 data, malformed JSON, or source data inconsistencies. This is not a periodic watcher or production weather service.
+
+The live-successful workflow logged the following provider-reported timing/values:
+
+| KSEA observation | Observed result |
+| --- | --- |
+| Original METAR observation UTC | 2026-10-12 **17:53:00Z** |
+| NOAA receipt UTC | 2026-10-12 **17:56:47Z** |
+| HTTP retrieval on test runner UTC | 2026-10-12 **18:44:46Z** |
+| Wind at airport | **0.0 mph** (calm) |
+| Coded airport precipitation | **No precipitation code reported; unknown, NOT confirmed dry** |
+| JSON METAR and time-format parser | **PASS** |
+| Official fourth-down weather model | **UNCHANGED** |
+
+The test deliberately used the **airport's own station coordinates** as its artificial field location and a **fabricated 0° offensive bearing**. Thus it validates a **genuine NOAA HTTP response and parser/temporal arithmetic**, but **not stadium proximity to a football game, actual offense direction, an on-field sensor, before-snap receipt by a coaching model, or a weather-related increase in NFL win-probability accuracy**. The source-response and METAR SHA256 digests are saved in a short-retention, metadata-only Actions artifact; the original raw response is **not published** by the workflow.
+
+The deterministic [offline NOAA verification](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38292941260) independently passed **28 regressions**, including compatibility with a previously published NOAA JSON example (string UTC receipt time, Unix epoch observed time) and one-retry-only failure guards. The results are not evidence for changing the official decision engine; missing true football weather still results in no weather adjustment.
+
 ## Remaining research before changing official recommendations
 
 - Independently survey each stadium's field-to-true-north end-zone orientation and which end zone the actual offense attacks, including quarter-by-quarter switches. Field position and home/away do not determine the compass bearing.
