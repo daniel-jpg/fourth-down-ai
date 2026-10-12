@@ -1,0 +1,98 @@
+name: Timestamped NOAA METAR research evidence - offline and synthetic
+
+# No schedule, API calls, game results, 2026/2027 heldouts or model changes.
+# Optional REAL NOAA one-shot collection exists only as manual CLI flag.
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/metar_decision_weather.py
+      - scripts/capture_awc_decision_weather.py
+      - tests/test_metar_decision_weather.py
+      - .github/workflows/metar_weather_evidence.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-provenance-and-wind-components:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install pinned development requirements
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Test signed headwind and precipitation with zero network
+        run: |
+          python -m py_compile src/metar_decision_weather.py \
+            scripts/capture_awc_decision_weather.py
+          PYTHONPATH=. python -m pytest -q tests/test_metar_decision_weather.py
+      - name: Exercise complete offline mock METAR -> hashed JSON receipt
+        run: |
+          mkdir -p artifacts
+          python - <<'PY'
+          from datetime import datetime, timezone
+          import json
+          from pathlib import Path
+          observed=int(datetime(2026,10,12,18,0,tzinfo=timezone.utc).timestamp())
+          fake=[{
+              "icaoId":"KSEA","obsTime":observed,
+              "receiptTime":"2026-10-12T18:04:00Z",
+              "lat":47.4489,"lon":-122.3094,
+              "wdir":90,"wspd":12,
+              "rawOb":"METAR KSEA 121800Z 09012G18KT 10SM -RA BKN015 12/08 A2996 RMK AO2",
+          }]
+          Path("artifacts/FICTIONAL_METAR.json").write_text(json.dumps(fake))
+          PY
+          PYTHONPATH=. python -m scripts.capture_awc_decision_weather \
+            --source-json artifacts/FICTIONAL_METAR.json \
+            --captured-utc 2026-10-12T18:45:00Z \
+            --station KSEA \
+            --decision-utc 2026-10-12T18:35:00Z \
+            --field-lat 47.595 --field-lon -122.332 \
+            --offense-heading-true-deg 90 --roof outdoors \
+            --out artifacts/FICTIONAL_METAR_WEATHER_EVIDENCE.json
+      - name: Verify source credibility is explicitly NOT certified
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("artifacts/FICTIONAL_METAR_WEATHER_EVIDENCE.json").read_text())
+          assert x["station_id"]=="KSEA"
+          assert x["headwind_mph_signed"]>13
+          assert x["airport_present_weather_code"]=="AIRPORT_RAIN_REPORTED"
+          assert x["observed_and_received_before_decision"] is True
+          assert x["source_downloaded_after_decision"] is True
+          for key in (
+              "snap_specific_weather_verified",
+              "real_time_model_weather_provenance_certified",
+              "may_change_official_go_fg_or_punt_model",
+              "on_field_sensor_verified",
+              "source_received_by_user_before_decision_independently_verified",
+              "provider_origin_https_verified_for_this_capture",
+          ):
+              assert x[key] is False, key
+          assert x["precipitation_mm_per_hour_at_field"] is None
+          print("PASS: weather vector from synthetic airport METAR, no official model changes")
+          PY
+      - name: Verify all frozen models and reserved 2026 gates unchanged
+        run: |
+          git diff --exit-code -- models data \
+            src/42_build_decision_engine.py \
+            src/66_forward_2026_continuation_wp.py \
+            src/83_forward_2026_native_challenger_once.py
+      - name: Retain fictional research receipt only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-metar-asof-provenance-and-wind-vectors
+          path: artifacts/FICTIONAL_METAR_WEATHER_EVIDENCE.json
+          retention-days: 14
+          if-no-files-found: ignore
