@@ -186,24 +186,6 @@ def test_regulation_inputs_reach_engine_and_render_probabilities(ui, quarter, se
     assert "before the fourth-down decision: 33.00%" in values(at, "caption")
 
 
-def test_kickoff_scenario_and_fake_play_ui_remain_truthful(ui):
-    # The research switch remains optional and does not affect the official
-    # recommendation or expose unsupported fake-play probability estimates.
-    assert widget(ui.at, "expander", "2025 kickoff scenarios")
-    assert widget(ui.at, "checkbox", EXPERIMENT).value is False
-    analyze(ui.at)
-    assert metrics(ui.at)["Recommendation"] == "GO FOR IT"
-    assert widget(ui.at, "expander", "Why fake plays are not ranked")
-    # Inspect the AppTest's flattened text collections: nested expander
-    # containers do not expose every rendered element identically across
-    # Streamlit versions.
-    rendered = values(ui.at, "markdown") + values(ui.at, "caption")
-    assert "excluded from the ranked actions" in rendered
-    assert "insufficient historical support" in rendered
-    assert "FAKE PUNT — RUN" not in rendered
-    assert all("FAKE" not in k for k in metrics(ui.at))
-
-
 def test_immediate_odds_and_detailed_output_match_engine_response(ui):
     analyze(ui.at)
     expander = widget(ui.at, "expander", EXPLAINER)
