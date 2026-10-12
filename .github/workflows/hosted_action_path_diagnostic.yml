@@ -1,0 +1,185 @@
+name: Diagnose hosted Q1 versus Q4 decision execution
+
+# One-time, read-only browser diagnostic for the actual public app.
+# Runs on its own creation/update and can be dispatched manually.
+# It does not fetch NFL outcomes, modify model weights or override advice.
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/hosted_action_path_diagnostic.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Install Chromium
+        run: |
+          python -m pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+
+      - name: Contrast Q1 and Q4 hosted analysis without editing data
+        run: |
+          python - <<'PY'
+          import time
+          from urllib.parse import urlsplit
+          from playwright.sync_api import sync_playwright
+
+          HOST = "fourth-down-ai.streamlit.app"
+          URL = f"https://{HOST}/"
+
+          def attach_diagnostics(page, name):
+              def response_log(response):
+                  parsed = urlsplit(response.url)
+                  if parsed.hostname != HOST:
+                      return
+                  path = parsed.path
+                  if path in ("/", "/~/+/") or response.status >= 400:
+                      print(f"{name} HTTP {response.status}: {path[:100]}", flush=True)
+
+              def socket_log(socket):
+                  parsed = urlsplit(socket.url)
+                  if parsed.hostname == HOST:
+                      print(f"{name} websocket opened: {parsed.path[:100]}", flush=True)
+                      socket.on("close", lambda _: print(
+                          f"{name} websocket closed", flush=True
+                      ))
+
+              page.on("response", response_log)
+              page.on("websocket", socket_log)
+              page.on("pageerror", lambda error: print(
+                  f"{name} client exception: {str(error)[:220]}", flush=True
+              ))
+
+          def find_frame(page, max_seconds=90):
+              deadline = time.monotonic() + max_seconds
+              while time.monotonic() < deadline:
+                  for frame in page.frames:
+                      try:
+                          if frame.get_by_text("Game Situation", exact=True).count():
+                              return frame
+                      except Exception:
+                          pass
+                  page.wait_for_timeout(1000)
+              for frame in page.frames:
+                  try:
+                      print(
+                          "APP_STARTUP_FRAME", frame.url,
+                          repr(frame.locator("body").inner_text(timeout=2000)[:350]),
+                          flush=True,
+                      )
+                  except Exception:
+                      print("APP_STARTUP_FRAME_UNAVAILABLE", frame.url, flush=True)
+              raise AssertionError("Hosted Streamlit game inputs never appeared")
+
+          def run_case(browser, quarter, wait_seconds):
+              name = f"Q{quarter}"
+              page = browser.new_page(viewport={"width": 1440, "height": 900})
+              attach_diagnostics(page, name)
+              phase = "not started"
+              try:
+                  page.goto(URL, wait_until="domcontentloaded", timeout=60000)
+                  app = find_frame(page)
+                  assert app.get_by_text(
+                      "Weather observations (optional)", exact=True
+                  ).count(), "Hosted app is not serving the current weather interface"
+                  print(name, "new hosted session opened", flush=True)
+
+                  if quarter != 4:
+                      app.get_by_text(str(quarter), exact=True).first.click(
+                          timeout=15000
+                      )
+                      page.wait_for_timeout(2500)
+
+                  analyze = app.get_by_role("button", name="Analyze Fourth Down")
+                  assert analyze.is_enabled(), "Analyze disabled for default valid state"
+                  start = time.monotonic()
+                  analyze.click(timeout=15000)
+                  phase = "clicked"
+                  spinner_seen = False
+                  last_excerpt = ""
+                  while time.monotonic() - start < wait_seconds:
+                      try:
+                          body = app.locator("body").inner_text(timeout=5000)
+                          last_excerpt = body[-900:]
+                          spinner_seen = (
+                              spinner_seen or
+                              "Running fourth-down decision simulation" in body
+                          )
+                          if (
+                              "Recommendation" in body
+                              and "Win probability if chosen" in body
+                          ):
+                              elapsed = round(time.monotonic() - start, 1)
+                              print(
+                                  name, "RESULT_OK", {
+                                      "seconds": elapsed,
+                                      "saw_spinner": spinner_seen,
+                                      "close_call": "Close call" in body,
+                                      "corrected_q4": (
+                                          "Q4 estimates use corrected standard-35 "
+                                          "kickoff inputs" in body
+                                      ),
+                                  }, flush=True,
+                              )
+                              return True
+                          if "Older percentages have NOT been silently substituted" in body:
+                              print(name, "Q4_NATIVE_ESTIMATE_ERROR", flush=True)
+                              return False
+                      except Exception as exc:
+                          print(name, "TRANSIENT_READ_ERROR", str(exc)[:150], flush=True)
+                      page.wait_for_timeout(2500)
+                  print(
+                      name, "RESULT_TIMEOUT", {
+                          "seconds": wait_seconds,
+                          "saw_spinner": spinner_seen,
+                          "body_tail": last_excerpt,
+                      }, flush=True,
+                  )
+                  return False
+              except Exception as exc:
+                  print(name, "BROWSER_ERROR", phase, repr(exc)[:500], flush=True)
+                  return False
+              finally:
+                  try:
+                      page.screenshot(path=f"hosted-{name.lower()}.png", full_page=True)
+                  except Exception as exc:
+                      print(name, "SCREENSHOT_ERROR", str(exc)[:120], flush=True)
+                  page.close()
+
+          with sync_playwright() as playwright:
+              browser = playwright.chromium.launch(headless=True)
+              try:
+                  # Sequential sessions avoid two heavy simulations at once.
+                  # Q1 tests ordinary model invocation without Q4's private
+                  # native-kickoff code. Run Q4 only if that simpler path works.
+                  q1_passed = run_case(browser, quarter=1, wait_seconds=100)
+                  if not q1_passed:
+                      raise AssertionError(
+                          "HOSTED_GENERAL_ANALYZE_FAILURE: Q1 did not finish. "
+                          "Check browser websocket and Streamlit Cloud runtime logs."
+                      )
+                  q4_passed = run_case(browser, quarter=4, wait_seconds=150)
+                  if not q4_passed:
+                      raise AssertionError(
+                          "HOSTED_Q4_SPECIFIC_OR_SESSION_FAILURE: Q1 completed "
+                          "but Q4 did not. Inspect private Q4 preview/runtime logs."
+                      )
+                  print("DIAGNOSTIC_PASS: Q1 and Q4 completed on public Cloud", flush=True)
+              finally:
+                  browser.close()
+          PY
+
+      - name: Save anonymous browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hosted-action-path-diagnostic
+          path: hosted-q*.png
+          if-no-files-found: ignore
+          retention-days: 7
