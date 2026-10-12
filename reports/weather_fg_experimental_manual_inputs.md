@@ -3,7 +3,7 @@
 **October 12, 2026 — Research-only weather comparison.** The official frozen decision model and protected 2026/2027 evaluation gates are unchanged.
 
 ## New inputs
-Under Game site / Stadium / roof, the app has **Weather observations (optional)**. For outdoor or open-roof games, enter observed **temperature in Fahrenheit (-25 to 115)**, **wind speed in mph (0 to 40)**, and conditions (unknown, clear/dry, cloudy, rain, snow, mixed precipitation, fog). These are **manual** readings, not an automatic weather API. Closed roofs and domes are excluded. Wind *direction* is unavailable and is not modeled.
+Under Game site / Stadium / roof, the app has **Weather observations (optional)**. For outdoor or open-roof games, enter observed **temperature in Fahrenheit (-25 to 115)**, **wind speed in mph (0 to 40)**, and conditions (unknown, clear/dry, cloudy, rain, snow, mixed precipitation, fog). These are **manual** readings, not an automatic weather API. Closed roofs and domes are excluded. The UI now also captures **Unknown / Headwind / Tailwind / Crosswind / Variable** as manually reported wind orientation relative to the offense. Archived nflverse provides no verified play-relative wind direction, so this extra choice is descriptive only and does not alter any model probability.
 
 **Rain, snow and fog are descriptive context only.** We do not assign invented precipitation probability penalties. Missing weather remains the default and does not alter the official result.
 
@@ -36,6 +36,19 @@ The [isolated weather FG module](../src/weather_fg_sensitivity.py) applies the h
 The UI shows **Weather-adjusted field goal comparison (experimental)** below the unchanged official result, including original vs what-if FG make rate, the scenario FG expected WP and its modeled leader. It states prominently that the candidate failed held-out Brier and is **not validated coaching advice**.
 
 Limitations: This is not a full weather-aware policy. There is **no** modeled rain/snow/fog effect, wind direction, effect on pass, run, punt or return outcomes, instant stadium weather measurement, or future-season causal validation. Any Monte Carlo differences in non-FG rows should not be attributed to weather. No external provider, subscription, vendor email or protected holdout access was needed.
+
+## Subsequent GO/PUNT historical study (completed)
+
+The separate [2014–2024 GO/PUNT weather ablation](weather_go_punt_2014_2024_findings.md)
+has now been run using real historical fourth-down data on matched
+2014–2022 training and 2023–2024 validation cohorts. Adding temperature
+and wind **worsened GO conversion Brier** (0.216460 to 0.216981).
+PUNT gross kick-distance MAE decreased only 0.031 yard (6.37037 to 6.33963),
+and the game-cluster confidence interval for improvement crossed zero.
+Including historical rain/snow **text mentions** did not materially improve
+the results. The source contains wind speed but no trusted play-relative
+direction, and game-level text does not certify precipitation at the snap.
+No GO/PUNT official weather adjustment was approved.
 
 ## Tests and future work
 
