@@ -95,9 +95,13 @@ def load_verified_engine(root: Path = ROOT):
 
 
 def _int(value: Any, label: str, low: int, high: int) -> int:
-    if isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, np.integer)):
-        raise ValueError(f"{label} must be integer {low}..{high}")
-    if not low <= int(value) <= high:
+    # nflverse/Parquet may carry binary 0/1 flags as exact 0.0/1.0.
+    # Accept lossless integral floats but reject booleans and fractions.
+    if (isinstance(value, (bool, np.bool_))
+            or not isinstance(value, (int, float, np.integer, np.floating))
+            or not math.isfinite(float(value))
+            or not float(value).is_integer()
+            or not low <= float(value) <= high):
         raise ValueError(f"{label} must be integer {low}..{high}")
     return int(value)
 
