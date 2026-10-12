@@ -191,6 +191,22 @@ def build_buffalo_field_axis_candidate(
                      original_artifacts[point_metadata[side]["source_id"]])
         for side in ("NORTH", "SOUTH")
     }
+    # Goal-line centers are 100 yd apart; back end-line centers are
+    # 120 yd apart. Descriptions must match the chosen geometry type.
+    required_landmark_phrase = (
+        "goal line" if landmark_type == "GOAL_LINE_MIDPOINTS_100YDS"
+        else "back end line"
+    )
+    if any(
+        required_landmark_phrase not in points[side][
+            "landmark_description_user_asserted"
+        ].lower()
+        for side in ("NORTH", "SOUTH")
+    ):
+        raise ValueError(
+            "GPS source landmark description does not match chosen "
+            "100-yard goal-line versus 120-yard back end-line reference"
+        )
     north, south = points["NORTH"], points["SOUTH"]
     if (
         north["source_id"] == south["source_id"]
