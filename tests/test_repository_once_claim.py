@@ -132,3 +132,89 @@ def test_readonly_protocol_documents_admin_tag_deletion_limit():
     assert "tag-protection" in source
     assert "nonforce" in source
     assert "real_2027_evaluation_authorized" in source
+
+def test_remote_claim_precedes_any_postgame_scores_and_survives_runner_restart(
+    worktrees, tmp_path,
+):
+    """End-to-end synthetic replay: two different runner output dirs, one tag."""
+    from scripts.rehearse_2027_postseason_once import fabricate_whole_season
+    from src.postseason_2027_admission import MODE
+    from src.postseason_2027_once_only import run_fabricated_postseason_once
+
+    a, b, remote = worktrees
+    first_output = tmp_path / "first-runner-output"
+    first = fabricate_whole_season()
+
+    class AssertAlreadyClaimed(list):
+        def __iter__(self):
+            assert (first_output / "forecast_seal.json").exists()
+            assert (first_output / "remote_claim_receipt.json").exists()
+            assert git("-C", remote, "rev-parse", lock.FULL_REF).returncode == 0
+            return super().__iter__()
+
+    first["pbp_games"] = AssertAlreadyClaimed(first["pbp_games"])
+    first["reference_games"] = AssertAlreadyClaimed(first["reference_games"])
+    first["observed_plays"] = AssertAlreadyClaimed(first["observed_plays"])
+
+    def claim_from_clone(clone):
+        return lambda digest: lock.claim_fabricated_remote_once(
+            clone, mode=lock.FAKE_MODE, fake_forecast_sha256=digest,
+        )
+
+    completed = run_fabricated_postseason_once(
+        first, first_output, mode=MODE, pre_outcome_claim=claim_from_clone(a),
+    )
+    assert completed["status"] == "SYNTHETIC_POSTSEASON_REHEARSAL_ONLY"
+    assert completed["remote_claim_scope"] == "LOCAL_BARE_GIT_FABRICATED_ONLY"
+    receipt = __import__("json").loads(
+        (first_output / "remote_claim_receipt.json").read_text()
+    )
+    assert completed["remote_claim_sha256"] == receipt["claim_sha256"]
+    assert (first_output / "done.json").is_file()
+    second_output = tmp_path / "second-runner-new-output"
+    second = fabricate_whole_season()
+
+    class NoOutcomeRead(list):
+        def __iter__(self):
+            raise AssertionError("Second runner inspected game outcomes!")
+    second["pbp_games"] = NoOutcomeRead(second["pbp_games"])
+    second["reference_games"] = NoOutcomeRead(second["reference_games"])
+    second["observed_plays"] = NoOutcomeRead(second["observed_plays"])
+    with pytest.raises(FileExistsError, match="already exists"):
+        run_fabricated_postseason_once(
+            second, second_output, mode=MODE,
+            pre_outcome_claim=claim_from_clone(b),
+        )
+    assert (second_output / "forecast_seal.json").exists()
+    assert (second_output / "failed_after_seal.txt").exists()
+    assert not (second_output / "synthetic_evaluation.json").exists()
+    assert not (second_output / "remote_claim_receipt.json").exists()
+
+
+def test_replay_does_not_read_labels_when_claim_receipt_is_untrusted(
+    worktrees, tmp_path,
+):
+    from scripts.rehearse_2027_postseason_once import fabricate_whole_season
+    from src.postseason_2027_admission import MODE
+    from src.postseason_2027_once_only import run_fabricated_postseason_once
+
+    data = fabricate_whole_season()
+    class NoOutcomeRead(list):
+        def __iter__(self):
+            raise AssertionError("Bad claim must stop before outcome inspection")
+    data["pbp_games"] = NoOutcomeRead(data["pbp_games"])
+    data["reference_games"] = NoOutcomeRead(data["reference_games"])
+    data["observed_plays"] = NoOutcomeRead(data["observed_plays"])
+    output = tmp_path / "fraudulent-claim"
+    with pytest.raises(RuntimeError, match="verified local fabricated claim"):
+        run_fabricated_postseason_once(
+            data, output, mode=MODE,
+            pre_outcome_claim=lambda sha: {
+                "status": "FABRICATED_REMOTE_ONCE_CLAIM_CREATED",
+                "remote": "REAL_GITHUB",  # must not be accepted
+                "real_2027_evaluation_authorized": True,
+            },
+        )
+    assert (output / "forecast_seal.json").is_file()
+    assert (output / "failed_after_seal.txt").is_file()
+    assert not (output / "synthetic_evaluation.json").exists()
