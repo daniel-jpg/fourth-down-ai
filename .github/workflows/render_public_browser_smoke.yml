@@ -138,7 +138,21 @@ jobs:
                       "title", page.title(),
                       "frames", len(page.frames), flush=True,
                   )
-                  deadline = time.monotonic() + 540
+                  # Streamlit initializes through an asynchronous WebSocket.
+                  # Reloading every 10 seconds on Render Free repeatedly aborts
+                  # slow initialization and can leave Chromium on a blank page.
+                  # Wait on one connected page, with at most one recovery reload.
+                  page.on(
+                      "pageerror",
+                      lambda error: print(
+                          "PUBLIC_RENDER_JS_ERROR", str(error)[:400],
+                          flush=True,
+                      ),
+                  )
+                  start = time.monotonic()
+                  deadline = start + 420
+                  last_progress = 0
+                  refreshed_once = False
                   found = None
                   weather_ui = False
                   while time.monotonic() < deadline:
@@ -166,10 +180,29 @@ jobs:
                                   break
                           except Exception:
                               pass
-                      if found == expected:
+                      if found == expected and weather_ui:
                           break
-                      page.wait_for_timeout(10000)
-                      page.reload(wait_until="domcontentloaded", timeout=60000)
+                      elapsed = time.monotonic() - start
+                      if elapsed - last_progress >= 30:
+                          last_progress = elapsed
+                          print(
+                              "PUBLIC_RENDER_BROWSER_WAIT",
+                              "seconds", round(elapsed),
+                              "marker", (found or "missing")[:12],
+                              "weather_ui", weather_ui,
+                              "frames", len(page.frames),
+                              "url", page.url,
+                              flush=True,
+                          )
+                      # One refresh is allowed only after giving the
+                      # app three full minutes to initialize normally.
+                      if elapsed >= 180 and not refreshed_once and found is None:
+                          refreshed_once = True
+                          print("PUBLIC_RENDER_ONE_RECOVERY_RELOAD", flush=True)
+                          page.reload(
+                              wait_until="domcontentloaded", timeout=60000
+                          )
+                      page.wait_for_timeout(3000)
                   if found is None:
                       print(
                           "PUBLIC_RENDER_CHROMIUM_NO_MARKER",
