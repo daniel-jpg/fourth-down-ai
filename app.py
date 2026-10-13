@@ -809,15 +809,25 @@ st.markdown(
         padding-bottom: 3rem;
     }
 
-    /* The public decision tool doesn't need Streamlit's developer/status
-       toolbar, three-dot menu or blank sticky header. Long calculations
-       still display the app's own "Evaluating..." spinner. */
+    /* Hide all framework-only chrome, including the stMainMenu button
+       that opens Theme / Print / Record screen / Made with Streamlit.
+       The app's own field and analysis controls stay visible. In addition
+       to client.toolbarMode=minimal, hideTopBar is set in config.toml. */
     header[data-testid="stHeader"],
+    [data-testid="stHeader"],
     [data-testid="stToolbar"],
+    [data-testid="stToolbarActions"],
     [data-testid="stStatusWidget"],
     [data-testid="stDecoration"],
-    #MainMenu {
+    [data-testid="stMainMenu"],
+    [data-testid="stMainMenuPopover"],
+    [data-testid="stMainMenuList"],
+    [data-testid="stAppDeployButton"],
+    [data-testid="stFooter"],
+    #MainMenu,
+    footer {
         display: none !important;
+        visibility: hidden !important;
     }
     header[data-testid="stHeader"] {
         height: 0 !important;
