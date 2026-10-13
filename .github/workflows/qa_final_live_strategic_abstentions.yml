@@ -1,0 +1,40 @@
+name: Verify two unusual Fourth Down AI live decisions (focused)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/qa_final_live_strategic_abstentions_browser.py
+      - .github/workflows/qa_final_live_strategic_abstentions.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  focused-public-scenarios:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Chromium Playwright (no football data downloads)
+        run: |
+          python -m pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+      - name: Run full-speed model on existing public FREE Render app
+        env:
+          FOURTH_DOWN_SMOKE_BASE_URL: https://fourth-down-ai-nfl.onrender.com
+          FOURTH_DOWN_WEATHER_TIMEOUT_SECONDS: '240'
+          PYTHONPATH: .
+        run: python scripts/qa_final_live_strategic_abstentions_browser.py
+      - name: Archive browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unusual-strategy-abstentions
+          path: live-new-strategic-abstentions.png
+          if-no-files-found: ignore
+          retention-days: 7

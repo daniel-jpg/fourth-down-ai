@@ -8,6 +8,7 @@ heading reads INSUFFICIENT DATA. Includes the already-deployed brand title.
 from __future__ import annotations
 
 import os
+import time
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
@@ -42,30 +43,61 @@ def run_scenario(frame, page, *,
     button.wait_for(state="visible", timeout=30000)
     assert button.is_enabled()
     button.click(timeout=20000)
-    output = await_analysis(frame, page, weather=False)
-    wait_bright(frame, page, name)
-    assert output["Recommendation"] == "INSUFFICIENT DATA", (
-        name, output
-    )
-    current = body_text(frame)
-    assert warning in current, f"{name}: safety notice missing"
-    assert "Modeled edge over " in current, (
-        name, "Unsupported ranking is mistakenly advertised as an advantage"
-    )
-    for label, expected in expected_wp.items():
-        actual = metric(frame, label)
-        assert actual is not None
-        diff = abs(pct(actual) - expected)
-        assert diff <= .08, (
-            f"{name}: {label} {actual}, expected ~{expected}% from full frozen Q4"
+    # Two back-to-back analyses may both display INSUFFICIENT DATA. Do NOT
+    # mistake the preceding scenario's cached result for the new one.
+    # Wait for the new numerical fingerprint AND its new situation-specific
+    # warning, not just a generic Recommendation metric.
+    deadline = time.monotonic() + 210
+    start = time.monotonic()
+    last_print = -20
+    verified = 0
+    last = {}
+    while time.monotonic() < deadline:
+        body = body_text(frame)
+        recommendation = metric(frame, "Recommendation")
+        values = {}
+        for label in expected_wp:
+            raw = metric(frame, label)
+            values[label] = pct(raw) if raw is not None else None
+        nums_match = all(
+            values[label] is not None and abs(values[label] - expected) <= .08
+            for label, expected in expected_wp.items()
         )
-    print("LIVE_NEW_SCENARIO_PASS", {
-        "name": name,
-        "recommendation": output["Recommendation"],
-        "verified_wp": expected_wp,
-        "warning": warning,
-        "site": BASE_URL,
-    }, flush=True)
+        state_ok = recommendation == "INSUFFICIENT DATA"
+        warning_ok = warning in body
+        edge_ok = "Modeled edge over " in body
+        last = {
+            "recommendation": recommendation, "values": values,
+            "state_ok": state_ok, "warning_ok": warning_ok,
+            "edge_ok": edge_ok, "body_tail": body[-1600:],
+        }
+        if all((nums_match, state_ok, warning_ok, edge_ok)):
+            verified += 1
+            if verified >= 2:
+                wait_bright(frame, page, name)
+                print("LIVE_NEW_SCENARIO_PASS", {
+                    "name": name,
+                    "recommendation": recommendation,
+                    "verified_wp": values,
+                    "warning": warning,
+                    "seconds": round(time.monotonic() - start, 1),
+                    "site": BASE_URL,
+                }, flush=True)
+                return
+        else:
+            verified = 0
+        elapsed = time.monotonic() - start
+        if elapsed - last_print >= 20:
+            last_print = elapsed
+            print("LIVE_NEW_SCENARIO_WAIT", {
+                "name": name, "elapsed": round(elapsed, 1),
+                "recommendation": recommendation, "values": values,
+                "warning_ok": warning_ok, "edge_ok": edge_ok,
+            }, flush=True)
+        page.wait_for_timeout(1300)
+    raise AssertionError(
+        f"{name}: New scenario never reached matching warning/estimates: {last}"
+    )
 
 
 def main() -> None:
