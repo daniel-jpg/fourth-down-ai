@@ -109,6 +109,56 @@ jobs:
                   )
           PY
 
+      - name: Verify non-JavaScript link preview title, metadata and favicon
+        env:
+          TARGET_URL: ${{ steps.target.outputs.url }}
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          import struct
+          from urllib.parse import urljoin
+          from urllib.request import Request, urlopen
+
+          base = os.environ["TARGET_URL"].rstrip("/")
+          with urlopen(Request(base + "/", headers={
+              "User-Agent": "FourthDownAI-PublicMetadata-QA/1.0",
+          }), timeout=35) as response:
+              assert response.status == 200
+              html = response.read(100_000).decode("utf-8", errors="replace")
+          assert "<title>Fourth Down AI</title>" in html
+          assert "<title>Streamlit</title>" not in html
+          for expected in (
+              'name="application-name" content="Fourth Down AI"',
+              'property="og:title" content="Fourth Down AI"',
+              'name="twitter:title" content="Fourth Down AI"',
+              'name="description"',
+          ):
+              assert expected in html, f"Missing branded preview metadata: {expected}"
+          favicon = re.search(
+              r'<link\s+rel="icon"[^>]*href="([^"]+)"', html,
+          )
+          assert favicon, "No branded favicon link in first HTTP response"
+          href = favicon.group(1)
+          assert href.startswith("/favicon.png?v="), href
+          icon_url = urljoin(base + "/", href)
+          with urlopen(Request(icon_url, headers={
+              "User-Agent": "FourthDownAI-PublicMetadata-QA/1.0",
+          }), timeout=35) as icon_response:
+              assert icon_response.status == 200
+              assert "image/png" in icon_response.headers.get("Content-Type", "")
+              data = icon_response.read(100_000)
+          assert data[:8] == b"\x89PNG\r\n\x1a\n"
+          assert struct.unpack(">II", data[16:24]) == (192, 192)
+          print("PUBLIC_BRANDING_FIRST_HTTP_RESPONSE_PASS", {
+              "title": "Fourth Down AI",
+              "favicon": href,
+              "image_size": (192, 192),
+              "og_title": True,
+              "twitter_title": True,
+          }, flush=True)
+          PY
+
       - name: Install Chromium browser driver
         run: |
           python -m pip install --disable-pip-version-check playwright==1.55.0
@@ -222,6 +272,11 @@ jobs:
                       " differs from tested GitHub " + expected[:12]
                   )
                   assert weather_ui, "Expected live weather UI not found"
+                  assert page.title() == "Fourth Down AI", (
+                      "Hydrated browser tab title is not Fourth Down AI: "
+                      + page.title()
+                  )
+                  print("PUBLIC_BRANDING_HYDRATED_BROWSER_TITLE_PASS", page.title())
                   print(
                       "PUBLIC_RENDER_SOURCE_AND_WEATHER_PASS",
                       found[:12], flush=True,
