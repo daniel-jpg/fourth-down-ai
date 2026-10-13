@@ -105,3 +105,41 @@ def test_public_app_uses_guard_not_registered_prospective_module():
     assert "use_q4_demo_terminal_guard" not in native
     frozen = Path("src/83_forward_2026_native_challenger_once.py").read_text()
     assert "use_q4_demo_terminal_guard" not in frozen
+
+
+
+def test_real_q4_demo_known_decision_anchor_and_late_case(shared_engine):
+    """Re-run two real 1,200-draw Q4 results through the exact demo wrapper."""
+    from src.streamlit_kickoff_preview import preview_native_kickoff_feature_candidate
+
+    situations = [
+        # The original 4:59 Q4 demonstration should not drift.
+        ({"qtr":4, "game_seconds_remaining":299.,
+          "yardline_100":6., "ydstogo":4.,
+          "score_differential":-4.,
+          "posteam_timeouts_remaining":3.,
+          "defteam_timeouts_remaining":3.,
+          "site":"AWAY", "roof":"outdoors"}, "FIELD GOAL"),
+        # The exact Issue 12 scenario, with 0:45 and down four.
+        (state(clock=45., margin=-4., site="AWAY"), "GO FOR IT"),
+    ]
+    for current, expected in situations:
+        private = isolated_engine_from_loaded_engine(shared_engine)
+        with use_q4_demo_terminal_guard(private):
+            result = preview_native_kickoff_feature_candidate(
+                current, simulations=1200, action_seed=43,
+                isolated_engine=private,
+            )
+        rows = result["results"]
+        assert rows.loc[rows["eligible"], "expected_win_probability"].between(0, 1).all()
+        assert result["recommendation"] in (
+            "FIELD GOAL", "GO — RUN", "GO — PASS/DROPBACK",
+        )
+        best_name = ("GO FOR IT" if result["recommendation"].startswith("GO") else result["recommendation"])
+        assert best_name == expected
+        if current["game_seconds_remaining"] == 299.:
+            fg = rows.loc[rows["action"].eq("FIELD_GOAL"), "expected_win_probability"].iloc[0]
+            assert round(100 * float(fg), 2) == 37.00
+        else:
+            fg = rows.loc[rows["action"].eq("FIELD_GOAL"), "expected_win_probability"].iloc[0]
+            assert round(100 * float(fg), 2) == 23.72

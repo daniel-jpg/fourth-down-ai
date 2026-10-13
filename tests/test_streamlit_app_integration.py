@@ -868,3 +868,30 @@ def test_non_predictive_weather_and_venue_controls_are_absent(ui):
                 if "research receipt" in item.label.lower()]
     assert len(ui.engine.calls) == 0
 
+
+
+
+def test_issue12_late_q4_045_field_goal_warns_and_abstains_when_fg_wins(ui):
+    """Use real UI wiring; fake outcomes isolate the warning from model sampling."""
+    at = AppTest.from_file(str(ROOT / "app.py"), default_timeout=15)
+    at.session_state["football_field"] = {"yardline_100": 1}
+    run(at)
+    widget(at, "text_input", "Time remaining (MM:SS)").set_value("00:45")
+    widget(at, "number_input", "Yards to go").set_value(1)
+    widget(at, "number_input", "Offense score").set_value(27)
+    widget(at, "number_input", "Defense score").set_value(31)
+    widget(at, "radio", "Game site").set_value("Away")
+    run(at)
+    analyze(at)
+    # The model's GO first-place decision survives; FIELD GOAL is qualified.
+    assert metrics(at)["Recommendation"] == "GO FOR IT"
+    assert "Limited late-game field-goal support" in values(at, "warning")
+    assert "zero" in values(at, "warning").lower()
+
+    # If the same frozen mock model instead ranks an unsupported FG first,
+    # the UI abstains rather than promoting an unvalidated FG headline.
+    ui.engine.native_wp_overrides["FIELD_GOAL"] = .91
+    analyze(at)
+    assert metrics(at)["Recommendation"] == "INSUFFICIENT DATA"
+    assert "Limited late-game field-goal support" in values(at, "warning")
+    assert any(name.startswith("Modeled edge over ") for name in metrics(at))
