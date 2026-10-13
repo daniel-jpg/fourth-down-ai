@@ -56,6 +56,57 @@ jobs:
           print("PASS: public HTTPS Render URL", url.hostname)
           PY
 
+      - name: Probe Render public DNS and health before browser
+        env:
+          TARGET_URL: ${{ steps.target.outputs.url }}
+        run: |
+          python - <<'PY'
+          import os
+          import socket
+          import time
+          from urllib.parse import urlsplit
+          from urllib.request import Request, urlopen
+
+          base = os.environ["TARGET_URL"]
+          hostname = urlsplit(base).hostname
+          assert hostname
+          addresses = sorted({
+              item[4][0] for item in socket.getaddrinfo(
+                  hostname, 443, type=socket.SOCK_STREAM
+              )
+          })
+          print("PUBLIC_RENDER_DNS", hostname, addresses, flush=True)
+          for route in ("/_stcore/health", "/"):
+              last_error = ""
+              for attempt in range(1, 4):
+                  try:
+                      request = Request(
+                          base + route,
+                          headers={"User-Agent": "FourthDownAI-CI-health/1.0"},
+                      )
+                      with urlopen(request, timeout=30) as response:
+                          body = response.read(1024)
+                          print(
+                              "PUBLIC_RENDER_HTTP", route, response.status,
+                              response.headers.get("Content-Type"),
+                              "bytes_sampled", len(body),
+                              "attempt", attempt, flush=True,
+                          )
+                          assert response.status == 200
+                      break
+                  except Exception as error:
+                      last_error = type(error).__name__ + ": " + str(error)
+                      print("PUBLIC_RENDER_HTTP_RETRY", route, attempt,
+                            last_error[:300], flush=True)
+                      if attempt < 3:
+                          time.sleep(6)
+              else:
+                  raise RuntimeError(
+                      "Public Render endpoint failed " + route + ": " +
+                      last_error
+                  )
+          PY
+
       - name: Install Chromium browser driver
         run: |
           python -m pip install --disable-pip-version-check playwright==1.55.0
@@ -76,9 +127,16 @@ jobs:
               browser = driver.chromium.launch(headless=True)
               page = browser.new_page(viewport={"width": 1440, "height": 900})
               try:
-                  page.goto(
+                  nav = page.goto(
                       os.environ["TARGET_URL"],
                       wait_until="domcontentloaded", timeout=60000,
+                  )
+                  print(
+                      "PUBLIC_RENDER_CHROMIUM_INITIAL",
+                      "status", nav.status if nav else None,
+                      "url", page.url,
+                      "title", page.title(),
+                      "frames", len(page.frames), flush=True,
                   )
                   deadline = time.monotonic() + 540
                   found = None
@@ -112,6 +170,16 @@ jobs:
                           break
                       page.wait_for_timeout(10000)
                       page.reload(wait_until="domcontentloaded", timeout=60000)
+                  if found is None:
+                      print(
+                          "PUBLIC_RENDER_CHROMIUM_NO_MARKER",
+                          "url", page.url, "title", page.title(),
+                          "frames", len(page.frames),
+                          "body_chars", len(page.locator("body").inner_text(
+                              timeout=15000
+                          )),
+                          flush=True,
+                      )
                   assert found is not None, "No hosted app/source marker"
                   assert len(found) == 64
                   assert found == expected, (
