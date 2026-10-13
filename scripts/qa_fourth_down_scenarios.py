@@ -107,6 +107,21 @@ CASES = [
          ot_format="POSTSEASON", ot_phase="OPENING"),
     Case("OT playoffs sudden death period2", 5, 480, 3, 35, 0, "HOME",
          ot_format="POSTSEASON", ot_phase="SUDDEN_DEATH", ot_period=2),
+    # Six additional plausible on-field situations, NOT claims about
+    # observed NFL games. They exercise the frozen engine end-to-end.
+    Case("Q1 13:20 up3 own18 fourth13 dome", 1, 800, 13, 82, 3,
+         "HOME", roof="dome"),
+    Case("Q2 0:41 down7 own48 one timeout", 2, 41, 6, 52, -7,
+         "AWAY", offense_to=1, defense_to=2, receiver="OFFENSE"),
+    Case("Q3 8:20 down4 opp37 open roof", 3, 500, 2, 37, -4,
+         "HOME", roof="open"),
+    Case("Q4 2:15 down5 own48 one timeout", 4, 135, 2, 52, -5,
+         "AWAY", offense_to=1, defense_to=2),
+    Case("Q4 0:55 tied opp28 at neutral site", 4, 55, 4, 28, 0,
+         "NEUTRAL", offense_to=1, defense_to=1),
+    Case("OT regular sudden death 2:12 opp45", 5, 132, 6, 45, 0,
+         "NEUTRAL", offense_to=1, defense_to=1,
+         ot_format="REGULAR_SEASON", ot_phase="SUDDEN_DEATH"),
 ]
 
 
@@ -206,7 +221,7 @@ def main() -> None:
     baseline_recommend = engine["recommend"]
     baseline_evaluate = engine["evaluate_post_play_states"]
     rows = []
-    print("Scenario QA: 15 real-engine states; no future play outcomes / model refit", flush=True)
+    print("Scenario QA: 21 real-engine states; no future play outcomes / model refit", flush=True)
     for case in CASES:
         state = case.state()
         if case.qtr == 4:
@@ -233,7 +248,7 @@ def main() -> None:
             f"edge {entry['edge_pp']:+6.2f} pp",
             flush=True,
         )
-    assert len(rows) == len(CASES) and len(rows) == 15
+    assert len(rows) == len(CASES) and len(rows) == 21
     assert {r["quarter"] for r in rows}.issuperset(
         {"Q1", "Q2", "Q3", "Q4", "OT-REGULAR_SEASON", "OT-POSTSEASON"}
     )
@@ -241,7 +256,7 @@ def main() -> None:
         {"GO FOR IT", "FIELD GOAL", "PUNT"}
     ), "Test states do not exercise all three normal strategies"
     print(
-        "PASS: 15 states; all normal-action rankings, probabilities, "
+        "PASS: 21 states; all normal-action rankings, probabilities, "
         "eligibility exclusions, overtime variants and user anchors consistent.",
         flush=True,
     )
