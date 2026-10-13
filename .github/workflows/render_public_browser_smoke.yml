@@ -1,14 +1,15 @@
 name: Verify public Render Q4, weather and repeated edits in Chromium
 
 # Render's free service deliberately uses manual deployments.
-# Do not test app pushes against older live deployments. Verify the live
-# service on manual dispatch or a deliberate edit to this QA workflow,
-# after the matching application code has been deployed to Render.
+# Do not test ordinary app pushes against an older deployed commit. QA-only
+# browser script changes may safely test the existing public deployment.
+# Verify the matching app version first via its source fingerprint.
 on:
   push:
     branches: [main]
     paths:
       - .github/workflows/render_public_browser_smoke.yml
+      - scripts/qa_repeated_input_browser.py
   workflow_dispatch:
     inputs:
       public_base_url:
