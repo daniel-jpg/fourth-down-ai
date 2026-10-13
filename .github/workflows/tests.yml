@@ -43,7 +43,7 @@ jobs:
       - name: Verify corrected Q4 percentages against legacy model
         run: PYTHONPATH=. python scripts/verify_q4_latest_case.py
 
-      - name: Audit 15 real-engine fourth-down scenarios
+      - name: Audit 21 realistic fourth-down states with frozen NFL engine
         run: |
           PYTHONPATH=. python scripts/qa_fourth_down_scenarios.py | tee qa-fourth-down-matrix.txt
 
