@@ -229,6 +229,19 @@ def analyze(frame, page, *, weather: bool) -> dict:
 
 
 def check_baseline_and_weather(frame, page) -> dict:
+    # Hide Streamlit's floating developer toolbar and running/stop strip;
+    # the app spinner still explains what is being calculated.
+    for test_id in ("stHeader", "stToolbar", "stStatusWidget", "stDecoration"):
+        chrome = frame.locator(f'[data-testid="{test_id}"]')
+        assert all(
+            not chrome.nth(i).is_visible() for i in range(chrome.count())
+        ), f"Unnecessary Streamlit header element still visible: {test_id}"
+    menu = frame.locator("#MainMenu")
+    assert all(not menu.nth(i).is_visible() for i in range(menu.count())), (
+        "Streamlit menu still visible"
+    )
+    print("PUBLIC_STREAMLIT_TOOLBAR_HIDDEN_PASS", flush=True)
+
     # Inspect positions BEFORE the first full Q4 analysis: that analysis
     # triggers a Streamlit rerender and can detach the embedded field frame.
     # The optional weather boxes should sit on the SAME INPUT ROW
@@ -341,8 +354,16 @@ def check_baseline_and_weather(frame, page) -> dict:
     assert metric(frame, "Weather what-if FG make") is None
     print("WEATHER_TEMPERATURE_ONLY_OFFICIAL_UNCHANGED", flush=True)
 
-    set_number(frame, page, "Wind speed (mph)", 25)
-    await_metric_cleared(frame, page, "Recommendation")
+    # No extra Enter or Tab press: clicking Analyze should blur the number
+    # field and apply the edited value. Streamlit's hint is hidden by CSS.
+    wind = frame.get_by_role("spinbutton", name="Wind speed (mph)")
+    wind.fill("25", timeout=15000)
+    instructions = frame.get_by_text("Press Enter to apply", exact=False)
+    assert not any(
+        instructions.nth(i).is_visible()
+        for i in range(instructions.count())
+    ), "Misleading Press Enter to apply overlay is still visible"
+    print("WEATHER_NO_ENTER_HINT_AND_CLICK_TO_APPLY_PASS", flush=True)
     strong_wind = analyze(frame, page, weather=True)
     assert strong_wind["Recommendation"] == default["Recommendation"]
     assert strong_wind["Win probability if chosen"] == default["Win probability if chosen"]
