@@ -215,6 +215,59 @@ def test_result_persists_across_same_state_rerun_and_invalidates_on_change(ui):
     assert len(ui.engine.calls) == call_count + 1
 
 
+def test_repeated_realistic_edits_leave_form_responsive_without_stale_odds(ui):
+    """Many ordinary edits must complete the script without reusing old odds."""
+    at = ui.at
+    analyze(at)
+    calls = len(ui.engine.calls)
+    assert metrics(at)["Recommendation"] == "GO FOR IT"
+
+    # Realistic fourth-down coaching changes, all within Q4 support:
+    # last drive, quarter clock changes, timeouts, score, site and weather.
+    edits = (
+        ("number_input", "Yards to go", 4),
+        ("number_input", "Offense score", 27),
+        ("number_input", "Defense score", 31),
+        ("text_input", "Time remaining (MM:SS)", "04:59"),
+        ("radio", "Offense timeouts", 1),
+        ("radio", "Defense timeouts", 2),
+        ("radio", "Game site", "Home"),
+        ("number_input", "Yards to go", 2),
+        ("number_input", "Temperature (°F)", 34),
+        ("number_input", "Wind speed (mph)", 18),
+        ("number_input", "Wind speed (mph)", 0),
+        ("number_input", "Temperature (°F)", None),
+        ("selectbox", "Stadium / roof", "dome"),
+        ("selectbox", "Stadium / roof", "outdoors"),
+        ("number_input", "Offense score", 24),
+        ("number_input", "Defense score", 27),
+        ("number_input", "Yards to go", 3),
+        ("text_input", "Time remaining (MM:SS)", "07:38"),
+        ("radio", "Offense timeouts", 3),
+        ("radio", "Defense timeouts", 3),
+        ("radio", "Game site", "Away"),
+    )
+    for kind, label, val in edits:
+        widget(at, kind, label).set_value(val)
+        run(at)
+        # A completed rerun has normal, usable form controls and cannot
+        # display predictions that belong to the old situation.
+        assert widget(at, "button", "Analyze Fourth Down").disabled is False
+        assert widget(at, "number_input", "Yards to go").value >= 1
+        assert not at.metric, (kind, label, val, metrics(at))
+        assert len(ui.engine.calls) == calls
+        assert not at.exception
+
+    analyze(at)
+    assert metrics(at)["Recommendation"] == "GO FOR IT"
+    assert len(ui.engine.calls) == calls + 1
+    # Even after a long run of edits, an unchanged rerun preserves the
+    # correct newly computed result rather than loading an earlier result.
+    snapshot = metrics(at)
+    run(at)
+    assert metrics(at) == snapshot
+
+
 def test_deep_own_five_short_go_displays_sparse_support_notice(ui):
     # AppTest cannot drive the field component's browser JavaScript.
     # Seed the true ball location before the component registers.
