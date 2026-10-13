@@ -1,0 +1,4 @@
+# Public demo: remove Streamlit's developer menu.
+# The rest of the app remains controlled by app.py.
+[client]
+toolbarMode = "minimal"
