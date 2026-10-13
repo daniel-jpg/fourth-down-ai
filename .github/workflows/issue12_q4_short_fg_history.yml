@@ -1,0 +1,43 @@
+name: Issue 12 historical Q4 short-FG support count
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/audit_issue12_q4_short_fg_history.py
+      - tests/test_issue12_q4_short_fg_history.py
+      - .github/workflows/issue12_q4_short_fg_history.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  read-only-count:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project requirements
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Test historical selection on fabricated records
+        run: python -m pytest -q tests/test_issue12_q4_short_fg_history.py
+      - name: Count only completed 2014-2025 seasons
+        run: |
+          PYTHONPATH=. python scripts/audit_issue12_q4_short_fg_history.py | tee issue12-historical-counts.log
+      - name: Retain historical-support counts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue12-historical-short-fg-support
+          path: |
+            artifacts/issue12_q4_short_fg_historical_support.json
+            issue12-historical-counts.log
+          if-no-files-found: ignore
+          retention-days: 14
