@@ -310,6 +310,13 @@ jobs:
           PYTHONPATH: .
         run: python scripts/qa_repeated_input_browser.py
 
+      - name: Verify 18-second PUNT and own-one long GO safely abstain in live app
+        env:
+          FOURTH_DOWN_SMOKE_BASE_URL: ${{ steps.target.outputs.url }}
+          FOURTH_DOWN_WEATHER_TIMEOUT_SECONDS: '240'
+          PYTHONPATH: .
+        run: python scripts/qa_final_live_strategic_abstentions_browser.py
+
       - name: Retain browser evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -320,5 +327,6 @@ jobs:
             local-streamlit-q4-home.png
             docker-streamlit-weather-qa.png
             repeated-input-no-dimming.png
+            live-new-strategic-abstentions.png
           if-no-files-found: ignore
           retention-days: 7
