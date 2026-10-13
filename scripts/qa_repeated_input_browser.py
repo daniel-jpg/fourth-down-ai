@@ -146,7 +146,10 @@ def main() -> None:
             edit_yardline(page, frame, 30)
             edit_site(frame, page, "Home")
             edit_site(frame, page, "Away")
-            edit_number(frame, page, "Yards to go", 3)
+            # Keep the final state DIFFERENT from the initial analyzed
+            # 4th-and-3. Restoring the exact initial state legitimately
+            # brings back its previously cached (correct) probabilities.
+            edit_number(frame, page, "Yards to go", 2)
             edit_number(frame, page, "Offense score", 24)
             edit_number(frame, page, "Defense score", 27)
             edit_time(frame, page, "07:38")
