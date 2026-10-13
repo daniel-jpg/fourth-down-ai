@@ -2065,17 +2065,22 @@ if situation_valid:
                     isolated_engine_from_loaded_engine,
                     preview_native_kickoff_feature_candidate,
                 )
+                from src.q4_demo_terminal_guard import use_q4_demo_terminal_guard
                 try:
                     # Copy function globals per request, NOT the loaded
                     # heavyweight estimators or transition parquet pools.
                     # Concurrent Streamlit users remain isolated.
                     q4_private_engine = isolated_engine_from_loaded_engine(engine)
-                    result = preview_native_kickoff_feature_candidate(
-                        state,
-                        simulations=ADAPTIVE_HIGH_SIMULATIONS,
-                        action_seed=ADAPTIVE_HIGH_SEED,
-                        isolated_engine=q4_private_engine,
-                    )
+                    # At Q4 0:00, a final lead/loss is rule-determined.
+                    # Apply this solely to the temporary demo namespace;
+                    # registered future-year evaluators stay unchanged.
+                    with use_q4_demo_terminal_guard(q4_private_engine):
+                        result = preview_native_kickoff_feature_candidate(
+                            state,
+                            simulations=ADAPTIVE_HIGH_SIMULATIONS,
+                            action_seed=ADAPTIVE_HIGH_SEED,
+                            isolated_engine=q4_private_engine,
+                        )
                 except Exception:
                     st.error(
                         "The updated Q4 kickoff-input estimate is unavailable. "
@@ -2438,9 +2443,9 @@ if situation_valid:
         # the old long warning and any research checkbox.
         if qtr == 4:
             st.caption(
-                "Q4 estimates use corrected standard-35 kickoff inputs "
-                "and unchanged model weights. Future-season validation "
-                "is still pending."
+                "Q4 estimates use corrected standard-35 kickoff inputs, "
+                "rule-based completed-game outcomes at 0:00, and unchanged "
+                "model weights. Future-season validation is still pending."
             )
             if fg_guard_unavailable:
                 st.caption(

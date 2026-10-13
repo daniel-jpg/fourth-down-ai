@@ -38,8 +38,10 @@ See [historical-count workflow](https://github.com/daniel-jpg/fourth-down-ai-nfl
 
 ## Scope of mitigation
 
+An **isolated demo-only exact terminal-game rule** is applied when a Q4 simulated post-play state reaches 0:00 and the final score unequivocally determines the winner. It is layered around, not inside, the registered native-35 representation correction. It never overwrites the published frozen engine or modifies the 2026/2027 prospectively registered source or training weights. Tied 0:00 states retain the separate overtime-model treatment, and touchdown Try evaluation is preserved.
+
 A **presentation-only reliability warning** now appears when the demo is in Q4 with 0:01–2:00 left, trailing by four, and FG is an available alternative. It explicitly states the lack of matching late-FG support and warns that raw WP estimates at 0:00 are nonterminal. If the model chooses FG here, its headline becomes **INSUFFICIENT DATA** rather than falsely presenting FG as supported. Otherwise the GO headline, action values, rankings and probabilities are unchanged.
 
-Do **not** silently set displayed FG WP to 0%, override GO with PUNT or insert arbitrary onside assumptions. Changing the simulation's terminal-game resolver would alter action-value outputs and requires a separately versioned policy study and review. **The deliberately frozen native kickoff representation module, Step 66/83 gates, stable model files, and 2027 prospective action-policy study remain unchanged.**
+Do **not** silently set displayed FG WP to 0%, override GO with PUNT or insert arbitrary onside assumptions. The deterministic demo-only terminal rule can alter some late-Q4 action values and must be validated before any claim of empirical action-value accuracy. The unmodified frozen prospective evaluators must remain entirely separate. **The registered native kickoff representation module, Step 66/83 gates, stable model files, and 2027 prospective action-policy study remain unchanged.**
 
 This mitigation protects interpretation rather than claiming numerical calibration. Future independently validated late-game continuation rules and better-specified onside data are still needed before calling these probabilities reliable.

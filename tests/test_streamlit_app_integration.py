@@ -5,6 +5,7 @@ smoke test also loads the real frozen engine. No future evaluation is run.
 AppTest does not execute the custom football field's browser JavaScript.
 """
 from copy import deepcopy
+from contextlib import nullcontext
 import importlib.abc
 import importlib.util
 from pathlib import Path
@@ -20,6 +21,7 @@ from streamlit.testing.v1 import AppTest
 
 from src import kickoff_q4_reliability_guard as guard
 from src import streamlit_kickoff_preview as preview
+from src import q4_demo_terminal_guard as terminal_guard
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -165,6 +167,12 @@ def ui(monkeypatch):
     private = {"fake_private_engine": True}
     clone = Mock(return_value=private)
     monkeypatch.setattr(preview, "isolated_engine_from_loaded_engine", clone)
+    # The fixed fake engine has no WP internals. Integration tests exercise
+    # UI wiring; exact terminal WP is checked with the real isolated engine.
+    monkeypatch.setattr(
+        terminal_guard, "use_q4_demo_terminal_guard",
+        lambda _engine: nullcontext(),
+    )
     at = run(AppTest.from_file(str(ROOT / "app.py"), default_timeout=15))
     yield SimpleNamespace(
         at=at, engine=engine, probe=probe, previews=previews,
