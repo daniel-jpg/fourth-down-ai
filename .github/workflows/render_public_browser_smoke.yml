@@ -1,4 +1,4 @@
-name: Verify public Render Q4 and weather in Chromium
+name: Verify public Render Q4, weather and repeated edits in Chromium
 
 # Render's free service deliberately uses manual deployments.
 # Do not test app pushes against older live deployments. Verify the live
@@ -145,6 +145,12 @@ jobs:
           FOURTH_DOWN_WEATHER_TIMEOUT_SECONDS: '180'
         run: python scripts/qa_weather_streamlit_browser.py
 
+      - name: Confirm repeated edits leave public app responsive and undimmed
+        env:
+          FOURTH_DOWN_SMOKE_BASE_URL: ${{ steps.target.outputs.url }}
+          FOURTH_DOWN_WEATHER_TIMEOUT_SECONDS: '240'
+        run: python scripts/qa_repeated_input_browser.py
+
       - name: Retain browser evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -154,5 +160,6 @@ jobs:
             render-public-source.png
             local-streamlit-q4-home.png
             docker-streamlit-weather-qa.png
+            repeated-input-no-dimming.png
           if-no-files-found: ignore
           retention-days: 7
