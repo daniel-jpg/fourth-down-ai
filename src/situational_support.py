@@ -51,6 +51,10 @@ def supported_recommendation_display(
     """
     if deep_own_short_go_notice(state, selected_strategy):
         return "INSUFFICIENT DATA"
+    if deep_own_long_go_notice(state, selected_strategy):
+        return "INSUFFICIENT DATA"
+    if late_q4_trailing_punt_notice(state, selected_strategy):
+        return "INSUFFICIENT DATA"
     # Do not advertise a supported field-goal recommendation when there
     # are no comparable real post-made-FG kickoffs in the final two minutes.
     if (selected_strategy == "FIELD GOAL"
@@ -127,4 +131,75 @@ def late_q4_trailing_after_fg_notice(
         "regulation clock has expired. The displayed FIELD GOAL probability "
         "is an **unvalidated model extrapolation**, NOT a demonstrated chance "
         "to win or an empirically supported reason to attempt a field goal."
+    )
+
+
+
+def deep_own_long_go_notice(
+    state: Mapping, selected_strategy: str
+) -> str | None:
+    """Abstain, but leave raw model WP intact, on long GO from own goal line.
+
+    Reproduced in observed 2025 Week 3 ARI-SF (Q4 14:11, fourth-and-11,
+    own 1): the frozen model puts GO 37.23% and PUNT 36.51% at seed 43.
+    A small modeled edge is not proof GO is safe. This warning does NOT
+    assert a specific historical GO count or replace the modeled values.
+    """
+    if selected_strategy != "GO FOR IT":
+        return None
+    try:
+        quarter = int(state["qtr"])
+        yardline = float(state["yardline_100"])
+        distance = float(state["ydstogo"])
+    except (TypeError, ValueError, KeyError):
+        return None
+    if not all(math.isfinite(x) for x in (yardline, distance)):
+        return None
+    if not (1 <= quarter <= 4 and yardline >= 95 and distance >= 7):
+        return None
+    return (
+        "**Insufficient support for a long GO deep in own territory.** "
+        "Fourth-and-7+ at or inside the offense's own 5 is an unusually "
+        "high-consequence decision. A 2025 game-state audit reproduced a "
+        "model GO preference on fourth-and-11 at its own 1 with only a "
+        "0.72 percentage-point modeled edge over PUNT. That is not "
+        "validated coaching evidence. No alternative is automatically "
+        "substituted; compare the unmodified values below with caution."
+    )
+
+
+def late_q4_trailing_punt_notice(
+    state: Mapping, selected_strategy: str
+) -> str | None:
+    """Unvalidated final-minute punt when trailing with no timeouts.
+
+    The production model still returns its original Q4 PUNT/GO probabilities;
+    do not promote a narrow simulated PUNT lead into live-game advice.
+    """
+    if selected_strategy != "PUNT":
+        return None
+    try:
+        quarter = int(state["qtr"])
+        clock = float(state["game_seconds_remaining"])
+        margin = float(state["score_differential"])
+        to = float(state["posteam_timeouts_remaining"])
+        yardline = float(state["yardline_100"])
+    except (TypeError, ValueError, KeyError):
+        return None
+    if not all(math.isfinite(x) for x in (clock, margin, to, yardline)):
+        return None
+    if not (
+        quarter == 4 and 0 < clock <= 60 and margin < 0
+        and to == 0 and yardline >= 50
+    ):
+        return None
+    return (
+        "**Insufficient support for a final-minute trailing PUNT.** "
+        "Punting surrenders possession while trailing with no offensive "
+        "timeouts and at most one minute remaining. The frozen simulator "
+        "can still assign a slightly higher modeled win probability to "
+        "PUNT; that gap is not validated coaching evidence. It does not "
+        "account reliably for the very short recovery-and-scoring window. "
+        "The original numerical estimates remain shown for audit, but "
+        "this is **not a supported PUNT recommendation**."
     )

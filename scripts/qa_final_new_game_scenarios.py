@@ -26,6 +26,8 @@ from src.streamlit_kickoff_preview import (
 from src.q4_demo_terminal_guard import use_q4_demo_terminal_guard
 from src.situational_support import (
     deep_own_short_go_notice,
+    deep_own_long_go_notice,
+    late_q4_trailing_punt_notice,
     late_q4_trailing_after_fg_notice,
     supported_recommendation_display,
 )
@@ -285,12 +287,13 @@ def classify_model_sanity(case: Case, result: dict, checked: dict) -> list[dict]
         ) is not None or "FIELD GOAL" not in strategies
         if checked["winner"] == "FIELD GOAL":
             assert displayed == "INSUFFICIENT DATA"
-        notes.append({
-            "severity": "qualification", "reason": (
-                "Trailing-by-four late-FG recovery still lacks historical analogs; "
-                "shown WPs are extrapolations"
-            )
-        })
+        if "FIELD GOAL" in strategies:
+            notes.append({
+                "severity": "qualification", "reason": (
+                    "Trailing-by-four late-FG recovery still lacks historical analogs; "
+                    "shown WPs are extrapolations"
+                )
+            })
     if case.yardline >= 90 and case.ydstogo <= 3:
         if checked["winner"] == "GO FOR IT":
             assert displayed == "INSUFFICIENT DATA"
@@ -298,12 +301,21 @@ def classify_model_sanity(case: Case, result: dict, checked: dict) -> list[dict]
                 "severity": "qualification",
                 "reason": "Deep own-10 short-yardage GO is unsupported by historic data",
             })
-    if case.qtr == 4 and case.secs <= 35 and case.score < 0 and (
-        case.yardline >= 45 or case.score <= -4
-    ) and checked["winner"] == "PUNT":
+    if checked["winner"] == "PUNT" and late_q4_trailing_punt_notice(
+        case.state(), checked["winner"],
+    ):
+        assert displayed == "INSUFFICIENT DATA"
         notes.append({
-            "severity": "review",
-            "reason": "Punt with almost no clock and trailing; check recovery assumptions",
+            "severity": "qualification",
+            "reason": "Punt with almost no clock while trailing: guarded abstention",
+        })
+    if checked["winner"] == "GO FOR IT" and deep_own_long_go_notice(
+        case.state(), checked["winner"],
+    ):
+        assert displayed == "INSUFFICIENT DATA"
+        notes.append({
+            "severity": "qualification",
+            "reason": "Own-1-to-5 long-yardage GO: guarded abstention",
         })
     if case.qtr == 4 and case.secs <= 35 and case.score <= -4 and (
         checked["winner"] == "FIELD GOAL"

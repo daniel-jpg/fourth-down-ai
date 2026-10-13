@@ -895,3 +895,50 @@ def test_issue12_late_q4_045_field_goal_warns_and_abstains_when_fg_wins(ui):
     assert metrics(at)["Recommendation"] == "INSUFFICIENT DATA"
     assert "Limited late-game field-goal support" in values(at, "warning")
     assert any(name.startswith("Modeled edge over ") for name in metrics(at))
+
+
+
+def test_last_18_seconds_down_four_own_40_punt_is_not_promoted(ui):
+    # No model retraining or policy override: fake PUNT wins by 1.21 pp.
+    at = AppTest.from_file(str(ROOT / "app.py"), default_timeout=15)
+    at.session_state["football_field"] = {"yardline_100": 60}
+    run(at)
+    widget(at, "text_input", "Time remaining (MM:SS)").set_value("00:18")
+    widget(at, "number_input", "Yards to go").set_value(10)
+    widget(at, "number_input", "Offense score").set_value(27)
+    widget(at, "number_input", "Defense score").set_value(31)
+    widget(at, "radio", "Offense timeouts").set_value(0)
+    run(at)
+    ui.engine.native_wp_overrides.update({
+        "PUNT": .0293, "NORMAL_GO_PASS": .0172,
+        "NORMAL_GO_RUN": .011, "FIELD_GOAL": .01,
+    })
+    analyze(at)
+    m = metrics(at)
+    assert m["Recommendation"] == "INSUFFICIENT DATA"
+    assert any(key.startswith("Modeled edge over ") for key in m)
+    assert "Insufficient support for a final-minute trailing PUNT" in values(at, "warning")
+    assert m["PUNT"] == "2.93%" and m["PASS / DROPBACK"] == "1.72%"
+    assert not at.exception
+
+
+def test_real_2025_style_own_one_4th11_go_is_not_promoted(ui):
+    at = AppTest.from_file(str(ROOT / "app.py"), default_timeout=15)
+    at.session_state["football_field"] = {"yardline_100": 99}
+    run(at)
+    widget(at, "text_input", "Time remaining (MM:SS)").set_value("14:11")
+    widget(at, "number_input", "Yards to go").set_value(11)
+    widget(at, "number_input", "Offense score").set_value(20)
+    widget(at, "number_input", "Defense score").set_value(20)
+    run(at)
+    ui.engine.native_wp_overrides.update({
+        "NORMAL_GO_PASS": .3723, "PUNT": .3651,
+        "NORMAL_GO_RUN": .30, "FIELD_GOAL": .05,
+    })
+    analyze(at)
+    m = metrics(at)
+    assert m["Recommendation"] == "INSUFFICIENT DATA"
+    assert any(key.startswith("Modeled edge over ") for key in m)
+    assert "Insufficient support for a long GO deep in own territory" in values(at, "warning")
+    assert m["PASS / DROPBACK"] == "37.23%" and m["PUNT"] == "36.51%"
+    assert not at.exception

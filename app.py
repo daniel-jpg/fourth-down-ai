@@ -2293,10 +2293,18 @@ if situation_valid:
         # This narrow display-only abstention keeps all simulator outputs intact.
         from src.situational_support import (
             deep_own_short_go_notice,
+            deep_own_long_go_notice,
+            late_q4_trailing_punt_notice,
             late_q4_trailing_after_fg_notice,
             supported_recommendation_display,
         )
         go_support_notice = deep_own_short_go_notice(
+            state, best["strategy"],
+        )
+        long_go_support_notice = deep_own_long_go_notice(
+            state, best["strategy"],
+        )
+        punt_support_notice = late_q4_trailing_punt_notice(
             state, best["strategy"],
         )
         fg_support_notice = late_q4_trailing_after_fg_notice(
@@ -2350,6 +2358,8 @@ if situation_valid:
                         f"Modeled edge over {second['strategy']}"
                         if (
                             go_support_notice
+                            or long_go_support_notice
+                            or punt_support_notice
                             or (fg_support_notice and best["strategy"] == "FIELD GOAL")
                         ) else
                         f"Advantage over {second['strategy']}"
@@ -2427,6 +2437,12 @@ if situation_valid:
                 "The model's ranked action probabilities remain visible below."
             )
             st.info(go_support_notice)
+
+        if long_go_support_notice:
+            st.warning(long_go_support_notice)
+
+        if punt_support_notice:
+            st.warning(punt_support_notice)
 
         if fg_support_notice:
             st.warning(fg_support_notice)
