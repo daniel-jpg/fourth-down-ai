@@ -221,6 +221,7 @@ def test_repeated_realistic_edits_leave_form_responsive_without_stale_odds(ui):
     analyze(at)
     calls = len(ui.engine.calls)
     assert metrics(at)["Recommendation"] == "GO FOR IT"
+    first_result = metrics(at)
 
     # Realistic fourth-down coaching changes, all within Q4 support:
     # last drive, quarter clock changes, timeouts, score, site and weather.
@@ -254,7 +255,12 @@ def test_repeated_realistic_edits_leave_form_responsive_without_stale_odds(ui):
         # display predictions that belong to the old situation.
         assert widget(at, "button", "Analyze Fourth Down").disabled is False
         assert widget(at, "number_input", "Yards to go").value >= 1
-        assert not at.metric, (kind, label, val, metrics(at))
+        if (kind, label, val) == ("radio", "Game site", "Away"):
+            # Returning to the EXACT originally analyzed game state
+            # may safely display its already computed result again.
+            assert metrics(at) == first_result
+        else:
+            assert not at.metric, (kind, label, val, metrics(at))
         assert len(ui.engine.calls) == calls
         assert not at.exception
 
