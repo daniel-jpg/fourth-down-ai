@@ -2103,969 +2103,975 @@ if situation_valid:
             or prior.get("state") != state
             or prior.get("weather_inputs") != weather_inputs
         ):
-            st.stop()
-        result = prior["result"]
+            # A normal, COMPLETE rerun is important here: repeatedly calling
+            # st.stop() left Streamlit's earlier widgets in a faded/stale
+            # appearance after editing inputs, even though no model ran.
+            # Do not reuse the old result and do not render old metrics.
+            result = None
+        else:
+            result = prior["result"]
 
-    (
-        production,
-        go,
-        best,
-        second,
-    ) = build_strategy_summary(
-        result["results"]
-    )
-
-
-    strategy_z = strategy_gap_z(
-        best,
-        second,
-    )
-
-
-    # =====================================================
-    # Situation
-    # =====================================================
-
-    st.divider()
-
-    st.subheader(
-        "Decision"
-    )
-
-
-    location_text = (
-        format_field_position(
-            yardline_100
-        )
-    )
-
-    period_label = (
-        "OT"
-        if qtr == 5
-        else f"Q{qtr}"
-    )
-
-    st.write(
-        f"**4th & {ydstogo:g}** at "
-        f"**{location_text}** · "
-        f"{period_label} "
-        f"{int(minutes)}:"
-        f"{int(seconds):02d} · "
-        f"{score_status}"
-    )
-
-
-    # =====================================================
-    # Main recommendation
-    # =====================================================
-
-    if qtr == 5:
-
-        value_metric_label = (
-            "Game value if chosen"
-        )
-
-        value_phrase = (
-            "estimated game value"
-        )
-
-        table_value_label = (
-            "Expected game value (%)"
-        )
-
-        chart_expander_label = (
-            "Show game-value chart"
-        )
-
-        chart_axis_label = (
-            "Expected game value (%)"
-        )
-
-        chart_tooltip_label = (
-            "Expected game value"
-        )
-
-    else:
-
-        value_metric_label = (
-            "Win probability if chosen"
-        )
-
-        value_phrase = (
-            "estimated win probability"
-        )
-
-        table_value_label = (
-            "Expected WP (%)"
-        )
-
-        chart_expander_label = (
-            "Show win-probability chart"
-        )
-
-        chart_axis_label = (
-            "Expected win probability (%)"
-        )
-
-        chart_tooltip_label = (
-            "Expected WP"
+    if result is not None:
+        (
+            production,
+            go,
+            best,
+            second,
+        ) = build_strategy_summary(
+            result["results"]
         )
 
 
-    # =====================================================
-    # Automatic Q4 post-FG input-representation reliability check.
-    # Run it before choosing how to PRESENT the model leader.
-    # The underlying production result/weights are never changed.
-    # There is no second scenario, checkbox, or extra simulation.
-    # =====================================================
-
-    fg_encoding_probe = None
-    fg_guard_unavailable = False
-
-    if (
-        qtr == 4
-        and 45 < float(state["game_seconds_remaining"]) <= 900
-    ):
-        fg_eligible_rows = result["results"].loc[
-            result["results"]["action"].eq("FIELD_GOAL")
-            & result["results"]["eligible"].eq(True)
-        ]
-
-        if len(fg_eligible_rows) == 1:
-            # q4_private_engine is a per-click temporary namespace.
-            # On a Streamlit component rerun (run_model=False), that
-            # local object does not exist. Persist the completed
-            # diagnostic WITH the cached result instead of silently
-            # swallowing NameError as an "unavailable" sensitivity check.
-            if run_model:
-                try:
-                    from src.kickoff_q4_reliability_guard import (
-                        inspect_made_fg_kickoff_encoding,
-                    )
-
-                    fg_encoding_probe = inspect_made_fg_kickoff_encoding(
-                        state,
-                        isolated_engine=q4_private_engine,
-                    )
-                except Exception:
-                    fg_guard_unavailable = True
-                cached_result = st.session_state[
-                    "fourth_down_completed_result"
-                ]
-                st.session_state["fourth_down_completed_result"] = {
-                    **cached_result,
-                    "fg_encoding_probe": fg_encoding_probe,
-                    "fg_guard_unavailable": fg_guard_unavailable,
-                }
-            else:
-                cached_result = st.session_state[
-                    "fourth_down_completed_result"
-                ]
-                fg_encoding_probe = cached_result.get(
-                    "fg_encoding_probe"
-                )
-                fg_guard_unavailable = bool(cached_result.get(
-                    "fg_guard_unavailable",
-                    "fg_encoding_probe" not in cached_result,
-                ))
-
-    # This diagnostic compares conditional made-FG kickoff encoding,
-    # NOT the action-level ranking's Monte Carlo standard error.
-    fg_input_sensitive = bool(
-        fg_encoding_probe is not None
-        and fg_encoding_probe.get("applicable", False)
-        and fg_encoding_probe.get("material", False)
-    )
-
-    # Only a model-side winner, NOT reliable coaching advice, when the
-    # empirical GO cohort has effectively no matching short-yardage plays.
-    # This narrow display-only abstention keeps all simulator outputs intact.
-    from src.situational_support import (
-        deep_own_short_go_notice,
-        supported_recommendation_display,
-    )
-    go_support_notice = deep_own_short_go_notice(
-        state, best["strategy"],
-    )
-    displayed_recommendation = supported_recommendation_display(
-        state, best["strategy"],
-    )
-
-    recommendation_col, wp_col, edge_col = (
-        st.columns(3)
-    )
-
-
-    with recommendation_col:
-
-        st.metric(
-            "Recommendation",
-            displayed_recommendation,
+        strategy_z = strategy_gap_z(
+            best,
+            second,
         )
 
 
-    with wp_col:
+        # =====================================================
+        # Situation
+        # =====================================================
 
-        st.metric(
-            value_metric_label,
-            f"{100 * best['wp']:.2f}%",
+        st.divider()
+
+        st.subheader(
+            "Decision"
         )
 
 
-    if second is not None:
-
-        strategy_edge = (
-            100
-            *
-            (
-                best["wp"]
-                -
-                second["wp"]
+        location_text = (
+            format_field_position(
+                yardline_100
             )
         )
 
-        with edge_col:
+        period_label = (
+            "OT"
+            if qtr == 5
+            else f"Q{qtr}"
+        )
 
-            st.metric(
-                (
-                    f"Modeled edge over {second['strategy']}"
-                    if go_support_notice else
-                    f"Advantage over {second['strategy']}"
-                ),
-                f"+{strategy_edge:.2f} pp",
-            )
-
-
-        relative_strategy_edge = (
-            (
-                best["wp"]
-                -
-                second["wp"]
-            )
-            /
-            max(
-                float(best["wp"]),
-                1e-12,
-            )
+        st.write(
+            f"**4th & {ydstogo:g}** at "
+            f"**{location_text}** · "
+            f"{period_label} "
+            f"{int(minutes)}:"
+            f"{int(seconds):02d} · "
+            f"{score_status}"
         )
 
 
-        near_tie = (
-            math.isfinite(
-                strategy_z
-            )
-            and
-            strategy_z
-            <
-            ADAPTIVE_Z_THRESHOLD
-        )
+        # =====================================================
+        # Main recommendation
+        # =====================================================
 
+        if qtr == 5:
 
-        if fg_input_sensitive:
-
-            st.info(
-                f"**Close call — kickoff-sensitive estimate.** "
-                f"{best['strategy']} leads {second['strategy']} "
-                f"by {strategy_edge:.2f} percentage points with "
-                "corrected Q4 kickoff inputs. This model-based edge "
-                "is sensitive to kickoff representation and has "
-                "not yet been validated in future games."
+            value_metric_label = (
+                "Game value if chosen"
             )
 
-        elif near_tie:
+            value_phrase = (
+                "estimated game value"
+            )
 
-            st.info(
-                f"**Near tie:** "
-                f"{best['strategy']} has the highest "
-                f"{value_phrase}, but only "
-                f"{strategy_edge:.2f} percentage points "
-                f"above {second['strategy']}. "
-                f"Monte Carlo uncertainty does not clearly "
-                f"separate these choices."
+            table_value_label = (
+                "Expected game value (%)"
+            )
+
+            chart_expander_label = (
+                "Show game-value chart"
+            )
+
+            chart_axis_label = (
+                "Expected game value (%)"
+            )
+
+            chart_tooltip_label = (
+                "Expected game value"
             )
 
         else:
 
-            st.info(
-                f"**Model recommendation:** "
-                f"{best['strategy']} has the highest "
-                f"{value_phrase}, "
-                f"{strategy_edge:.2f} percentage points "
-                f"above {second['strategy']}."
+            value_metric_label = (
+                "Win probability if chosen"
             )
 
-    # A narrow, evidence-backed caution for an extreme location with
-    # almost no comparable 2014-2022 normal-GO training examples.
-    # This does NOT change the frozen recommendation or action WPs.
-    if go_support_notice:
-        st.info(
-            "**No supported play recommendation in this situation.** "
-            "The GO result is only a simulation extrapolation; the "
-            "field-goal/punt alternatives have not been shown inferior. "
-            "The model's ranked action probabilities remain visible below."
-        )
-        st.info(go_support_notice)
-
-    if qtr != 5:
-
-        st.caption(
-            f"Win probability before the fourth-down decision: "
-            f"{100 * result['pre_decision_wp']:.2f}%"
-        )
-
-    # The Q4 display already uses native kickoff features. One small
-    # caption states the remaining validation limitation, avoiding
-    # the old long warning and any research checkbox.
-    if qtr == 4:
-        st.caption(
-            "Q4 estimates use corrected standard-35 kickoff inputs "
-            "and unchanged model weights. Future-season validation "
-            "is still pending."
-        )
-        if fg_guard_unavailable:
-            st.caption(
-                "Kickoff sensitivity check unavailable; compare "
-                "the estimated action edge with extra caution."
+            value_phrase = (
+                "estimated win probability"
             )
-        from src.situational_support import late_q4_goal_line_site_notice
-        eligible_strategy_names = {best["strategy"]}
-        if second is not None:
-            eligible_strategy_names.add(second["strategy"])
-        site_reliability_notice = late_q4_goal_line_site_notice(
-            state, eligible_strategy_names,
-        )
-        if site_reliability_notice:
-            st.caption(site_reliability_notice)
 
-    # =====================================================
-    # Weather sensitivity: research-only, weather influences only FG
-    # clean-make probabilities in a per-request isolated engine.
-    # OFFICIAL headline above never uses or inherits the preview.
-    # =====================================================
-    if weather_inputs is not None:
-        cached = st.session_state["fourth_down_completed_result"]
-        if run_model:
-            try:
-                from src.weather_fg_sensitivity import compare_weather_scenario
-                with st.spinner("Evaluating experimental weather sensitivity..."):
-                    weather_preview = compare_weather_scenario(
-                        state,
-                        weather=weather_inputs,
-                        live_engine=engine,
-                    )
-                weather_error = False
-            except Exception:
-                weather_preview = None
-                weather_error = True
-            cached["weather_preview"] = weather_preview
-            cached["weather_error"] = weather_error
-        else:
-            weather_preview = cached.get("weather_preview")
-            weather_error = cached.get("weather_error", True)
-
-        with st.expander(
-            "Weather-adjusted field goal comparison (experimental)",
-            expanded=True,
-        ):
-            st.caption(
-                f"Entered: {weather_inputs['temperature_f']}°F and "
-                f"{weather_inputs['wind_mph']} mph wind speed. "
-                "Only these two measurements affect this experimental "
-                "FIELD GOAL scenario; rain/snow and wind direction are "
-                "not modeled."
+            table_value_label = (
+                "Expected WP (%)"
             )
-            if weather_error or weather_preview is None:
-                st.warning(
-                    "The optional weather comparison is unavailable. "
-                    "The frozen official recommendation above is unchanged."
-                )
-            elif not weather_preview.get("applicable", False):
-                st.caption(
-                    weather_preview.get(
-                        "reason", "This weather scenario is unsupported."
-                    )
-                )
-            else:
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    st.metric(
-                        "Frozen-model FG make estimate",
-                        f"{100 * weather_preview['original_made_probability']:.1f}%",
-                    )
-                with c2:
-                    st.metric(
-                        "Weather what-if FG make",
-                        f"{100 * weather_preview['weather_made_probability']:.1f}%",
-                    )
-                with c3:
-                    st.metric(
-                        "Weather what-if FG win probability",
-                        f"{100 * weather_preview['weather_fg_win_probability']:.1f}%",
-                    )
-                st.caption(
-                    "Research-only clean-kick sensitivity from 2014–2022 "
-                    "training and 2023–2024 validation. No changes to GO/PUNT "
-                    "weather outcomes, official model weights, or the "
-                    "headline recommendation. Q4 scenarios keep native "
-                    "standard-35 kickoff inputs and 1,200 simulations."
-                )
-                candidate_action = weather_preview.get(
-                    "weather_modeled_top_action"
-                )
-                if candidate_action in (
-                    "NORMAL_GO_PASS", "NORMAL_GO_RUN",
-                    "FIELD_GOAL", "PUNT",
-                ):
-                    candidate_label = (
-                        "GO FOR IT" if candidate_action.startswith("NORMAL_GO")
-                        else candidate_action.replace("_", " ")
-                    )
-                    st.caption(
-                        f"Weather what-if model leader: {candidate_label}. "
-                        "This scenario is not validated; follow the official "
-                        "recommendation and support warnings above."
-                    )
-                st.warning(
-                    "Not validated for coaching decisions: adding weather "
-                    "did not improve held-out Brier score. "
-                    "The what-if numbers are not a replacement for the "
-                    "official fourth-down recommendation."
-                )
 
-    # =====================================================
-    # GO play call
-    # =====================================================
+            chart_expander_label = (
+                "Show win-probability chart"
+            )
 
-    if (
-        best["strategy"]
-        == "GO FOR IT"
-        and
-        len(go) >= 2
-        and
-        not go_support_notice
-    ):
+            chart_axis_label = (
+                "Expected win probability (%)"
+            )
 
-        pass_row = go[
-            go["action"]
-            == "NORMAL_GO_PASS"
-        ]
+            chart_tooltip_label = (
+                "Expected WP"
+            )
 
-        run_row = go[
-            go["action"]
-            == "NORMAL_GO_RUN"
-        ]
 
+        # =====================================================
+        # Automatic Q4 post-FG input-representation reliability check.
+        # Run it before choosing how to PRESENT the model leader.
+        # The underlying production result/weights are never changed.
+        # There is no second scenario, checkbox, or extra simulation.
+        # =====================================================
+
+        fg_encoding_probe = None
+        fg_guard_unavailable = False
 
         if (
-            len(pass_row) > 0
-            and
-            len(run_row) > 0
+            qtr == 4
+            and 45 < float(state["game_seconds_remaining"]) <= 900
         ):
+            fg_eligible_rows = result["results"].loc[
+                result["results"]["action"].eq("FIELD_GOAL")
+                & result["results"]["eligible"].eq(True)
+            ]
 
-            pass_wp = float(
-                pass_row.iloc[0][
-                    "expected_win_probability"
-                ]
+            if len(fg_eligible_rows) == 1:
+                # q4_private_engine is a per-click temporary namespace.
+                # On a Streamlit component rerun (run_model=False), that
+                # local object does not exist. Persist the completed
+                # diagnostic WITH the cached result instead of silently
+                # swallowing NameError as an "unavailable" sensitivity check.
+                if run_model:
+                    try:
+                        from src.kickoff_q4_reliability_guard import (
+                            inspect_made_fg_kickoff_encoding,
+                        )
+
+                        fg_encoding_probe = inspect_made_fg_kickoff_encoding(
+                            state,
+                            isolated_engine=q4_private_engine,
+                        )
+                    except Exception:
+                        fg_guard_unavailable = True
+                    cached_result = st.session_state[
+                        "fourth_down_completed_result"
+                    ]
+                    st.session_state["fourth_down_completed_result"] = {
+                        **cached_result,
+                        "fg_encoding_probe": fg_encoding_probe,
+                        "fg_guard_unavailable": fg_guard_unavailable,
+                    }
+                else:
+                    cached_result = st.session_state[
+                        "fourth_down_completed_result"
+                    ]
+                    fg_encoding_probe = cached_result.get(
+                        "fg_encoding_probe"
+                    )
+                    fg_guard_unavailable = bool(cached_result.get(
+                        "fg_guard_unavailable",
+                        "fg_encoding_probe" not in cached_result,
+                    ))
+
+        # This diagnostic compares conditional made-FG kickoff encoding,
+        # NOT the action-level ranking's Monte Carlo standard error.
+        fg_input_sensitive = bool(
+            fg_encoding_probe is not None
+            and fg_encoding_probe.get("applicable", False)
+            and fg_encoding_probe.get("material", False)
+        )
+
+        # Only a model-side winner, NOT reliable coaching advice, when the
+        # empirical GO cohort has effectively no matching short-yardage plays.
+        # This narrow display-only abstention keeps all simulator outputs intact.
+        from src.situational_support import (
+            deep_own_short_go_notice,
+            supported_recommendation_display,
+        )
+        go_support_notice = deep_own_short_go_notice(
+            state, best["strategy"],
+        )
+        displayed_recommendation = supported_recommendation_display(
+            state, best["strategy"],
+        )
+
+        recommendation_col, wp_col, edge_col = (
+            st.columns(3)
+        )
+
+
+        with recommendation_col:
+
+            st.metric(
+                "Recommendation",
+                displayed_recommendation,
             )
 
-            run_wp = float(
-                run_row.iloc[0][
-                    "expected_win_probability"
-                ]
+
+        with wp_col:
+
+            st.metric(
+                value_metric_label,
+                f"{100 * best['wp']:.2f}%",
             )
 
 
-            playcall_edge = (
+        if second is not None:
+
+            strategy_edge = (
                 100
                 *
-                abs(
-                    pass_wp
+                (
+                    best["wp"]
                     -
-                    run_wp
+                    second["wp"]
+                )
+            )
+
+            with edge_col:
+
+                st.metric(
+                    (
+                        f"Modeled edge over {second['strategy']}"
+                        if go_support_notice else
+                        f"Advantage over {second['strategy']}"
+                    ),
+                    f"+{strategy_edge:.2f} pp",
+                )
+
+
+            relative_strategy_edge = (
+                (
+                    best["wp"]
+                    -
+                    second["wp"]
+                )
+                /
+                max(
+                    float(best["wp"]),
+                    1e-12,
                 )
             )
 
 
-            playcall_z = (
-                go_playcall_gap_z(
-                    go
-                )
-            )
-
-
-            playcall_uncertain = (
+            near_tie = (
                 math.isfinite(
-                    playcall_z
+                    strategy_z
                 )
                 and
-                playcall_z
+                strategy_z
                 <
                 ADAPTIVE_Z_THRESHOLD
             )
 
 
-            if pass_wp > run_wp:
-
-                preferred_call = (
-                    "PASS / DROPBACK"
-                )
-
-            else:
-
-                preferred_call = (
-                    "RUN"
-                )
-
-
-            st.subheader(
-                "Play Call"
-            )
-
-
-            if playcall_uncertain:
+            if fg_input_sensitive:
 
                 st.info(
-                    f"**Slight lean: "
-                    f"{preferred_call}** "
-                    f"(+{playcall_edge:.2f} pp)\n\n"
-                    f"Monte Carlo uncertainty does not "
-                    f"clearly separate run and pass."
+                    f"**Close call — kickoff-sensitive estimate.** "
+                    f"{best['strategy']} leads {second['strategy']} "
+                    f"by {strategy_edge:.2f} percentage points with "
+                    "corrected Q4 kickoff inputs. This model-based edge "
+                    "is sensitive to kickoff representation and has "
+                    "not yet been validated in future games."
+                )
+
+            elif near_tie:
+
+                st.info(
+                    f"**Near tie:** "
+                    f"{best['strategy']} has the highest "
+                    f"{value_phrase}, but only "
+                    f"{strategy_edge:.2f} percentage points "
+                    f"above {second['strategy']}. "
+                    f"Monte Carlo uncertainty does not clearly "
+                    f"separate these choices."
                 )
 
             else:
 
-                st.success(
-                    f"**{preferred_call}** "
-                    f"has a "
-                    f"{playcall_edge:.2f} pp "
-                    f"model advantage."
+                st.info(
+                    f"**Model recommendation:** "
+                    f"{best['strategy']} has the highest "
+                    f"{value_phrase}, "
+                    f"{strategy_edge:.2f} percentage points "
+                    f"above {second['strategy']}."
                 )
 
-
-    # =====================================================
-    # Action values
-    # =====================================================
-
-    action_lookup = {
-        row["action"]: row
-        for _, row in production.iterrows()
-    }
-
-    st.subheader(
-        "Compare Actions"
-    )
-
-    a1, a2, a3, a4 = st.columns(4)
-
-    with a1:
-
-        row = action_lookup.get(
-            "NORMAL_GO_PASS"
-        )
-
-        if row is not None:
-
-            st.metric(
-                "PASS / DROPBACK",
-                f"{100 * row['expected_win_probability']:.2f}%",
+        # A narrow, evidence-backed caution for an extreme location with
+        # almost no comparable 2014-2022 normal-GO training examples.
+        # This does NOT change the frozen recommendation or action WPs.
+        if go_support_notice:
+            st.info(
+                "**No supported play recommendation in this situation.** "
+                "The GO result is only a simulation extrapolation; the "
+                "field-goal/punt alternatives have not been shown inferior. "
+                "The model's ranked action probabilities remain visible below."
             )
+            st.info(go_support_notice)
 
-    with a2:
-
-        row = action_lookup.get(
-            "NORMAL_GO_RUN"
-        )
-
-        if row is not None:
-
-            st.metric(
-                "RUN",
-                f"{100 * row['expected_win_probability']:.2f}%",
-            )
-
-        else:
-
-            st.metric(
-                "RUN",
-                "Unavailable",
-            )
-
-    with a3:
-
-        row = action_lookup.get(
-            "FIELD_GOAL"
-        )
-
-        if row is not None:
-
-            st.metric(
-                "FIELD GOAL",
-                f"{100 * row['expected_win_probability']:.2f}%",
-            )
-
-        else:
-
-            st.metric(
-                "FIELD GOAL",
-                "Unavailable",
-            )
-
-    with a4:
-
-        row = action_lookup.get(
-            "PUNT"
-        )
-
-        if row is not None:
-
-            st.metric(
-                "PUNT",
-                f"{100 * row['expected_win_probability']:.2f}%",
-            )
-
-        else:
-
-            st.metric(
-                "PUNT",
-                "Unavailable",
-            )
-
-    # Help readers understand the immediate event assumptions already
-    # used by the official engine. This is presentation-only: it does
-    # not call another simulator or alter action rankings.
-    with st.expander(
-        "Why this recommendation? Immediate action odds",
-        expanded=False,
-    ):
-
-        st.caption(
-            "The percentages below come directly from the frozen "
-            "model's simulation output. A fourth-down conversion or "
-            "made field goal is an immediate event, NOT the same as "
-            + (
-                "overtime game value (1.0 for a win, 0.5 for a tie, "
-                "0.0 for a loss)."
-                if qtr == 5
-                else "the probability of ultimately winning the game."
-            )
-        )
-
-        try:
-
-            from src.fourth_down_action_explainer import (
-                action_assumptions_table,
-            )
-
-            immediate_odds = action_assumptions_table(result["results"])
-
-        except ValueError:
+        if qtr != 5:
 
             st.caption(
-                "The immediate action assumptions could not be "
-                "verified for this state; the official recommendation "
-                "above remains unchanged."
+                f"Win probability before the fourth-down decision: "
+                f"{100 * result['pre_decision_wp']:.2f}%"
             )
 
-        else:
+        # The Q4 display already uses native kickoff features. One small
+        # caption states the remaining validation limitation, avoiding
+        # the old long warning and any research checkbox.
+        if qtr == 4:
+            st.caption(
+                "Q4 estimates use corrected standard-35 kickoff inputs "
+                "and unchanged model weights. Future-season validation "
+                "is still pending."
+            )
+            if fg_guard_unavailable:
+                st.caption(
+                    "Kickoff sensitivity check unavailable; compare "
+                    "the estimated action edge with extra caution."
+                )
+            from src.situational_support import late_q4_goal_line_site_notice
+            eligible_strategy_names = {best["strategy"]}
+            if second is not None:
+                eligible_strategy_names.add(second["strategy"])
+            site_reliability_notice = late_q4_goal_line_site_notice(
+                state, eligible_strategy_names,
+            )
+            if site_reliability_notice:
+                st.caption(site_reliability_notice)
 
-            if not immediate_odds.empty:
+        # =====================================================
+        # Weather sensitivity: research-only, weather influences only FG
+        # clean-make probabilities in a per-request isolated engine.
+        # OFFICIAL headline above never uses or inherits the preview.
+        # =====================================================
+        if weather_inputs is not None:
+            cached = st.session_state["fourth_down_completed_result"]
+            if run_model:
+                try:
+                    from src.weather_fg_sensitivity import compare_weather_scenario
+                    with st.spinner("Evaluating experimental weather sensitivity..."):
+                        weather_preview = compare_weather_scenario(
+                            state,
+                            weather=weather_inputs,
+                            live_engine=engine,
+                        )
+                    weather_error = False
+                except Exception:
+                    weather_preview = None
+                    weather_error = True
+                cached["weather_preview"] = weather_preview
+                cached["weather_error"] = weather_error
+            else:
+                weather_preview = cached.get("weather_preview")
+                weather_error = cached.get("weather_error", True)
 
-                if qtr == 5:
-
-                    immediate_odds = immediate_odds.rename(
-                        columns={"Estimated game WP": "Estimated game value"}
+            with st.expander(
+                "Weather-adjusted field goal comparison (experimental)",
+                expanded=True,
+            ):
+                st.caption(
+                    f"Entered: {weather_inputs['temperature_f']}°F and "
+                    f"{weather_inputs['wind_mph']} mph wind speed. "
+                    "Only these two measurements affect this experimental "
+                    "FIELD GOAL scenario; rain/snow and wind direction are "
+                    "not modeled."
+                )
+                if weather_error or weather_preview is None:
+                    st.warning(
+                        "The optional weather comparison is unavailable. "
+                        "The frozen official recommendation above is unchanged."
+                    )
+                elif not weather_preview.get("applicable", False):
+                    st.caption(
+                        weather_preview.get(
+                            "reason", "This weather scenario is unsupported."
+                        )
+                    )
+                else:
+                    c1, c2, c3 = st.columns(3)
+                    with c1:
+                        st.metric(
+                            "Frozen-model FG make estimate",
+                            f"{100 * weather_preview['original_made_probability']:.1f}%",
+                        )
+                    with c2:
+                        st.metric(
+                            "Weather what-if FG make",
+                            f"{100 * weather_preview['weather_made_probability']:.1f}%",
+                        )
+                    with c3:
+                        st.metric(
+                            "Weather what-if FG win probability",
+                            f"{100 * weather_preview['weather_fg_win_probability']:.1f}%",
+                        )
+                    st.caption(
+                        "Research-only clean-kick sensitivity from 2014–2022 "
+                        "training and 2023–2024 validation. No changes to GO/PUNT "
+                        "weather outcomes, official model weights, or the "
+                        "headline recommendation. Q4 scenarios keep native "
+                        "standard-35 kickoff inputs and 1,200 simulations."
+                    )
+                    candidate_action = weather_preview.get(
+                        "weather_modeled_top_action"
+                    )
+                    if candidate_action in (
+                        "NORMAL_GO_PASS", "NORMAL_GO_RUN",
+                        "FIELD_GOAL", "PUNT",
+                    ):
+                        candidate_label = (
+                            "GO FOR IT" if candidate_action.startswith("NORMAL_GO")
+                            else candidate_action.replace("_", " ")
+                        )
+                        st.caption(
+                            f"Weather what-if model leader: {candidate_label}. "
+                            "This scenario is not validated; follow the official "
+                            "recommendation and support warnings above."
+                        )
+                    st.warning(
+                        "Not validated for coaching decisions: adding weather "
+                        "did not improve held-out Brier score. "
+                        "The what-if numbers are not a replacement for the "
+                        "official fourth-down recommendation."
                     )
 
-                st.dataframe(
-                    immediate_odds,
-                    hide_index=True,
-                    width="stretch",
+        # =====================================================
+        # GO play call
+        # =====================================================
+
+        if (
+            best["strategy"]
+            == "GO FOR IT"
+            and
+            len(go) >= 2
+            and
+            not go_support_notice
+        ):
+
+            pass_row = go[
+                go["action"]
+                == "NORMAL_GO_PASS"
+            ]
+
+            run_row = go[
+                go["action"]
+                == "NORMAL_GO_RUN"
+            ]
+
+
+            if (
+                len(pass_row) > 0
+                and
+                len(run_row) > 0
+            ):
+
+                pass_wp = float(
+                    pass_row.iloc[0][
+                        "expected_win_probability"
+                    ]
+                )
+
+                run_wp = float(
+                    run_row.iloc[0][
+                        "expected_win_probability"
+                    ]
+                )
+
+
+                playcall_edge = (
+                    100
+                    *
+                    abs(
+                        pass_wp
+                        -
+                        run_wp
+                    )
+                )
+
+
+                playcall_z = (
+                    go_playcall_gap_z(
+                        go
+                    )
+                )
+
+
+                playcall_uncertain = (
+                    math.isfinite(
+                        playcall_z
+                    )
+                    and
+                    playcall_z
+                    <
+                    ADAPTIVE_Z_THRESHOLD
+                )
+
+
+                if pass_wp > run_wp:
+
+                    preferred_call = (
+                        "PASS / DROPBACK"
+                    )
+
+                else:
+
+                    preferred_call = (
+                        "RUN"
+                    )
+
+
+                st.subheader(
+                    "Play Call"
+                )
+
+
+                if playcall_uncertain:
+
+                    st.info(
+                        f"**Slight lean: "
+                        f"{preferred_call}** "
+                        f"(+{playcall_edge:.2f} pp)\n\n"
+                        f"Monte Carlo uncertainty does not "
+                        f"clearly separate run and pass."
+                    )
+
+                else:
+
+                    st.success(
+                        f"**{preferred_call}** "
+                        f"has a "
+                        f"{playcall_edge:.2f} pp "
+                        f"model advantage."
+                    )
+
+
+        # =====================================================
+        # Action values
+        # =====================================================
+
+        action_lookup = {
+            row["action"]: row
+            for _, row in production.iterrows()
+        }
+
+        st.subheader(
+            "Compare Actions"
+        )
+
+        a1, a2, a3, a4 = st.columns(4)
+
+        with a1:
+
+            row = action_lookup.get(
+                "NORMAL_GO_PASS"
+            )
+
+            if row is not None:
+
+                st.metric(
+                    "PASS / DROPBACK",
+                    f"{100 * row['expected_win_probability']:.2f}%",
+                )
+
+        with a2:
+
+            row = action_lookup.get(
+                "NORMAL_GO_RUN"
+            )
+
+            if row is not None:
+
+                st.metric(
+                    "RUN",
+                    f"{100 * row['expected_win_probability']:.2f}%",
                 )
 
             else:
 
-                st.caption(
-                    "No eligible normal-play outcome breakdown available."
+                st.metric(
+                    "RUN",
+                    "Unavailable",
                 )
 
-        st.caption(
-            f"The {value_phrase} also reflects "
-            "field position, possession, remaining time and the "
-            "frozen continuation model. Monte Carlo SE is simulation "
-            "noise only. These are not independently calibrated "
-            "real-world outcome guarantees."
-        )
+        with a3:
 
-        if "FIELD_GOAL" in action_lookup:
-
-            st.caption(
-                "Field-goal probabilities use development-data "
-                "median kicker context unless specific kicker inputs "
-                "were provided to the engine."
+            row = action_lookup.get(
+                "FIELD_GOAL"
             )
 
-    display = production[
-        [
-            "decision",
-            "expected_win_probability",
-            "mc_se",
-            "detail",
-        ]
-    ].copy()
+            if row is not None:
 
+                st.metric(
+                    "FIELD GOAL",
+                    f"{100 * row['expected_win_probability']:.2f}%",
+                )
 
-    display["Expected WP"] = (
-        100
-        *
-        display[
-            "expected_win_probability"
-        ]
-    ).round(2)
+            else:
 
+                st.metric(
+                    "FIELD GOAL",
+                    "Unavailable",
+                )
 
-    display["MC SE"] = (
-        100
-        *
-        display[
-            "mc_se"
-        ]
-    ).round(3)
+        with a4:
 
-
-    display = display.rename(
-        columns={
-            "decision":
-                "Action",
-
-            "detail":
-                "Model Detail",
-        }
-    )
-
-
-    display = display[
-        [
-            "Action",
-            "Expected WP",
-            "MC SE",
-            "Model Detail",
-        ]
-    ]
-
-
-    with st.expander(
-        "Show detailed model output",
-        expanded=False,
-    ):
-
-        st.dataframe(
-            display,
-            hide_index=True,
-            width="stretch",
-            column_config={
-                "Expected WP":
-                    table_value_label,
-
-                "MC SE":
-                    "MC SE (pp)",
-            },
-        )
-
-        st.caption(
-            "MC SE measures Monte Carlo simulation noise, "
-            "not total model uncertainty."
-        )
-
-
-    with st.expander(
-        chart_expander_label,
-        expanded=False,
-    ):
-
-        chart_data = display[
-            [
-                "Action",
-                "Expected WP",
-            ]
-        ].copy()
-
-        chart_data["Action"] = (
-            chart_data["Action"]
-            .replace({
-                "GO — PASS/DROPBACK":
-                    "Pass / Dropback",
-
-                "GO — RUN":
-                    "Run",
-
-                "FIELD GOAL":
-                    "Field Goal",
-
-                "PUNT":
-                    "Punt",
-            })
-        )
-
-        chart_data = (
-            chart_data
-            .sort_values(
-                "Expected WP",
-                ascending=True,
+            row = action_lookup.get(
+                "PUNT"
             )
-        )
 
-        chart = (
-            alt.Chart(chart_data)
-            .mark_bar()
-            .encode(
-                x=alt.X(
-                    "Expected WP:Q",
-                    title=chart_axis_label,
-                ),
-                y=alt.Y(
-                    "Action:N",
-                    title=None,
-                    sort="-x",
-                    axis=alt.Axis(
-                        labelAngle=0,
-                    ),
-                ),
-                tooltip=[
-                    alt.Tooltip(
-                        "Action:N",
-                        title="Action",
-                    ),
-                    alt.Tooltip(
-                        "Expected WP:Q",
-                        title=chart_tooltip_label,
-                        format=".2f",
-                    ),
-                ],
-            )
-            .properties(
-                height=220,
-            )
-        )
+            if row is not None:
 
-        st.altair_chart(
-            chart,
-            width="stretch",
-        )
+                st.metric(
+                    "PUNT",
+                    f"{100 * row['expected_win_probability']:.2f}%",
+                )
 
+            else:
 
-    unavailable = result[
-        "results"
-    ][
-        ~result[
-            "results"
-        ]["eligible"]
-    ].copy()
+                st.metric(
+                    "PUNT",
+                    "Unavailable",
+                )
 
-    unavailable = unavailable[
-        ~unavailable[
-            "action"
-        ]
-        .str.startswith(
-            "FAKE_"
-        )
-    ]
-
-    if len(unavailable) > 0:
-
-        st.warning(
-            "Some normal actions are unavailable "
-            "in this situation."
-        )
-
-        for _, row in unavailable.iterrows():
-
-            st.write(
-                f"**{row['decision']}** — "
-                f"{row['detail']}"
-            )
-    # =====================================================
-    # Experimental fakes
-    # =====================================================
-
-    experimental = result[
-        "results"
-    ][
-        ~result[
-            "results"
-        ][
-            "eligible"
-        ]
-    ].copy()
-
-
-    experimental = experimental[
-        experimental[
-            "action"
-        ]
-        .str.startswith(
-            "FAKE_"
-        )
-    ]
-
-
-    if len(experimental) > 0:
-
+        # Help readers understand the immediate event assumptions already
+        # used by the official engine. This is presentation-only: it does
+        # not call another simulator or alter action rankings.
         with st.expander(
-            "Why fake plays are not ranked"
+            "Why this recommendation? Immediate action odds",
+            expanded=False,
         ):
 
             st.caption(
-                "These play types lack sufficient historical support for "
-                "a dependable win-probability ranking. They are excluded "
-                "from the official recommendation."
+                "The percentages below come directly from the frozen "
+                "model's simulation output. A fourth-down conversion or "
+                "made field goal is an immediate event, NOT the same as "
+                + (
+                    "overtime game value (1.0 for a win, 0.5 for a tie, "
+                    "0.0 for a loss)."
+                    if qtr == 5
+                    else "the probability of ultimately winning the game."
+                )
             )
+
+            try:
+
+                from src.fourth_down_action_explainer import (
+                    action_assumptions_table,
+                )
+
+                immediate_odds = action_assumptions_table(result["results"])
+
+            except ValueError:
+
+                st.caption(
+                    "The immediate action assumptions could not be "
+                    "verified for this state; the official recommendation "
+                    "above remains unchanged."
+                )
+
+            else:
+
+                if not immediate_odds.empty:
+
+                    if qtr == 5:
+
+                        immediate_odds = immediate_odds.rename(
+                            columns={"Estimated game WP": "Estimated game value"}
+                        )
+
+                    st.dataframe(
+                        immediate_odds,
+                        hide_index=True,
+                        width="stretch",
+                    )
+
+                else:
+
+                    st.caption(
+                        "No eligible normal-play outcome breakdown available."
+                    )
+
+            st.caption(
+                f"The {value_phrase} also reflects "
+                "field position, possession, remaining time and the "
+                "frozen continuation model. Monte Carlo SE is simulation "
+                "noise only. These are not independently calibrated "
+                "real-world outcome guarantees."
+            )
+
+            if "FIELD_GOAL" in action_lookup:
+
+                st.caption(
+                    "Field-goal probabilities use development-data "
+                    "median kicker context unless specific kicker inputs "
+                    "were provided to the engine."
+                )
+
+        display = production[
+            [
+                "decision",
+                "expected_win_probability",
+                "mc_se",
+                "detail",
+            ]
+        ].copy()
+
+
+        display["Expected WP"] = (
+            100
+            *
+            display[
+                "expected_win_probability"
+            ]
+        ).round(2)
+
+
+        display["MC SE"] = (
+            100
+            *
+            display[
+                "mc_se"
+            ]
+        ).round(3)
+
+
+        display = display.rename(
+            columns={
+                "decision":
+                    "Action",
+
+                "detail":
+                    "Model Detail",
+            }
+        )
+
+
+        display = display[
+            [
+                "Action",
+                "Expected WP",
+                "MC SE",
+                "Model Detail",
+            ]
+        ]
+
+
+        with st.expander(
+            "Show detailed model output",
+            expanded=False,
+        ):
+
+            st.dataframe(
+                display,
+                hide_index=True,
+                width="stretch",
+                column_config={
+                    "Expected WP":
+                        table_value_label,
+
+                    "MC SE":
+                        "MC SE (pp)",
+                },
+            )
+
+            st.caption(
+                "MC SE measures Monte Carlo simulation noise, "
+                "not total model uncertainty."
+            )
+
+
+        with st.expander(
+            chart_expander_label,
+            expanded=False,
+        ):
+
+            chart_data = display[
+                [
+                    "Action",
+                    "Expected WP",
+                ]
+            ].copy()
+
+            chart_data["Action"] = (
+                chart_data["Action"]
+                .replace({
+                    "GO — PASS/DROPBACK":
+                        "Pass / Dropback",
+
+                    "GO — RUN":
+                        "Run",
+
+                    "FIELD GOAL":
+                        "Field Goal",
+
+                    "PUNT":
+                        "Punt",
+                })
+            )
+
+            chart_data = (
+                chart_data
+                .sort_values(
+                    "Expected WP",
+                    ascending=True,
+                )
+            )
+
+            chart = (
+                alt.Chart(chart_data)
+                .mark_bar()
+                .encode(
+                    x=alt.X(
+                        "Expected WP:Q",
+                        title=chart_axis_label,
+                    ),
+                    y=alt.Y(
+                        "Action:N",
+                        title=None,
+                        sort="-x",
+                        axis=alt.Axis(
+                            labelAngle=0,
+                        ),
+                    ),
+                    tooltip=[
+                        alt.Tooltip(
+                            "Action:N",
+                            title="Action",
+                        ),
+                        alt.Tooltip(
+                            "Expected WP:Q",
+                            title=chart_tooltip_label,
+                            format=".2f",
+                        ),
+                    ],
+                )
+                .properties(
+                    height=220,
+                )
+            )
+
+            st.altair_chart(
+                chart,
+                width="stretch",
+            )
+
+
+        unavailable = result[
+            "results"
+        ][
+            ~result[
+                "results"
+            ]["eligible"]
+        ].copy()
+
+        unavailable = unavailable[
+            ~unavailable[
+                "action"
+            ]
+            .str.startswith(
+                "FAKE_"
+            )
+        ]
+
+        if len(unavailable) > 0:
+
+            st.warning(
+                "Some normal actions are unavailable "
+                "in this situation."
+            )
+
+            for _, row in unavailable.iterrows():
+
+                st.write(
+                    f"**{row['decision']}** — "
+                    f"{row['detail']}"
+                )
+        # =====================================================
+        # Experimental fakes
+        # =====================================================
+
+        experimental = result[
+            "results"
+        ][
+            ~result[
+                "results"
+            ][
+                "eligible"
+            ]
+        ].copy()
+
+
+        experimental = experimental[
+            experimental[
+                "action"
+            ]
+            .str.startswith(
+                "FAKE_"
+            )
+        ]
+
+
+        if len(experimental) > 0:
+
+            with st.expander(
+                "Why fake plays are not ranked"
+            ):
+
+                st.caption(
+                    "These play types lack sufficient historical support for "
+                    "a dependable win-probability ranking. They are excluded "
+                    "from the official recommendation."
+                )
+                st.write(
+                    "Fake punt (run/pass) and fake field goal (run/pass) "
+                    "are excluded from the ranked actions. The model has "
+                    "no defensible basis to assign them win probabilities."
+                )
+
+
+        # =====================================================
+        # Notes
+        # =====================================================
+
+        with st.expander(
+            "Model notes"
+        ):
+
+            if qtr == 5:
+
+                st.write(
+                    "- OT game value uses 1.0 for a win, "
+                    "0.5 for a tie at expiration, and 0.0 "
+                    "for a loss; nonterminal continuation "
+                    "values are model-estimated."
+                )
+
+            else:
+
+                st.write(
+                    "- Expected WP is model-estimated."
+                )
+
             st.write(
-                "Fake punt (run/pass) and fake field goal (run/pass) "
-                "are excluded from the ranked actions. The model has "
-                "no defensible basis to assign them win probabilities."
+                "- MC SE measures simulation noise only, "
+                "not total model uncertainty."
             )
-
-
-    # =====================================================
-    # Notes
-    # =====================================================
-
-    with st.expander(
-        "Model notes"
-    ):
-
-        if qtr == 5:
 
             st.write(
-                "- OT game value uses 1.0 for a win, "
-                "0.5 for a tie at expiration, and 0.0 "
-                "for a loss; nonterminal continuation "
-                "values are model-estimated."
+                "- Fake punts and fake field goals are excluded from rankings "
+                "because reliable estimates are not available."
             )
-
-        else:
 
             st.write(
-                "- Expected WP is model-estimated."
+                "- Kicker-specific context defaults to "
+                "the development-data median unless "
+                "supplied programmatically."
             )
 
-        st.write(
-            "- MC SE measures simulation noise only, "
-            "not total model uncertainty."
-        )
-
-        st.write(
-            "- Fake punts and fake field goals are excluded from rankings "
-            "because reliable estimates are not available."
-        )
-
-        st.write(
-            "- Kicker-specific context defaults to "
-            "the development-data median unless "
-            "supplied programmatically."
-        )
-
-        st.write(
-            "- This is a decision-support research "
-            "model, not a causal guarantee."
-        )
+            st.write(
+                "- This is a decision-support research "
+                "model, not a causal guarantee."
+            )
