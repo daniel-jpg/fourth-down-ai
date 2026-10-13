@@ -153,12 +153,30 @@ def main() -> None:
             edit_number(frame, page, "Offense score", 24)
             edit_number(frame, page, "Defense score", 27)
             edit_time(frame, page, "07:38")
+            # Streamlit's browser selectbox changes immediately, while the
+            # server's rewritten weather controls can take noticeably longer
+            # on Render Free. Wait for the actual effect of the roof change,
+            # not simply for the title to look bright during the rerender.
             select_choice(frame, page, "Stadium / roof", "Fixed dome")
+            frame.get_by_role(
+                "spinbutton", name="Temperature (°F)"
+            ).wait_for(state="detached", timeout=60000)
+            frame.get_by_role(
+                "spinbutton", name="Wind speed (mph)"
+            ).wait_for(state="detached", timeout=60000)
             wait_bright(frame, page, "fixed dome roof change")
             assert frame.get_by_role("spinbutton", name="Temperature (°F)").count() == 0
+            print("REPEAT_EDIT_FIXED_DOME_WEATHER_HIDDEN_PASS", flush=True)
             select_choice(frame, page, "Stadium / roof", "Outdoor / open-air")
+            frame.get_by_role(
+                "spinbutton", name="Temperature (°F)"
+            ).wait_for(state="visible", timeout=60000)
+            frame.get_by_role(
+                "spinbutton", name="Wind speed (mph)"
+            ).wait_for(state="visible", timeout=60000)
             wait_bright(frame, page, "outdoor roof change")
             assert frame.get_by_role("spinbutton", name="Temperature (°F)").count() == 1
+            print("REPEAT_EDIT_OUTDOOR_WEATHER_RESTORED_PASS", flush=True)
 
             # Prior result must disappear after edits, while controls are
             # enabled. A full rerun also clears Streamlit's stale opacity.
