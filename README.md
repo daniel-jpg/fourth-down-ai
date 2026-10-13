@@ -150,7 +150,11 @@ temperature (°F) and wind speed (mph). The field itself is never squeezed
 into a separate column or given a vertical scrollbar. Users can type
 weather values without an expander, dropdown or checkbox, or leave either
 field blank to skip the experimental field-goal comparison; both are needed
-to run it. The normal recommendation works without weather values.
+to run it. The misleading "Press Enter to apply" hint is hidden for these
+inputs; clicking Analyze or leaving a field commits a typed value without
+requiring an extra Enter keystroke. The public demo also hides Streamlit's
+developer/status toolbar while retaining the app's own progress spinner.
+The normal recommendation works without weather values.
 The inputs are hidden for covered-roof games; on narrow screens they stack
 after the field. No paid weather API, precipitation selector or wind-direction
 selector is part of the public interface.
