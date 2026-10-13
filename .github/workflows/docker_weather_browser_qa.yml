@@ -16,6 +16,7 @@ on:
       - src/nfl_stadium_weather_geometry.py
       - src/nfl_2026_international_venue_guard.py
       - scripts/qa_weather_streamlit_browser.py
+      - scripts/qa_repeated_input_browser.py
       - .github/workflows/docker_weather_browser_qa.yml
   workflow_dispatch:
 
@@ -58,6 +59,12 @@ jobs:
           python -m pip install playwright==1.55.0
           python -m playwright install --with-deps chromium
 
+      - name: Repeated real-life game input edits never darken the screen
+        env:
+          FOURTH_DOWN_SMOKE_BASE_URL: http://127.0.0.1:8531
+        run: |
+          PYTHONPATH=. python scripts/qa_repeated_input_browser.py
+
       - name: Verify weather controls, isolation, METAR and roof in Chromium
         env:
           FOURTH_DOWN_SMOKE_BASE_URL: http://127.0.0.1:8531
@@ -77,6 +84,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: streamlit-weather-chromium-evidence
-          path: docker-streamlit-weather-qa.png
+          path: |
+            docker-streamlit-weather-qa.png
+            repeated-input-no-dimming.png
           if-no-files-found: ignore
           retention-days: 7
