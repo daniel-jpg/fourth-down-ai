@@ -1,0 +1,38 @@
+name: Final real NFL fourth-down state and novel stress QA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/qa_final_new_game_scenarios.py
+      - .github/workflows/qa_final_new_game_scenarios.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  history-and-new-edges:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install only pinned dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Audit archived 2024-25 real presnap plays and new NFL edge states
+        run: |
+          PYTHONPATH=. python scripts/qa_final_new_game_scenarios.py | tee qa-final-novel-games.log
+      - name: Archive state-by-state numerical and provenance audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-real-nfl-and-novel-stress-qa
+          path: |
+            qa-final-novel-games.log
+            artifacts/final_new_scenario_stress_2026_10.json
+          if-no-files-found: ignore
+          retention-days: 21
