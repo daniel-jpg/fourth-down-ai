@@ -51,6 +51,11 @@ def supported_recommendation_display(
     """
     if deep_own_short_go_notice(state, selected_strategy):
         return "INSUFFICIENT DATA"
+    # Do not advertise a supported field-goal recommendation when there
+    # are no comparable real post-made-FG kickoffs in the final two minutes.
+    if (selected_strategy == "FIELD GOAL"
+            and late_q4_trailing_after_fg_notice(state, {"FIELD GOAL"})):
+        return "INSUFFICIENT DATA"
     return selected_strategy
 
 def late_q4_goal_line_site_notice(
@@ -87,4 +92,39 @@ def late_q4_goal_line_site_notice(
         "backed-up, leading 1–8 Q4 possessions covered only 28 play states "
         "from 13 games (not all following GO failures). The GO-versus-FG "
         "edge has substantial uncertainty beyond simulation error."
+    )
+
+
+def late_q4_trailing_after_fg_notice(
+    state: Mapping, eligible_strategies: set[str]
+) -> str | None:
+    """Display-only guard for made-FG-then-still-behind-by-one extrapolation.
+
+    Issue #12 counted every first post-made-FG REG Q4 standard-35 kickoff
+    within 120 seconds during 2014-2025, including announced onsides:
+    ZERO had a receiving team leading by exactly one point.
+    This is not an estimate of onside recovery or a new WP adjustment.
+    """
+    if "FIELD GOAL" not in eligible_strategies:
+        return None
+    try:
+        quarter = int(state["qtr"])
+        clock = float(state["game_seconds_remaining"])
+        margin = float(state["score_differential"])
+    except (KeyError, ValueError, TypeError):
+        return None
+    if not (math.isfinite(clock) and math.isfinite(margin)):
+        return None
+    if not (quarter == 4 and 0 < clock <= 120 and margin == -4.):
+        return None
+    return (
+        "**Limited late-game field-goal support.** A made field goal would "
+        "still leave this offense trailing by one point. A read-only "
+        "2014–2025 regular-season audit found **zero** qualifying standard-35 "
+        "post-made-field-goal kickoffs in the final two minutes with the "
+        "receiving team leading by exactly one point. The frozen WP "
+        "estimator can also give nonterminal win probabilities when the "
+        "regulation clock has expired. The displayed FIELD GOAL probability "
+        "is an **unvalidated model extrapolation**, NOT a demonstrated chance "
+        "to win or an empirically supported reason to attempt a field goal."
     )
