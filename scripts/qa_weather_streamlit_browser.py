@@ -231,16 +231,30 @@ def analyze(frame, page, *, weather: bool) -> dict:
 def check_baseline_and_weather(frame, page) -> dict:
     # Hide Streamlit's floating developer toolbar and running/stop strip;
     # the app spinner still explains what is being calculated.
-    for test_id in ("stHeader", "stToolbar", "stStatusWidget", "stDecoration"):
+    framework_only = (
+        "stHeader", "stToolbar", "stToolbarActions", "stStatusWidget",
+        "stDecoration", "stMainMenu", "stMainMenuPopover", "stMainMenuList",
+        "stAppDeployButton", "stFooter",
+    )
+    for test_id in framework_only:
         chrome = frame.locator(f'[data-testid="{test_id}"]')
         assert all(
             not chrome.nth(i).is_visible() for i in range(chrome.count())
-        ), f"Unnecessary Streamlit header element still visible: {test_id}"
-    menu = frame.locator("#MainMenu")
-    assert all(not menu.nth(i).is_visible() for i in range(menu.count())), (
-        "Streamlit menu still visible"
+        ), f"Visible framework chrome: {test_id}"
+    for selector in ("#MainMenu", "footer"):
+        chrome = frame.locator(selector)
+        assert all(not chrome.nth(i).is_visible()
+                   for i in range(chrome.count())), (
+            f"Framework menu/footer still visible: {selector}"
+        )
+    # "Made with Streamlit" must never appear to a public visitor, even
+    # when a framework menu is mounted in the DOM but hidden by CSS.
+    branding = frame.get_by_text("Made with Streamlit", exact=False)
+    assert all(not branding.nth(i).is_visible()
+               for i in range(branding.count())), (
+        "Framework branding still appears in page"
     )
-    print("PUBLIC_STREAMLIT_TOOLBAR_HIDDEN_PASS", flush=True)
+    print("PUBLIC_FRAMEWORK_BRANDING_AND_MENU_HIDDEN_PASS", flush=True)
 
     # Inspect positions BEFORE the first full Q4 analysis: that analysis
     # triggers a Streamlit rerender and can detach the embedded field frame.
