@@ -809,6 +809,29 @@ st.markdown(
         padding-bottom: 3rem;
     }
 
+    /* The public decision tool doesn't need Streamlit's developer/status
+       toolbar, three-dot menu or blank sticky header. Long calculations
+       still display the app's own "Evaluating..." spinner. */
+    header[data-testid="stHeader"],
+    [data-testid="stToolbar"],
+    [data-testid="stStatusWidget"],
+    [data-testid="stDecoration"],
+    #MainMenu {
+        display: none !important;
+    }
+    header[data-testid="stHeader"] {
+        height: 0 !important;
+        min-height: 0 !important;
+    }
+
+    /* Streamlit's compact number_input overlays "Press Enter to apply"
+       while focused. Leaving the input (including clicking Analyze)
+       already commits edits; suppress the misleading visual hint only
+       in our two optional weather fields, not the actual input state. */
+    .st-key-weather_inline_controls [data-testid="InputInstructions"] {
+        display: none !important;
+    }
+
     /* Inline weather lives on the SAME input row as line of scrimmage.
        Do not split the field diagram into columns or clip its iframe. */
     .st-key-ball_weather_layout {
