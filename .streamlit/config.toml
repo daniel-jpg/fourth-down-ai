@@ -1,4 +1,7 @@
-# Public demo: remove Streamlit's developer menu.
-# The rest of the app remains controlled by app.py.
+# Render hosts a Streamlit-based UI; make its built-in chrome invisible.
+# This does NOT remove the Streamlit runtime, which the app still needs.
 [client]
 toolbarMode = "minimal"
+
+[ui]
+hideTopBar = true
