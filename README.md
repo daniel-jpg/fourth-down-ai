@@ -1,7 +1,7 @@
 # Fourth Down AI
 
-[![Tests](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/tests.yml)
-[![Render public browser smoke](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/render_public_browser_smoke.yml/badge.svg?branch=main)](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/render_public_browser_smoke.yml)
+[![Tests](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/workflows/tests.yml)
+[![Render public browser smoke](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/workflows/render_public_browser_smoke.yml/badge.svg?branch=main)](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/workflows/render_public_browser_smoke.yml)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Render-46E3B7?logo=render&logoColor=white)](https://fourth-down-ai-nfl.onrender.com/)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -14,18 +14,25 @@ The project supports regulation, 2025+ NFL regular-season overtime, and postseas
 
 [Launch the NFL Fourth-Down Decision AI](https://fourth-down-ai-nfl.onrender.com/)
 
-**Render Free deployment (October 12, 2026):** The official frozen-model
-fourth-down calculator is live at the URL above. A real public Chromium test
-verified the source fingerprint, weather controls and a **Q4 HOME
-recommendation**, plus 32°F/25 mph Snow, Rain and wind-direction research
-comparisons. The [complete hosted Chromium smoke #38315221787](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38315221787)
-**PASSED** on the exact Render URL, including invalid METAR rejection,
-international venue context, and covered-roof behavior.
-On the Free plan the service can sleep after 15 minutes of inactivity and
-take time to wake, and Q4 calculations can take tens of seconds.
+**Current Render Free deployment (October 13, 2026):** Production runs
+source commit [`8251e52`](https://github.com/daniel-jpg/fourth-down-ai-nfl/commit/8251e52716c3adc67ff322fc46fc86f8050b3ca2).
+The [full regression and 21-scenario real-engine QA](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/runs/38327901044)
+passed (1,083 regression tests, 56 Streamlit integration tests and 21
+real-engine game situations). The [Docker Chromium checks](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/runs/38327901035)
+also passed, including repeatedly changing game inputs without a persistent
+dimmed screen, directly editable temperature/wind boxes, field layout and
+covered-roof behavior. These are software and model-consistency checks,
+**not prospective coaching-policy validation**. A separate
+[public Render browser smoke workflow](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/workflows/render_public_browser_smoke.yml)
+checks the actual hosted site after manual deployment.
+The app uses Streamlit internally but is hosted on Render; the legacy
+Streamlit menus and branding are hidden. Weather affects only the optional,
+unvalidated FG sensitivity comparison, never the official recommendation.
+On the Free plan the service can sleep after inactivity and take time to
+wake, and Q4 calculations can take tens of seconds.
 
-[Render public browser checks](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/render_public_browser_smoke.yml) ·
-[Hosted reliability issue and evidence](https://github.com/daniel-jpg/fourth-down-ai/issues/11) ·
+[Render public browser checks](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/workflows/render_public_browser_smoke.yml) ·
+[Hosted reliability issue and evidence](https://github.com/daniel-jpg/fourth-down-ai-nfl/issues/11) ·
 [Legacy Streamlit Community Cloud mirror](https://fourth-down-ai.streamlit.app/) (intermittently unreliable).
 The **Tests** badge verifies offline model and application code only;
 the public browser smoke is a separate verification of the hosted website.
@@ -33,7 +40,7 @@ the public browser smoke is a separate verification of the hosted website.
 ## Portable Docker fallback
 
 Streamlit Community Cloud has shown intermittent startup failures even
-though the [independent local Chromium test](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38306046798)
+though the [independent local Chromium test](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/runs/38306046798)
 completed a real Q4 HOME calculation in 6.05 seconds. To preserve a
 hosting-independent option, the repository now contains a production
 `Dockerfile` using the **same frozen model artifacts and simulation logic**.
@@ -48,12 +55,12 @@ Then open `http://localhost:8501`. Streamlit also serves a health probe at
 the process runs without root privileges. The build excludes local secrets,
 raw/evaluation/prospective play data, and unreviewed candidate models.
 
-[Portable Docker browser QA](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/portable_docker_streamlit.yml)
+[Portable Docker browser QA](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/workflows/portable_docker_streamlit.yml)
 builds the image and tests a full Q4 HOME recommendation in Chromium.
 The same image is deployed on the [Render Free service](https://fourth-down-ai-nfl.onrender.com/).
 Core Q4 and weather what-if calculations have been observed in a public browser.
 The legacy Streamlit Community Cloud website is not proven healthy;
-see [Issue #11](https://github.com/daniel-jpg/fourth-down-ai/issues/11).
+see [Issue #11](https://github.com/daniel-jpg/fourth-down-ai-nfl/issues/11).
 
 ## Render Free hosting
 
@@ -71,7 +78,7 @@ the connected Render workspace lists **only fourth-down-ai-nfl**; older
 Fourth-Down AI services are no longer present.
 
 [Free hosting operation and cleanup](docs/render_hosting.md) ·
-[Actual public Q4 and weather browser tests](https://github.com/daniel-jpg/fourth-down-ai/actions/workflows/render_public_browser_smoke.yml).
+[Actual public Q4 and weather browser tests](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/workflows/render_public_browser_smoke.yml).
 
 
 ## Demo
@@ -82,13 +89,13 @@ Fourth-Down AI services are no longer present.
 
 Fourth Down AI asks a practical question: **given the score, clock, field position and timeouts right now, which available fourth-down action has the highest *modeled* chance of winning?** It estimates each eligible action's immediate outcome, simulates the resulting game states, and compares their downstream win probabilities (or overtime game values). The model is decision-support research, **not a causal proof** that a coach should follow a particular play.
 
-**Try a representative scenario:** Q4, 7:38 remaining, trailing 24–27, fourth-and-3 at the opponent's 30-yard line, with three timeouts for each team. The current corrected-Q4 research demo estimates **GO FOR IT: 41.53%** (RUN), **PASS: 41.06%**, **FIELD GOAL: 35.20%**, and **PUNT: 22.11%**. Its **+6.33-percentage-point *model-estimated* advantage** for GO versus FG and the small RUN/PASS separation were reproduced in the [real-engine QA matrix](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38199827967). These are fixed-input illustrative estimates, not observed NFL outcomes, causal advice, or proof of prospective calibration.
+**Try a representative scenario:** Q4, 7:38 remaining, trailing 24–27, fourth-and-3 at the opponent's 30-yard line, with three timeouts for each team. The current corrected-Q4 research demo estimates **GO FOR IT: 41.53%** (RUN), **PASS: 41.06%**, **FIELD GOAL: 35.20%**, and **PUNT: 22.11%**. Its **+6.33-percentage-point *model-estimated* advantage** for GO versus FG and the small RUN/PASS separation were reproduced in the [real-engine QA matrix](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/runs/38199827967). These are fixed-input illustrative estimates, not observed NFL outcomes, causal advice, or proof of prospective calibration.
 
 **What makes the project distinctive:** action-specific GO/FG/punt outcome models, realistic sampled next-state transitions, adaptive Monte Carlo comparison, rule-aware overtime handling, and separate, reproducible 2025 kickoff research in the repository (not the public app). Open **Why this recommendation? Immediate action odds** in the app to see conversion and kick-outcome assumptions separately from overall game value.
 
-**Evidence at a glance:** The frozen v1.1.0 2025 benchmark includes WP AUC **0.81781**, GO conversion Brier **0.22817**, and FG Brier **0.10931** (see [full benchmark](#held-out-2025-snapshot)). [CI #252](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38199827967) passed **328 regression tests, 45 Streamlit integration tests, and 15 additional real-engine situation audits**, spanning regulation, endgame and regular/postseason overtime. The extra audits check mathematical consistency, model support and software operation, **not actual-game calibration or causal coaching effectiveness**. Later 2025 explorations are no longer untouched holdouts; the [precommitted 2026 test](reports/2026_native_kickoff_challenger_protocol.md) remains gated.
+**Evidence at a glance:** The frozen v1.1.0 2025 benchmark includes WP AUC **0.81781**, GO conversion Brier **0.22817**, and FG Brier **0.10931** (see [full benchmark](#held-out-2025-snapshot)). [current CI](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/runs/38327901044) passed **1,083 regression tests, 56 Streamlit integration tests, and 21 additional real-engine situation audits**, spanning regulation, endgame and regular/postseason overtime. The extra audits check mathematical consistency, model support and software operation, **not actual-game calibration or causal coaching effectiveness**. Later 2025 explorations are no longer untouched holdouts; the [precommitted 2026 test](reports/2026_native_kickoff_challenger_protocol.md) remains gated.
 
-**Explore:** [Live demo](https://fourth-down-ai.streamlit.app/) · [How it works](#how-it-works) · [Evaluation](#data-and-evaluation-design) · [Limitations](#limitations) · [Research-demo readiness](reports/88_research_demo_release_readiness.md)
+**Explore:** [Live demo](https://fourth-down-ai-nfl.onrender.com/) · [How it works](#how-it-works) · [Evaluation](#data-and-evaluation-design) · [Limitations](#limitations) · [Research-demo readiness](reports/88_research_demo_release_readiness.md)
 
 ## Features
 
@@ -212,10 +219,10 @@ continues to test source integrity and age/distance guards independently
 of the main UI. Real signed on-field wind vectors and precipitation
 intensity are still needed for a validated weather-aware recommendation.
 
-A [real NOAA API schema smoke test](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38292972017)
+A [real NOAA API schema smoke test](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/runs/38292972017)
 **passed on October 12, 2026**, retrieving a genuine KSEA airport report
 after introducing a tightly bounded second try for a transient HTTP read
-timeout. The [deterministic offline checks](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38292941260)
+timeout. The [deterministic offline checks](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/runs/38292941260)
 also passed **28 tests**, including a published NOAA response-format example
 and no-retry guards for blocked or empty responses. The live trial used
 **the airport itself as a fake football field** with an invented heading,
@@ -257,9 +264,9 @@ refuses a known international matchup **before making HTTP requests**.
 Other nonmatching games remain unverified, rather than presumed
 domestic. [Read the venue exception study](reports/2026_nfl_stadium_weather_geometry.md).
 
-Buffalo's weather panel now shows the source-backed **north/south**
-end-zone orientation and an optional **specific-play direction claim /
-receipt viewer**.
+The public app no longer has a Buffalo/stadium research panel; the
+**north/south** end-zone-orientation claim and optional specific-play
+direction evidence viewer remain offline research utilities only.
 A separate [Buffalo WGS84 field-axis measurement CLI](scripts/measure_buffalo_field_axis.py)
 now accepts TWO original, independently sourced, user-supplied **north
 and south goal-line (100 yd) or back end-line (120 yd) midpoint**
@@ -281,7 +288,7 @@ the decision is retrospective only, and neither the claim nor its hash
 can change the official model. [Research and verification details](reports/buffalo_2026_attack_direction_source_evidence.md).
 
 The [stadium geometry tests](tests/test_nfl_stadium_weather_geometry.py)
-and [dedicated synthetic 2026 GitHub workflow](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38293909282)
+and [dedicated synthetic 2026 GitHub workflow](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/runs/38293909282)
 passed **87 checks**, including a fake Seattle venue to nearby airport
 wind-vector receipt, a blocked second receipt write and model-input
 isolation. Protected model artifacts and future-season evaluation gates
@@ -527,7 +534,7 @@ now test **all 272** game identities and final margins against a distinct,
 fabricated ESPN-shaped reference, enforce the 32-team/17-game schedule,
 seal label-free predictions before joining post-game outcomes, and refuse
 rerunning an existing output directory. The
-[focused CI run](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38285893397)
+[focused CI run](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/runs/38285893397)
 passed **23 tests**, replayed the existing **3,151-game independent historical
 ESPN score archive**, and confirmed the second evaluation attempt fails.
 See the [postseason admission contract](reports/2027_postseason_existing_data_gate.md).
@@ -554,7 +561,7 @@ checkout/output directory, cannot evaluate the same fabricated season.
 The [read-only GitHub tag protection auditor](scripts/audit_2027_tag_rulesets.py)
 and [admin-ready proposal](reports/2027_tag_protection_ruleset_proposal.json)
 identify missing/bypassable protections for the future release tag. The
-[focused CI run](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38287998156)
+[focused CI run](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/runs/38287998156)
 passed **46 tests**. **Actual GitHub tag rulesets are currently absent;
 no GitHub rule or real 2027 release ref was installed/created.** See the
 [release-readiness status and required admin setup](reports/2027_release_tag_protection_preflight.md).
@@ -856,14 +863,14 @@ python -m pytest -v tests/test_streamlit_app_integration.py
 
 CI runs this as a separately named step and retains its JUnit report for
 14 days. AppTest tests Python-side UI logic; it does not execute custom
-field JavaScript or certify responsive layout. Separately, the
-[latest complete CI run #249](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38197422315)
-and [hosted Chromium browser run #15](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38197422175)
-**passed together on commit `31176d5`**. The browser rendered the
-corrected Q4 recommendation and Close call, with no `INCONCLUSIVE`
-label or research checkbox. The site returned a stable completed result
-after Streamlit reruns. These verify behavior, not future-game calibration
-or causal coaching impact. See the
+field JavaScript or certify responsive layout. As of October 13, 2026 the
+[full regression and 21-case QA](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/runs/38327901044)
+and [Docker Chromium weather and repeated-edit QA](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/runs/38327901035)
+passed together for the deployed application source. A separate
+[public Render browser workflow](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/workflows/render_public_browser_smoke.yml)
+must pass before a particular deployed version is claimed fully verified
+in the hosted browser. These verify software behavior, not future-game
+calibration or causal coaching impact. See the historical
 [Step 85 readiness review](reports/85_streamlit_ui_release_readiness.md).
 
 ## Tech Stack
@@ -902,11 +909,11 @@ The working `main` app is suitable for a **qualified technical
 research demo**, not a validated NFL coaching policy or a new published
 stable version.
 
-- **[Tests #249](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38197422315) passed** on app commit `31176d50af25db9dd42dae07e9b17cb5c2b930b4`, including frozen-artifact preflight, model regressions, the same-seed corrected Q4 numeric check and Streamlit integration tests.
-- **[Live browser #15](https://github.com/daniel-jpg/fourth-down-ai/actions/runs/38197422175) passed** on the same commit. The hosted Streamlit site rendered its model-based Q4 decision, Close call warning and stable result without the old experimental panel.
-- [Release-QA Issue #5](https://github.com/daniel-jpg/fourth-down-ai/issues/5) is closed; mobile layout was accepted. The exact hosted deployment Git SHA has **not** been independently attested, and a visible build-ID panel will not be reinstated.
-- The precommitted [Step 66/83 prospective 2026 gates](reports/2026_native_kickoff_challenger_protocol.md) have **not** been opened early. The 2023–2025 retrospective correction was better overall, but did not improve every subgroup and does not demonstrate a causal FG-vs-GO policy gain. [Issue #6](https://github.com/daniel-jpg/fourth-down-ai/issues/6) tracks the review **after** the automatic once-only reports become available.
-- A [stale unpublished research-demo draft](https://github.com/daniel-jpg/fourth-down-ai/issues/7) still advertises removed controls. It must be refreshed or discarded before any GitHub Release publication; the connected release-editing operation previously returned 403. Stable `v1.1.0` remains unchanged.
+- **[Current regression and scenario QA](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/runs/38327901044) passed** on app commit `8251e52`, including frozen-artifact preflight, corrected Q4 numeric anchors, 21 realistic game situations and 56 integration checks.
+- **[Current Docker browser QA](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/runs/38327901035) passed** on that same commit, checking the fourth-down UI, weather and roof isolation, and repeated input changes without persistent dimming. Hosted Render checks remain an independent verification step.
+- [Release-QA Issue #5](https://github.com/daniel-jpg/fourth-down-ai-nfl/issues/5) is closed; mobile layout was accepted. Render's API confirms the live deployed commit but this alone does not attest every browser-visible behavior.
+- The precommitted [Step 66/83 prospective 2026 gates](reports/2026_native_kickoff_challenger_protocol.md) have **not** been opened early. The 2023–2025 retrospective correction was better overall, but did not improve every subgroup and does not demonstrate a causal FG-vs-GO policy gain. [Issue #6](https://github.com/daniel-jpg/fourth-down-ai-nfl/issues/6) tracks the review **after** the automatic once-only reports become available.
+- A [stale unpublished research-demo draft](https://github.com/daniel-jpg/fourth-down-ai-nfl/issues/7) still advertises removed controls. It must be refreshed or discarded before any GitHub Release publication; the connected release-editing operation previously returned 403. Stable `v1.1.0` remains unchanged.
 
 See the [readiness review](reports/88_research_demo_release_readiness.md)
 and [release checklist](reports/90_release_candidate_checklist.md).
