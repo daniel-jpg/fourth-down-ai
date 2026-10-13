@@ -153,6 +153,13 @@ def main() -> None:
             edit_number(frame, page, "Offense score", 24)
             edit_number(frame, page, "Defense score", 27)
             edit_time(frame, page, "07:38")
+            # The score text must reflect the most recent edits after the
+            # server finishes rerendering; checking only the title's opacity
+            # could miss temporarily stale situation text on Render Free.
+            frame.get_by_text(
+                "Offense trailing by 3", exact=True
+            ).wait_for(state="visible", timeout=60000)
+            print("REPEAT_EDIT_LATEST_SCORE_CONFIRMED_PASS", flush=True)
             # Streamlit's browser selectbox changes immediately, while the
             # server's rewritten weather controls can take noticeably longer
             # on Render Free. Wait for the actual effect of the roof change,
