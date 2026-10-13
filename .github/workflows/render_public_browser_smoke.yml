@@ -4,6 +4,7 @@ name: Verify public Render Q4, weather and repeated edits in Chromium
 # Do not test ordinary app pushes against an older deployed commit. QA-only
 # browser script changes may safely test the existing public deployment.
 # Verify the matching app version first via its source fingerprint.
+# Post-deploy QA-only run for live free-tier Render release b8bea5a (no application source change).
 on:
   push:
     branches: [main]
