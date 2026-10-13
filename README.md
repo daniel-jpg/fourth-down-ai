@@ -32,8 +32,9 @@ On the Free plan the service can sleep after inactivity and take time to
 wake, and Q4 calculations can take tens of seconds.
 
 [Render public browser checks](https://github.com/daniel-jpg/fourth-down-ai-nfl/actions/workflows/render_public_browser_smoke.yml) ·
-[Hosted reliability issue and evidence](https://github.com/daniel-jpg/fourth-down-ai-nfl/issues/11) ·
-[Legacy Streamlit Community Cloud mirror](https://fourth-down-ai.streamlit.app/) (intermittently unreliable).
+[Historical migration/hosting investigation](https://github.com/daniel-jpg/fourth-down-ai-nfl/issues/11).
+The former Community Cloud deployment is **retired from supported use**;
+the public demo URL above is the Render service.
 The **Tests** badge verifies offline model and application code only;
 the public browser smoke is a separate verification of the hosted website.
 
@@ -59,8 +60,9 @@ raw/evaluation/prospective play data, and unreviewed candidate models.
 builds the image and tests a full Q4 HOME recommendation in Chromium.
 The same image is deployed on the [Render Free service](https://fourth-down-ai-nfl.onrender.com/).
 Core Q4 and weather what-if calculations have been observed in a public browser.
-The legacy Streamlit Community Cloud website is not proven healthy;
-see [Issue #11](https://github.com/daniel-jpg/fourth-down-ai-nfl/issues/11).
+The older Community Cloud website is no longer a supported deployment; see
+the [historical hosting investigation](https://github.com/daniel-jpg/fourth-down-ai-nfl/issues/11).
+The actively maintained public demo runs on Render.
 
 ## Render Free hosting
 
