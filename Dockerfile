@@ -22,6 +22,8 @@ RUN useradd --create-home --uid 10001 appuser
 # Only app/runtime paths. The .dockerignore explicitly blocks all
 # prospective/research/evaluation inputs and non-production models.
 COPY --chown=appuser:appuser app.py ./
+# Include ONLY the public Streamlit display configuration (no secrets).
+COPY --chown=appuser:appuser .streamlit/config.toml ./.streamlit/config.toml
 COPY --chown=appuser:appuser src/ ./src/
 COPY --chown=appuser:appuser models/ ./models/
 COPY --chown=appuser:appuser data/ ./data/
