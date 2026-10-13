@@ -5,7 +5,9 @@
 **/.env
 **/.env.*
 **/secrets.toml
-.streamlit
+# Include only the safe public toolbar configuration, not local secrets.
+.streamlit/*
+!.streamlit/config.toml
 .venv
 venv
 **/__pycache__
