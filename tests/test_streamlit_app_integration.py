@@ -942,3 +942,28 @@ def test_real_2025_style_own_one_4th11_go_is_not_promoted(ui):
     assert "Insufficient support for a long GO deep in own territory" in values(at, "warning")
     assert m["PASS / DROPBACK"] == "37.23%" and m["PUNT"] == "36.51%"
     assert not at.exception
+
+
+
+@pytest.mark.parametrize("offense,defense,differential", [
+    (27, 31, -4), (17, 21, -4), (27, 24, 3),
+    (0, 0, 0), (24, 24, 0), (0, 7, -7),
+])
+def test_both_ui_team_scores_reach_engine_as_score_margin(
+    ui, offense, defense, differential,
+):
+    """App accepts both scores, sends their difference to the real interface."""
+    at = ui.at
+    widget(at, "number_input", "Offense score").set_value(offense)
+    widget(at, "number_input", "Defense score").set_value(defense)
+    run(at)
+    analyze(at)
+    state, sim_count, seed = ui.engine.calls[-1]
+    assert state["score_differential"] == float(differential)
+    assert "offense_score" not in state and "defense_score" not in state
+    assert state["posteam_timeouts_remaining"] == 3.0
+    assert state["defteam_timeouts_remaining"] == 3.0
+    assert state["qtr"] == 4
+    assert (sim_count, seed) == (1200, 43)
+    assert metrics(at)["Recommendation"]
+    assert not at.exception
