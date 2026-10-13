@@ -36,7 +36,7 @@ ROOF_LABELS = {
 # =========================================================
 
 st.set_page_config(
-    page_title="NFL Fourth-Down Decision AI",
+    page_title="Fourth Down AI",
     page_icon="🏈",
     layout="wide",
 )

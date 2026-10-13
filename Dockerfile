@@ -17,6 +17,13 @@ COPY requirements.txt ./
 RUN python -m pip install --no-cache-dir --disable-pip-version-check \
     -r requirements.txt
 
+# Streamlit's initial static HTML is seen by link-preview bots before Python
+# sets the page title. Brand ONLY the self-hosted page shell and favicon.
+# Fail the Docker build if the pinned vendor HTML format has changed.
+COPY assets/brand_streamlit_shell.py /tmp/brand_streamlit_shell.py
+RUN python /tmp/brand_streamlit_shell.py \
+    && rm /tmp/brand_streamlit_shell.py
+
 RUN useradd --create-home --uid 10001 appuser
 
 # Only app/runtime paths. The .dockerignore explicitly blocks all
